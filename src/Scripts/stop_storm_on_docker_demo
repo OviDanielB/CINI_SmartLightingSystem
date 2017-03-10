@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo '[STOP_DEMO] Removing following containers:'
+docker rm -f ui
+docker rm -f supervisor1
+docker rm -f supervisor2
+docker rm -f supervisor3
+docker rm -f some-nimbus
+docker rm -f some-zookeeper

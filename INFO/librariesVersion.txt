@@ -1,0 +1,3 @@
+storm-core   1.0.3
+zookeeper    3.4
+rabbitmq     3.6.6

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+cd ../../target
+ls
+
+ZK=$(docker run -d --restart always --name some-zookeeper zookeeper:3.4)
+echo [START_DEMO] Zookeeper started on container some-zookeeper with ID $ZK
+sleep 3
+NIM=$(docker run -d --restart always --name some-nimbus --link some-zookeeper:zookeeper storm:1.0.3 storm nimbus)
+echo [START_DEMO] Nimbus started on container some-nimbus with ID $NIM
+sleep 7
+SUP1=$(docker run -d --restart always --name supervisor1 --link some-zookeeper:zookeeper --link some-nimbus:nimbus storm:1.0.3 storm supervisor)
+echo [START_DEMO] Supervisor started on container supervisor1 with ID $SUP1
+
+SUP2=$(docker run -d --restart always --name supervisor2 --link some-zookeeper:zookeeper --link some-nimbus:nimbus storm:1.0.3 storm supervisor)
+echo [START_DEMO] Supervisor started on container supervisor2 with ID $SUP2
+
+SUP3=$(docker run -d --restart always --name supervisor3 --link some-zookeeper:zookeeper --link some-nimbus:nimbus storm:1.0.3 storm supervisor)
+echo [START_DEMO] Supervisor started on container supervisor3 with ID $SUP3
+
+
+
+echo '[START_DEMO] Submitting Topology in jar file mavenstormdemo.jar'
+
+docker run --link some-nimbus:nimbus -it --rm -v $(pwd)/CINI_SmartLightingSystem-1.0.jar:/CINI_SmartLightingSystem-1.0.jar storm:1.0.3 storm jar /CINI_SmartLightingSystem-1.0.jar org.uniroma2.sdcc.Example.HelloStorm ../src/Scripts/file.txt
+sleep 3
+echo '[START_DEMO] Starting Stom UI on localhost:8080 ; retry a few times until ready'
+docker run -d -p 8080:8080 --restart always --name ui --link some-nimbus:nimbus storm:1.0.3 storm ui
