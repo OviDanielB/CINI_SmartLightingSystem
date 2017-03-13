@@ -8,3 +8,12 @@
 3) per far partire una demo di storm su docker, da terminale in src/Scripts far partire
         ./start_storm_on_docker_demo
         e fermalo con ./stop_storm_on_docker_demo
+
+4) File di configurazione 'config/config.yml' usando il linguaggio YAML;
+
+        https://bitbucket.org/asomov/snakeyaml/wiki/Documentation
+
+        Uso:
+                            Yaml yaml = new Yaml();
+                            Object v = yaml.load(new FileInputStream(new File("config/config.yml")));
+                            System.out.println(v.toString());
