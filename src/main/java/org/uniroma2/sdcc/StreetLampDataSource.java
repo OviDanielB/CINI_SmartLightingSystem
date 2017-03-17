@@ -13,8 +13,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
 
-public class StreetLampDataSource
-{
+public class StreetLampDataSource {
 
     private static String QUEUE_NAME = "storm";
 
@@ -31,10 +30,10 @@ public class StreetLampDataSource
 
                 channel.queueDeclare(QUEUE_NAME, false, false, false, null);
 
-                StreetLampMessage streetLamp ;
+                StreetLampMessage streetLamp;
                 Gson gson = new Gson();
                 String message;
-                while(true) {
+                while (true) {
                     streetLamp = generateRandomStreetLight();
                     message = gson.toJson(streetLamp);
                     channel.basicPublish("", "storm", null, message.getBytes());
@@ -54,7 +53,6 @@ public class StreetLampDataSource
         producer.run();
 
 
-
     }
 
     private static StreetLampMessage generateRandomStreetLight() {
@@ -70,11 +68,8 @@ public class StreetLampDataSource
         streetLamp.setLampModel(Lamp.LED);
         streetLamp.setOn(true);
         streetLamp.setConsumption(generateRandomFloat());
+        streetLamp.setLifetime("13/02/2016");
 
-        DateTimeFormatter formatter = DateTimeFormat.forPattern("dd/MM/yyyy");
-        DateTime dt = formatter.parseDateTime("13/02/2016");
-        streetLamp.setLifetime(dt);
-        
         StreetLampMessage message = new StreetLampMessage();
         message.setNaturalLight(new NaturalLight(generateRandomFloat()));
         message.setStreetLamp(streetLamp);
@@ -84,16 +79,14 @@ public class StreetLampDataSource
     }
 
     private static float generateRandomFloat() {
-        float rand =(float) (Math.random() * 100);
-        return rand;
+        return (float) (Math.random() * 100);
     }
 
     private static int generateRandomInt() {
-        int rand = (int) (Math.random() * 100000);
-        return rand;
+        return (int) (Math.random() * 100000);
     }
 
-    public static void main( String[] args ) {
+    public static void main(String[] args) {
         rabbitProducer();
     }
 }

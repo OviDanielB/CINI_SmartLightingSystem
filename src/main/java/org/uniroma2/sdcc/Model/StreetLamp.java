@@ -1,7 +1,5 @@
 package org.uniroma2.sdcc.Model;
 
-import org.joda.time.DateTime;
-
 import java.io.Serializable;
 
 public class StreetLamp implements Serializable{
@@ -14,13 +12,13 @@ public class StreetLamp implements Serializable{
     private Address address;
     private Float lightIntensity;
     private Float consumption;
-    private DateTime lifetime;
+    private String lifetime;
 
     public StreetLamp() {
     }
 
     public StreetLamp(int ID, boolean on, Lamp lampModel, Address address,
-                      Float lightIntensity, Float consumption, DateTime lifetime) {
+                      Float lightIntensity, Float consumption, String lifetime) {
         this.ID = ID;
         this.on = on;
         this.lampModel = lampModel;
@@ -78,11 +76,11 @@ public class StreetLamp implements Serializable{
         this.consumption = consumption;
     }
 
-    public DateTime getLifetime() {
+    public String getLifetime() {
         return lifetime;
     }
 
-    public void setLifetime(DateTime lifetime) {
+    public void setLifetime(String lifetime) {
         this.lifetime = lifetime;
     }
 }
