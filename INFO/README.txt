@@ -17,3 +17,4 @@
                             Yaml yaml = new Yaml();
                             Object v = yaml.load(new FileInputStream(new File("config/config.yml")));
                             System.out.println(v.toString());
+

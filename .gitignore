@@ -1,0 +1,6 @@
+.idea/workspace.xml
+.idea/task.xml
+.idea/**/*.iws
+*/target/**
+.classpath
+.project

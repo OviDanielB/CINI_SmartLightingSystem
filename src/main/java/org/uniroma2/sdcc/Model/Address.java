@@ -1,35 +1,25 @@
 package org.uniroma2.sdcc.Model;
 
-/**
- * Created by ovidiudanielbarba on 16/03/2017.
- */
+import java.io.Serializable;
 
 /**
  * defines a city address
  */
-public class Address {
+public class Address implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private String name;
-    private AddressType addressType;
     private int number;
     private AddressNumberType numberType;
 
     public Address() {
     }
 
-    public Address(AddressType addressType, String name, int number, AddressNumberType numberType) {
-        this.addressType = addressType;
+    public Address(String name, int number, AddressNumberType numberType) {
         this.name = name;
         this.number = number;
         this.numberType = numberType;
-    }
-
-    public AddressType getAddressType() {
-        return addressType;
-    }
-
-    public void setAddressType(AddressType addressType) {
-        this.addressType = addressType;
     }
 
     public String getName() {
@@ -56,13 +46,7 @@ public class Address {
         this.numberType = numberType;
     }
 
-    @Override
     public String toString() {
-        return "Address{" +
-                "name='" + name + '\'' +
-                ", addressType=" + addressType +
-                ", number=" + number +
-                ", numberType=" + numberType +
-                '}';
+        return name + " " + numberType.toString().toLowerCase() + " " + number;
     }
 }

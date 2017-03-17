@@ -1,25 +1,26 @@
 package org.uniroma2.sdcc.Model;
 
-import java.util.Date;
+import org.joda.time.DateTime;
 
-/**
- * Created by ovidiudanielbarba on 16/03/2017.
- */
-public class StreetLamp {
+import java.io.Serializable;
 
-    private int ID;
+public class StreetLamp implements Serializable{
+
+    private static final long serialVersionUID = 1L;
+
+    private Integer ID;
     private boolean on;
     private Lamp lampModel;
     private Address address;
-    private float lightIntensity;
-    private float consumption;
-    private Date lifetime;
+    private Float lightIntensity;
+    private Float consumption;
+    private DateTime lifetime;
 
     public StreetLamp() {
     }
 
     public StreetLamp(int ID, boolean on, Lamp lampModel, Address address,
-                      float lightIntensity, float consumption, Date lifetime) {
+                      Float lightIntensity, Float consumption, DateTime lifetime) {
         this.ID = ID;
         this.on = on;
         this.lampModel = lampModel;
@@ -77,11 +78,11 @@ public class StreetLamp {
         this.consumption = consumption;
     }
 
-    public Date getLifetime() {
+    public DateTime getLifetime() {
         return lifetime;
     }
 
-    public void setLifetime(Date lifetime) {
+    public void setLifetime(DateTime lifetime) {
         this.lifetime = lifetime;
     }
 }
