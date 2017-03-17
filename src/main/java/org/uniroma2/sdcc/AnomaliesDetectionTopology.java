@@ -6,9 +6,9 @@ import org.apache.storm.topology.TopologyBuilder;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
 
-public class DetectionAnomaliesTopology {
+public class AnomaliesDetectionTopology {
 
-    public DetectionAnomaliesTopology() {
+    public AnomaliesDetectionTopology() {
     }
 
     public static void main(String[] args) throws Exception {

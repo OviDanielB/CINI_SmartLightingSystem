@@ -1,5 +1,8 @@
 package org.uniroma2.sdcc.Spouts;
 
+import com.codahale.metrics.ConsoleReporter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.rabbitmq.client.*;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -7,29 +10,57 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * Created by ovidiudanielbarba on 14/03/2017.
+ */
 public class RabbitMQSpout extends BaseRichSpout {
 
     private Connection connection;
     private Channel channel;
+    private ConnectionFactory connectionFactory;
     private SpoutOutputCollector outputCollector;
+    private Consumer consumer;
 
+    /* measure requests/second */
+    private  MetricRegistry metrics ;
+    private Meter requests;
+
+    // TODO Remove
     private List<String> messageQueue;
 
     private static String QUEUE_NAME = "storm";
+
+
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         outputCollector = collector;
         messageQueue = new ArrayList<>();
 
+        prepareMetrics();
         prepareRabbitConnection();
+
+    }
+
+    private void prepareMetrics() {
+        metrics = new MetricRegistry();
+        requests = metrics.meter("messages");
+
+        /* starts reporting every second requests/sec */
+        ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)
+                .convertRatesTo(TimeUnit.SECONDS)
+                .convertDurationsTo(TimeUnit.MILLISECONDS)
+                .build();
+        reporter.start(1, TimeUnit.SECONDS);
     }
 
     private void prepareRabbitConnection() {
@@ -62,6 +93,11 @@ public class RabbitMQSpout extends BaseRichSpout {
             Consumer consumer = new DefaultConsumer(channel) {
                 @Override
                 public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+
+                    /* contribute to metrics */
+                    requests.mark();
+
+                    /* convert mess byte array to string*/
                     String message = new String(body, "UTF-8");
                     System.out.println("[CINI] RabbitMQSpout received '" + message + "'");
                     messageQueue.add(message);
@@ -72,9 +108,9 @@ public class RabbitMQSpout extends BaseRichSpout {
             };
 
             try {
+                // autoAck = false => send automatic ack
+                channel.basicConsume(QUEUE_NAME, false, consumer);
 
-                    // autoAck = false => send automatic ack
-                    channel.basicConsume(QUEUE_NAME, false, consumer);
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -87,6 +123,13 @@ public class RabbitMQSpout extends BaseRichSpout {
         } catch (TimeoutException e) {
             e.printStackTrace();
         }
+
+
+
+    }
+
+    static void startReport() {
+
     }
 
     @Override
@@ -94,6 +137,7 @@ public class RabbitMQSpout extends BaseRichSpout {
         if(messageQueue.size() == 0){
             return;
         }
+
 
         String mess = messageQueue.get(0);
         messageQueue.remove(0);

@@ -1,17 +1,9 @@
 package org.uniroma2.sdcc.Example;
 
-import com.rabbitmq.client.*;
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
-import org.apache.storm.StormSubmitter;
-import org.apache.storm.shade.org.yaml.snakeyaml.Yaml;
 import org.apache.storm.topology.TopologyBuilder;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
 
 /**
@@ -21,7 +13,7 @@ public class HelloStorm {
 
     public static void main(String[] args) throws Exception{
         Config config = new Config();
-        config.setDebug(true);
+        //config.setDebug(true);
         config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         TopologyBuilder builder = new TopologyBuilder();
