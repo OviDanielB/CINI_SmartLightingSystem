@@ -1,5 +1,6 @@
 package org.uniroma2.sdcc.Bolt;
 
+import com.google.gson.Gson;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -41,7 +42,12 @@ public class FilteringBolt extends BaseRichBolt {
 
     @Override
     public void execute(Tuple tuple) {
-        StreetLampMessage msg = (StreetLampMessage) tuple.getValue(0);
+
+        String json = (String) tuple.getValueByField("line");
+
+        Gson gson = new Gson();
+//      JSON to Java object, read it from a Json String.
+        StreetLampMessage msg = gson.fromJson(json, StreetLampMessage.class);
         StreetLamp streetLamp = msg.getStreetLamp();
 
         Integer id = streetLamp.getID();
@@ -50,7 +56,7 @@ public class FilteringBolt extends BaseRichBolt {
         String model = streetLamp.getLampModel().toString();
         Float consumption = streetLamp.getConsumption();
         Float intensity = streetLamp.getLightIntensity();
-        String date = streetLamp.getLifetime().toString();
+        String date = streetLamp.getLifetime();
         Float naturalLight = msg.getNaturalLight().getLevel();
         String timestamp = msg.getTimestamp().toString();
 
@@ -66,6 +72,8 @@ public class FilteringBolt extends BaseRichBolt {
         values.add(timestamp);
 
         collector.emit(values);
+        collector.ack(tuple);
+
     }
 
     @Override
