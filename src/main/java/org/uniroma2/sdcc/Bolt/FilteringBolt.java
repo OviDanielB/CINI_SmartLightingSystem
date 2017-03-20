@@ -9,7 +9,6 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Model.StreetLamp;
-import org.uniroma2.sdcc.Model.StreetLampMessage;
 
 import java.util.Map;
 
@@ -47,18 +46,16 @@ public class FilteringBolt extends BaseRichBolt {
 
         Gson gson = new Gson();
 //      JSON to Java object, read it from a Json String.
-        StreetLampMessage msg = gson.fromJson(json, StreetLampMessage.class);
-        StreetLamp streetLamp = msg.getStreetLamp();
+        StreetLamp data = gson.fromJson(json, StreetLamp.class);
 
-        Integer id = streetLamp.getID();
-        String address = streetLamp.getAddress().toString();
-        Boolean on = streetLamp.isOn();
-        String model = streetLamp.getLampModel().toString();
-        Float consumption = streetLamp.getConsumption();
-        Float intensity = streetLamp.getLightIntensity();
-        String date = streetLamp.getLifetime();
-        Float naturalLight = msg.getNaturalLight().getLevel();
-        String timestamp = msg.getTimestamp().toString();
+        Integer id = data.getID();
+        String address = data.getAddress().toString();
+        Boolean on = data.isOn();
+        String model = data.getLampModel().toString();
+        Float consumption = data.getConsumption();
+        Float intensity = data.getLightIntensity();
+        String date = data.getLifetime();
+        String timestamp = data.toString();
 
         Values values = new Values();
         values.add(id);
@@ -68,12 +65,10 @@ public class FilteringBolt extends BaseRichBolt {
         values.add(consumption);
         values.add(intensity);
         values.add(date);
-        values.add(naturalLight);
         values.add(timestamp);
 
         collector.emit(values);
         collector.ack(tuple);
-
     }
 
     @Override

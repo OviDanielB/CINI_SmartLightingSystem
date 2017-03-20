@@ -2,7 +2,7 @@ package org.uniroma2.sdcc.Model;
 
 import java.io.Serializable;
 
-public class StreetLamp implements Serializable{
+public class StreetLamp implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -13,6 +13,8 @@ public class StreetLamp implements Serializable{
     private Float lightIntensity;
     private Float consumption;
     private String lifetime;
+    private Long timestamp;
+
 
     public StreetLamp() {
     }
@@ -26,13 +28,19 @@ public class StreetLamp implements Serializable{
         this.lightIntensity = lightIntensity;
         this.consumption = consumption;
         this.lifetime = lifetime;
+        timestamp = System.currentTimeMillis();
     }
 
-    public int getID() {
+
+    public static long getSerialVersionUID() {
+        return serialVersionUID;
+    }
+
+    public Integer getID() {
         return ID;
     }
 
-    public void setID(int ID) {
+    public void setID(Integer ID) {
         this.ID = ID;
     }
 
@@ -60,19 +68,19 @@ public class StreetLamp implements Serializable{
         this.address = address;
     }
 
-    public float getLightIntensity() {
+    public Float getLightIntensity() {
         return lightIntensity;
     }
 
-    public void setLightIntensity(float lightIntensity) {
+    public void setLightIntensity(Float lightIntensity) {
         this.lightIntensity = lightIntensity;
     }
 
-    public float getConsumption() {
+    public Float getConsumption() {
         return consumption;
     }
 
-    public void setConsumption(float consumption) {
+    public void setConsumption(Float consumption) {
         this.consumption = consumption;
     }
 
@@ -82,5 +90,13 @@ public class StreetLamp implements Serializable{
 
     public void setLifetime(String lifetime) {
         this.lifetime = lifetime;
+    }
+
+    public Long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(Long timestamp) {
+        this.timestamp = timestamp;
     }
 }

@@ -20,14 +20,14 @@ public class StreetLampDataSource {
 
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost("localhost");
-            Connection connection = null;
+            Connection connection;
             try {
                 connection = factory.newConnection();
                 Channel channel = connection.createChannel();
 
                 channel.queueDeclare(QUEUE_NAME, false, false, false, null);
 
-                StreetLampMessage streetLamp;
+                StreetLamp streetLamp;
                 Gson gson = new Gson();
                 String message;
                 while (true) {
@@ -38,11 +38,7 @@ public class StreetLampDataSource {
                     Thread.sleep(1000);
                 }
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (IOException | TimeoutException | InterruptedException e) {
                 e.printStackTrace();
             }
         });
@@ -52,28 +48,24 @@ public class StreetLampDataSource {
 
     }
 
-    private static StreetLampMessage generateRandomStreetLight() {
+    private static StreetLamp generateRandomStreetLight() {
         Address address = new Address();
         address.setName("Via del Politecnico");
         address.setNumber(generateRandomInt());
         address.setNumberType(AddressNumberType.CIVIC);
 
-        StreetLamp streetLamp = new StreetLamp();
-        streetLamp.setAddress(address);
-        streetLamp.setID(generateRandomInt());
-        streetLamp.setLightIntensity(generateRandomFloat());
-        streetLamp.setLampModel(Lamp.LED);
-        streetLamp.setOn(true);
-        streetLamp.setConsumption(generateRandomFloat());
-        streetLamp.setLifetime("13/02/2016");
+        StreetLamp data = new StreetLamp();
+        data.setAddress(address);
+        data.setID(generateRandomInt());
+        data.setLightIntensity(generateRandomFloat());
+        data.setLampModel(Lamp.LED);
+        data.setOn(true);
+        data.setConsumption(generateRandomFloat());
+        data.setLifetime("13/02/2016");
 
-        StreetLampMessage message = new StreetLampMessage();
-        message.setNaturalLight(new NaturalLight(generateRandomFloat()));
-        message.setStreetLamp(streetLamp);
-        message.setTimestamp(System.currentTimeMillis());
-
-        return message;
+        return data;
     }
+
 
     private static float generateRandomFloat() {
         return (float) (Math.random() * 100);

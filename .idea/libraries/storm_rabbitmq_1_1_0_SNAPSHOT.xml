@@ -1,8 +1,6 @@
 <component name="libraryTable">
   <library name="storm-rabbitmq-1.1.0-SNAPSHOT">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../rabbit-storm/target/storm-rabbitmq-1.1.0-SNAPSHOT.jar!/" />
-    </CLASSES>
+    <CLASSES />
     <JAVADOC />
     <SOURCES />
   </library>

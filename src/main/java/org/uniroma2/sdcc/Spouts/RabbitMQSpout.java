@@ -1,16 +1,15 @@
 package org.uniroma2.sdcc.Spouts;
 
-import com.codahale.metrics.ConsoleReporter;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
 import com.rabbitmq.client.*;
+import org.apache.storm.shade.com.codahale.metrics.ConsoleReporter;
+import org.apache.storm.shade.com.codahale.metrics.Meter;
+import org.apache.storm.shade.com.codahale.metrics.MetricRegistry;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,9 +18,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Created by ovidiudanielbarba on 14/03/2017.
- */
 public class RabbitMQSpout extends BaseRichSpout {
 
     private Connection connection;
@@ -31,7 +27,7 @@ public class RabbitMQSpout extends BaseRichSpout {
     private Consumer consumer;
 
     /* measure requests/second */
-    private  MetricRegistry metrics ;
+    private MetricRegistry metrics ;
     private Meter requests;
 
     // TODO Remove
