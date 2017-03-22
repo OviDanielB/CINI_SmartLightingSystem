@@ -1,26 +1,25 @@
 package org.uniroma2.sdcc.Model;
 
-import java.io.Serializable;
+import java.util.Date;
 
-public class StreetLamp implements Serializable {
+/**
+ * Created by ovidiudanielbarba on 16/03/2017.
+ */
+public class StreetLamp {
 
-    private static final long serialVersionUID = 1L;
-
-    private Integer ID;
+    private int ID;
     private boolean on;
     private Lamp lampModel;
     private Address address;
-    private Float lightIntensity;
-    private Float consumption;
-    private String lifetime;
-    private Long timestamp;
-
+    private float lightIntensity;
+    private float consumption;
+    private Date lifetime;
 
     public StreetLamp() {
     }
 
     public StreetLamp(int ID, boolean on, Lamp lampModel, Address address,
-                      Float lightIntensity, Float consumption, String lifetime) {
+                      float lightIntensity, float consumption, Date lifetime) {
         this.ID = ID;
         this.on = on;
         this.lampModel = lampModel;
@@ -28,19 +27,13 @@ public class StreetLamp implements Serializable {
         this.lightIntensity = lightIntensity;
         this.consumption = consumption;
         this.lifetime = lifetime;
-        timestamp = System.currentTimeMillis();
     }
 
-
-    public static long getSerialVersionUID() {
-        return serialVersionUID;
-    }
-
-    public Integer getID() {
+    public int getID() {
         return ID;
     }
 
-    public void setID(Integer ID) {
+    public void setID(int ID) {
         this.ID = ID;
     }
 
@@ -68,35 +61,27 @@ public class StreetLamp implements Serializable {
         this.address = address;
     }
 
-    public Float getLightIntensity() {
+    public float getLightIntensity() {
         return lightIntensity;
     }
 
-    public void setLightIntensity(Float lightIntensity) {
+    public void setLightIntensity(float lightIntensity) {
         this.lightIntensity = lightIntensity;
     }
 
-    public Float getConsumption() {
+    public float getConsumption() {
         return consumption;
     }
 
-    public void setConsumption(Float consumption) {
+    public void setConsumption(float consumption) {
         this.consumption = consumption;
     }
 
-    public String getLifetime() {
+    public Date getLifetime() {
         return lifetime;
     }
 
-    public void setLifetime(String lifetime) {
+    public void setLifetime(Date lifetime) {
         this.lifetime = lifetime;
-    }
-
-    public Long getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(Long timestamp) {
-        this.timestamp = timestamp;
     }
 }

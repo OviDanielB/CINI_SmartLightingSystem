@@ -7,6 +7,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import org.uniroma2.sdcc.Model.*;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.concurrent.TimeoutException;
 
 
@@ -61,7 +62,7 @@ public class StreetLampDataSource {
         data.setLampModel(Lamp.LED);
         data.setOn(true);
         data.setConsumption(generateRandomFloat());
-        data.setLifetime("13/02/2016");
+        data.setLifetime(new Date("13/02/2016"));
 
         return data;
     }

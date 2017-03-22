@@ -10,6 +10,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Model.StreetLampMessage;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,7 +57,7 @@ public class RabbitMQSpout extends BaseRichSpout {
                 .convertRatesTo(TimeUnit.SECONDS)
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
                 .build();
-        reporter.start(1, TimeUnit.SECONDS);
+        reporter.start(60, TimeUnit.SECONDS);
     }
 
     private void prepareRabbitConnection() {
@@ -95,10 +96,10 @@ public class RabbitMQSpout extends BaseRichSpout {
 
                     /* convert mess byte array to string*/
                     String message = new String(body, "UTF-8");
-                    System.out.println("[CINI] RabbitMQSpout received '" + message + "'");
+                    //System.out.println("[CINI] RabbitMQSpout received '" + message + "'");
                     messageQueue.add(message);
                     channel.basicAck(envelope.getDeliveryTag(), false);
-                    System.out.println("[CINI] QUEUE MESSAGGE COUNT : " + declareOk.getMessageCount());
+                    //System.out.println("[CINI] QUEUE MESSAGGE COUNT : " + declareOk.getMessageCount());
 
                 }
             };
@@ -134,6 +135,7 @@ public class RabbitMQSpout extends BaseRichSpout {
             return;
         }
 
+        //System.out.println("[CINI] MessaggeQueue size = " + messageQueue.size() + "\n");
 
         String mess = messageQueue.get(0);
         messageQueue.remove(0);
@@ -144,7 +146,7 @@ public class RabbitMQSpout extends BaseRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields("line"));
+        declarer.declare(new Fields(StreetLampMessage.JSON_STRING));
 
     }
 

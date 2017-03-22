@@ -5,8 +5,8 @@ package org.uniroma2.sdcc.Model;
  */
 
 /**
- * light bulb model
+ * define address type
  */
-public enum Lamp {
-    CFL, LED
+public enum AddressType {
+    STREET,SQUARE
 }
