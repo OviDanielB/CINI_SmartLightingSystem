@@ -9,9 +9,12 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Model.Address;
+import org.uniroma2.sdcc.Model.NaturalLightLevel;
 import org.uniroma2.sdcc.Model.StreetLamp;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Map;
 
@@ -47,11 +50,11 @@ public class FilteringBolt extends BaseRichBolt {
 
         String json = (String) tuple.getValueByField(StreetLampMessage.JSON_STRING);
 
-        StreetLampMessage streetLamp;
+        StreetLampMessage streetLampMessage;
         try {
             Gson gson = new Gson();
             /* JSON to Java object, read it from a Json String. */
-            streetLamp = gson.fromJson(json, StreetLampMessage.class);
+            streetLampMessage = gson.fromJson(json, StreetLampMessage.class);
 
         } catch (JsonParseException e){
             /* wrong json format */
@@ -60,48 +63,62 @@ public class FilteringBolt extends BaseRichBolt {
             return;
         }
 
-        emitValidLampTuple(tuple,streetLamp);
+        emitValidLampTuple(tuple,streetLampMessage);
 
-        /*
-        Integer id = data.getID();
-        String address = data.getAddress().toString();
-        Boolean on = data.isOn();
-        String model = data.getLampModel().toString();
-        Float consumption = data.getConsumption();
-        Float intensity = data.getLightIntensity();
-        Date date = data.getLifetime();
-        String timestamp = data.toString();
+    }
 
-        Values values = new Values();
-        values.add(id);
-        values.add(address);
-        values.add(on);
-        values.add(model);
-        values.add(consumption);
-        values.add(intensity);
-        values.add(date);
-        values.add(timestamp);
+    /**
+     * retain only valuable information for address
+     * @param lamp
+     * @return ex: Via Politecnico  (without number)
+     */
+    private String composeAddress(StreetLamp lamp) {
 
-        collector.emit(values);
-        collector.ack(tuple);
-
-        */
+        Address address = lamp.getAddress();
+        String finalAddress = String.format("%s %s",address.getAddressType().toString(),address.getName());
+        return finalAddress;
     }
 
     /**
      * check and emit only valid tuples
      * @param tuple received from spout tuple
-     * @param streetLamp parsed from tuple
+     * @param streetLampMessage parsed from tuple
      */
-    private void emitValidLampTuple(Tuple tuple, StreetLampMessage streetLamp) {
+    private void emitValidLampTuple(Tuple tuple, StreetLampMessage streetLampMessage) {
 
-        if(validStreetLampFormat(streetLamp)) {
+        if(validStreetLampFormat(streetLampMessage)) {
 
-            /* anchor tuple to new streetLamp value */
-            collector.emit(tuple, new Values(streetLamp));
+            StreetLamp lamp = streetLampMessage.getStreetLamp();
+
+            Integer id = lamp.getID();
+            String address = composeAddress(lamp);
+            Boolean on = lamp.isOn();
+            String model = lamp.getLampModel().toString();
+            Float consumption = lamp.getConsumption();
+            Float intensity = lamp.getLightIntensity();
+            NaturalLightLevel naturalLightLevel = streetLampMessage.getNaturalLightLevel();
+            Date lifetime = lamp.getLifetime();
+            Timestamp timestamp = streetLampMessage.getTimestamp();
+
+            Values values = new Values();
+            values.add(id);
+            values.add(address);
+            values.add(on);
+            values.add(model);
+            values.add(consumption);
+            values.add(intensity);
+            values.add(lifetime);
+            values.add(naturalLightLevel);
+            values.add(timestamp);
+
+            //System.out.println("[CINI] FILTERING : " + values.toString());
+
+             /* anchor tuple to new streetLamp value */
+            collector.emit(tuple, values);
             collector.ack(tuple);
 
         } else {
+
             collector.ack(tuple);
         }
     }
@@ -121,14 +138,14 @@ public class FilteringBolt extends BaseRichBolt {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
 
-        /*
+
         outputFieldsDeclarer.declare(new Fields(StreetLampMessage.ID, StreetLampMessage.ADDRESS,
                 StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,
                 StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
                 StreetLampMessage.NATURAL_LIGHT_LEVEL, StreetLampMessage.TIMESTAMP));
 
-                */
 
-        outputFieldsDeclarer.declare(new Fields(StreetLampMessage.STREET_LAMP_MSG));
+
+        //outputFieldsDeclarer.declare(new Fields(StreetLampMessage.STREET_LAMP_MSG));
     }
 }

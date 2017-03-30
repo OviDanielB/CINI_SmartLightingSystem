@@ -20,9 +20,9 @@ echo [START_DEMO] Supervisor started on container supervisor3 with ID $SUP3
 
 
 
-echo '[START_DEMO] Submitting Topology in jar file mavenstormdemo.jar'
+echo '[START_DEMO] Submitting Topology in jar file CINI_SmartLightingSystem-1.0.jar'
 
-docker run --link some-nimbus:nimbus -it --rm -v $(pwd)/CINI_SmartLightingSystem-1.0.jar:/CINI_SmartLightingSystem-1.0.jar storm:1.0.3 storm jar /CINI_SmartLightingSystem-1.0.jar org.uniroma2.sdcc.Example.HelloStorm ../src/Scripts/file.txt
+docker run --link some-nimbus:nimbus -it --rm -v $(pwd)/CINI_SmartLightingSystem-1.0-jar-with-dependencies.jar:/CINI_SmartLightingSystem-1.0-jar-with-dependencies.jar storm:1.0.3 storm jar /CINI_SmartLightingSystem-1.0-jar-with-dependencies.jar org.uniroma2.sdcc.AnomaliesDetectionTopology
 sleep 3
 echo '[START_DEMO] Starting Stom UI on localhost:8080 ; retry a few times until ready'
 docker run -d -p 8080:8080 --restart always --name ui --link some-nimbus:nimbus storm:1.0.3 storm ui

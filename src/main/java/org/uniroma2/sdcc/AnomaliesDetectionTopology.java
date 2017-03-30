@@ -4,9 +4,10 @@ import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
 import org.uniroma2.sdcc.Bolt.MalfunctionCheckBolt;
-import org.uniroma2.sdcc.Model.StreetLamp;
+import org.uniroma2.sdcc.Model.StreetLampMessage;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
 
 public class AnomaliesDetectionTopology {
@@ -28,7 +29,7 @@ public class AnomaliesDetectionTopology {
                 .shuffleGrouping(RABBIT_SPOUT);
 
         builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt())
-                .globalGrouping(FILTER_BOLT);
+                .fieldsGrouping(FILTER_BOLT,new Fields(StreetLampMessage.ADDRESS));
 
 
 
@@ -40,6 +41,8 @@ public class AnomaliesDetectionTopology {
 
         cluster.killTopology(QUERY_1_TOPOLOGY);
         cluster.shutdown();
+
+
 
 
         //StormSubmitter.submitTopology(QUERY_1_TOPOLOGY,config,builder.createTopology());

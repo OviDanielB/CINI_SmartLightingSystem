@@ -19,6 +19,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.6.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -34,14 +35,14 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>org.uniroma2.sdcc.Example.HelloStorm</mainClass>
+                            <mainClass>org.uniroma2.sdcc.AnomaliesDetectionTopology</mainClass>
                             <classpathPrefix>lib/</classpathPrefix>
                         </manifest>
                     </archive>
                 </configuration>
             </plugin>
 
-            <!-->
+
             <plugin>
               <artifactId>maven-assembly-plugin</artifactId>
               <configuration>
@@ -50,13 +51,13 @@
                 </descriptorRefs>
                 <archive>
                   <manifest>
-                    <mainClass>org.uniroma2.sdcc.Example.HelloStorm</mainClass>
+                    <mainClass>org.uniroma2.sdcc.AnomaliesDetectionTopology</mainClass>
                   </manifest>
                 </archive>
               </configuration>
             </plugin>
 
-            </!-->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>

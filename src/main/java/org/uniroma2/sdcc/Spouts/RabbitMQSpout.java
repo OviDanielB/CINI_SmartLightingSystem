@@ -12,6 +12,7 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,7 +88,7 @@ public class RabbitMQSpout extends BaseRichSpout {
             AMQP.Queue.DeclareOk declareOk = channel.queueDeclare(QUEUE_NAME,false,false,false,null);
             System.out.println("[CINI] RabbitMQSpout waiting for messages. To exit press CTRL+C");
 
-            Consumer consumer = new DefaultConsumer(channel) {
+            consumer = new DefaultConsumer(channel) {
                 @Override
                 public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
 
@@ -100,6 +101,8 @@ public class RabbitMQSpout extends BaseRichSpout {
                     messageQueue.add(message);
                     channel.basicAck(envelope.getDeliveryTag(), false);
                     //System.out.println("[CINI] QUEUE MESSAGGE COUNT : " + declareOk.getMessageCount());
+
+                    //System.out.println("[CINI] Rabbit : " + message);
 
                 }
             };
@@ -125,9 +128,6 @@ public class RabbitMQSpout extends BaseRichSpout {
 
     }
 
-    static void startReport() {
-
-    }
 
     @Override
     public void nextTuple() {

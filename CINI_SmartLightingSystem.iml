@@ -11,8 +11,9 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" scope="PROVIDED" name="org.apache.storm:storm-core:1.0.3" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="org.apache.storm:storm-core:1.0.3" level="project" />
     <orderEntry type="library" name="storm-rabbitmq-1.1.0-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="com.rabbitmq:amqp-client:4.1.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: junit:junit:3.8.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.storm:storm-core:1.0.3" level="project" />
     <orderEntry type="library" name="Maven: com.esotericsoftware:kryo:3.0.3" level="project" />
