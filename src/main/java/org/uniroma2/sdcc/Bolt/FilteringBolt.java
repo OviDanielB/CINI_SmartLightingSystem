@@ -9,10 +9,7 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Model.Address;
-import org.uniroma2.sdcc.Model.NaturalLightLevel;
-import org.uniroma2.sdcc.Model.StreetLamp;
-import org.uniroma2.sdcc.Model.StreetLampMessage;
+import org.uniroma2.sdcc.Model.*;
 
 import java.sql.Timestamp;
 import java.util.Date;
@@ -70,13 +67,20 @@ public class FilteringBolt extends BaseRichBolt {
     /**
      * retain only valuable information for address
      * @param lamp
-     * @return ex: Via Politecnico  (without number)
+     * @return examples: Via Politecnico 34, Via Appia km 30
      */
     private String composeAddress(StreetLamp lamp) {
 
         Address address = lamp.getAddress();
-        String finalAddress = String.format("%s %s",address.getAddressType().toString(),address.getName());
-        return finalAddress;
+        /* address composed as street/square + name + civic number  */
+        if (address.getNumberType().toString().equals(AddressNumberType.CIVIC.toString()))
+            return String.format("%s %s %s",
+                address.getAddressType().toString(), address.getName(), address.getNumber());
+        /* address composed as street/square + name + km number  */
+        else if (address.getNumberType().toString().equals(AddressNumberType.KM.toString()))
+            return String.format("%s %s km %s",
+                    address.getAddressType().toString(), address.getName(), address.getNumber());
+        return null;
     }
 
     /**
@@ -86,7 +90,7 @@ public class FilteringBolt extends BaseRichBolt {
      */
     private void emitValidLampTuple(Tuple tuple, StreetLampMessage streetLampMessage) {
 
-        if(validStreetLampFormat(streetLampMessage)) {
+        if (validStreetLampFormat(streetLampMessage)) {
 
             StreetLamp lamp = streetLampMessage.getStreetLamp();
 

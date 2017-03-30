@@ -80,13 +80,14 @@ public class RabbitMQSpout extends BaseRichSpout {
         ConnectionFactory connectionFactory = new ConnectionFactory();
         connectionFactory.setHost("localhost");
 
+
         try {
             connection = connectionFactory.newConnection();
             channel = connection.createChannel();
 
             /* GET QUEUE MESSAGE COUNT with declareOk.getMessageCount() -> int */
             AMQP.Queue.DeclareOk declareOk = channel.queueDeclare(QUEUE_NAME,false,false,false,null);
-            System.out.println("[CINI] RabbitMQSpout waiting for messages. To exit press CTRL+C");
+//            System.out.println("[CINI] RabbitMQSpout waiting for messages. To exit press CTRL+C");
 
             consumer = new DefaultConsumer(channel) {
                 @Override
@@ -97,10 +98,10 @@ public class RabbitMQSpout extends BaseRichSpout {
 
                     /* convert mess byte array to string*/
                     String message = new String(body, "UTF-8");
-                    //System.out.println("[CINI] RabbitMQSpout received '" + message + "'");
+//                    System.out.println("[CINI] RabbitMQSpout received '" + message + "'");
                     messageQueue.add(message);
                     channel.basicAck(envelope.getDeliveryTag(), false);
-                    //System.out.println("[CINI] QUEUE MESSAGGE COUNT : " + declareOk.getMessageCount());
+//                    System.out.println("[CINI] QUEUE MESSAGGE COUNT : " + declareOk.getMessageCount());
 
                     //System.out.println("[CINI] Rabbit : " + message);
 
@@ -118,7 +119,7 @@ public class RabbitMQSpout extends BaseRichSpout {
 
 
         } catch (IOException e) {
-            System.out.println("[CINI] Rabbit Connection Failed");
+//            System.out.println("[CINI] Rabbit Connection Failed");
             e.printStackTrace();
         } catch (TimeoutException e) {
             e.printStackTrace();
@@ -135,7 +136,7 @@ public class RabbitMQSpout extends BaseRichSpout {
             return;
         }
 
-        //System.out.println("[CINI] MessaggeQueue size = " + messageQueue.size() + "\n");
+//        System.out.println("[CINI] MessaggeQueue size = " + messageQueue.size() + "\n");
 
         String mess = messageQueue.get(0);
         messageQueue.remove(0);
