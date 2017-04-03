@@ -13,26 +13,15 @@ import java.sql.Timestamp;
  */
 public class StreetLampMessage {
 
-    public static String STREET_LAMP_MSG = "streetLampMessage";
-    public static String JSON_STRING = "jsonString";
-    public static String ID = "id";
-    public static String ADDRESS = "address";
-    public static String ON = "on";
-    public static String LAMP_MODEL = "model";
-    public static String CONSUMPTION = "consumption";
-    public static String INTENSITY = "intensity";
-    public static String LIFETIME = "lifetime";
-    public static String NATURAL_LIGHT_LEVEL = "naturalLightLevel";
-    public static String TIMESTAMP = "timestamp";
-
     private StreetLamp streetLamp;
-    private NaturalLightLevel naturalLightLevel;
     private Long timestamp;
+    private float naturalLightLevel;
+
 
     public StreetLampMessage() {
     }
 
-    public StreetLampMessage(StreetLamp streetLamp, NaturalLightLevel naturalLightLevel, Long timestamp) {
+    public StreetLampMessage(StreetLamp streetLamp, Float naturalLightLevel, Long timestamp) {
         this.streetLamp = streetLamp;
         this.naturalLightLevel = naturalLightLevel;
         this.timestamp = timestamp;
@@ -46,11 +35,11 @@ public class StreetLampMessage {
         this.streetLamp = streetLamp;
     }
 
-    public NaturalLightLevel getNaturalLightLevel() {
+    public Float getNaturalLightLevel() {
         return naturalLightLevel;
     }
 
-    public void setNaturalLightLevel(NaturalLightLevel naturalLightLevel) {
+    public void setNaturalLightLevel(Float naturalLightLevel) {
         this.naturalLightLevel = naturalLightLevel;
     }
 

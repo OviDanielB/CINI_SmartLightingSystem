@@ -29,7 +29,7 @@ public class AnomaliesDetectionTopology {
                 .shuffleGrouping(RABBIT_SPOUT);
 
         builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt())
-                .fieldsGrouping(FILTER_BOLT,new Fields(StreetLampMessage.ADDRESS));
+                .fieldsGrouping(FILTER_BOLT,new Fields(Constant.ADDRESS));
 
 
 

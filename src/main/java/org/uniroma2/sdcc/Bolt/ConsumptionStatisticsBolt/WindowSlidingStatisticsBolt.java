@@ -128,7 +128,7 @@ public abstract class WindowSlidingStatisticsBolt extends BaseRichBolt {
     }
 
     protected Long getWindowEndInSeconds(SlidingWindowAvg wind) {
-        return wind.getLastSlideInSeconds() + emitFrequencyInSeconds;
+        return System.currentTimeMillis() / 1000;
     }
 
 }

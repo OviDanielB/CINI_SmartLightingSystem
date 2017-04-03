@@ -9,6 +9,7 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 import org.uniroma2.sdcc.Utils.OldestKRanking;
 import org.uniroma2.sdcc.Utils.RankLamp;
@@ -68,10 +69,10 @@ public class PartialRankBolt extends BaseRichBolt {
         count += 1;
         memcachedClient.set("old_counter", 120, count);
 
-        int id = (int) tuple.getValueByField(StreetLampMessage.ID);
-        String address = tuple.getValueByField(StreetLampMessage.ADDRESS).toString();
-        Date lifetime = (Date) tuple.getValueByField(StreetLampMessage.LIFETIME);
-        Timestamp timestamp = (Timestamp) tuple.getValueByField(StreetLampMessage.TIMESTAMP);
+        int id = (int) tuple.getValueByField(Constant.ID);
+        String address = tuple.getValueByField(Constant.ADDRESS).toString();
+        Date lifetime = (Date) tuple.getValueByField(Constant.LIFETIME);
+        Timestamp timestamp = (Timestamp) tuple.getValueByField(Constant.TIMESTAMP);
 
         /* Update local rank */
         RankLamp rankLamp = new RankLamp(id, address, lifetime, timestamp);

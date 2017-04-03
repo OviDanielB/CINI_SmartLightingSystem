@@ -10,6 +10,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 
 
@@ -147,7 +148,7 @@ public class RabbitMQSpout extends BaseRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields(StreetLampMessage.JSON_STRING));
+        declarer.declare(new Fields(Constant.JSON_STRING));
 
     }
 

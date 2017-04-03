@@ -9,10 +9,12 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Map;
 
@@ -42,13 +44,12 @@ public class FilteringBolt extends BaseRichBolt {
     *   8   timestamp                   32 bit value
     *
     */
-
     @Override
     public void execute(Tuple tuple) {
 
         if (!TupleHelpers.isTickTuple(tuple)) {
 
-            String json = (String) tuple.getValueByField(StreetLampMessage.JSON_STRING);
+            String json = (String) tuple.getValueByField(Constant.JSON_STRING);
 
             StreetLampMessage streetLampMessage;
             try {
@@ -69,26 +70,6 @@ public class FilteringBolt extends BaseRichBolt {
     }
 
     /**
-     * retain only valuable information for address
-     *
-     * @param lamp
-     * @return examples: Via Politecnico 34, Via Appia km 30
-     */
-    private String composeAddress(StreetLamp lamp) {
-
-        Address address = lamp.getAddress();
-        /* address composed as street/square + name + civic number  */
-        if (address.getNumberType().toString().equals(AddressNumberType.CIVIC.toString()))
-            return String.format("%s %s %s",
-                    address.getAddressType().toString(), address.getName(), address.getNumber());
-        /* address composed as street/square + name + km number  */
-        else if (address.getNumberType().toString().equals(AddressNumberType.KM.toString()))
-            return String.format("%s %s km %s",
-                    address.getAddressType().toString(), address.getName(), address.getNumber());
-        return null;
-    }
-
-    /**
      * check and emit only valid tuples
      *
      * @param tuple             received from spout tuple
@@ -101,13 +82,13 @@ public class FilteringBolt extends BaseRichBolt {
             StreetLamp lamp = streetLampMessage.getStreetLamp();
 
             Integer id = lamp.getID();
-            String address = composeAddress(lamp);
+            Address address = lamp.getAddress();
             Boolean on = lamp.isOn();
             String model = lamp.getLampModel().toString();
             Float consumption = lamp.getConsumption();
             Float intensity = lamp.getLightIntensity();
-            NaturalLightLevel naturalLightLevel = streetLampMessage.getNaturalLightLevel();
-            Date lifetime = lamp.getLifetime();
+            Float naturalLightLevel = streetLampMessage.getNaturalLightLevel();
+            LocalDateTime lifetime = lamp.getLifetime();
             Long timestamp = streetLampMessage.getTimestamp();
 
             Values values = new Values();
@@ -149,13 +130,11 @@ public class FilteringBolt extends BaseRichBolt {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
 
+        outputFieldsDeclarer.declare(new Fields(Constant.ID, Constant.ADDRESS, Constant.ON,
+                Constant.LAMP_MODEL, Constant.CONSUMPTION, Constant.INTENSITY, Constant.LIFETIME,
+                Constant.NATURAL_LIGHT_LEVEL, Constant.TIMESTAMP));
 
-        outputFieldsDeclarer.declare(new Fields(StreetLampMessage.ID, StreetLampMessage.ADDRESS,
-                StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,
-                StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
-                StreetLampMessage.NATURAL_LIGHT_LEVEL, StreetLampMessage.TIMESTAMP));
-
-
-        //outputFieldsDeclarer.declare(new Fields(StreetLampMessage.STREET_LAMP_MSG));
     }
+
+
 }

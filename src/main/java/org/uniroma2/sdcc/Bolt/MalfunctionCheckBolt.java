@@ -5,6 +5,7 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Tuple;
+import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 
 import java.sql.Timestamp;
@@ -65,14 +66,14 @@ public class MalfunctionCheckBolt implements IRichBolt {
     public void execute(Tuple input) {
 
         //StreetLampMessage message = (StreetLampMessage) input.getValueByField(StreetLampMessage.STREET_LAMP_MSG);
-        Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
-        String address = (String) input.getValueByField(StreetLampMessage.ADDRESS);
-        Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
-        String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
-        Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
-        Float intensity = (Float) input.getValueByField(StreetLampMessage.INTENSITY);
-        Date lifetime = (Date) input.getValueByField(StreetLampMessage.LIFETIME);
-        Timestamp timestamp = (Timestamp) input.getValueByField(StreetLampMessage.TIMESTAMP);
+        Integer id = (Integer) input.getValueByField(Constant.ID);
+        String address = (String) input.getValueByField(Constant.ADDRESS).toString();
+        Boolean on = (Boolean) input.getValueByField(Constant.ON);
+        String model = (String) input.getValueByField(Constant.LAMP_MODEL);
+        Float consumption = (Float) input.getValueByField(Constant.CONSUMPTION);
+        Float intensity = (Float) input.getValueByField(Constant.INTENSITY);
+        Date lifetime = (Date) input.getValueByField(Constant.LIFETIME);
+        Timestamp timestamp = (Timestamp) input.getValueByField(Constant.TIMESTAMP);
 
         incrementReceivedMessages();
 

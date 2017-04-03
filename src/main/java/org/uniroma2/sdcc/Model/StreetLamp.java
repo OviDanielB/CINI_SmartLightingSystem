@@ -1,13 +1,7 @@
 package org.uniroma2.sdcc.Model;
 
+import java.time.LocalDateTime;
 
-import org.apache.storm.shade.org.joda.time.DateTime;
-
-import java.util.Date;
-
-/**
- * Created by ovidiudanielbarba on 16/03/2017.
- */
 public class StreetLamp {
 
     private int ID;
@@ -16,13 +10,13 @@ public class StreetLamp {
     private Address address;
     private float lightIntensity;
     private float consumption;
-    private Date lifetime;
+    private LocalDateTime lifetime;
 
     public StreetLamp() {
     }
 
     public StreetLamp(int ID, boolean on, Lamp lampModel, Address address,
-                      float lightIntensity, float consumption, Date lifetime) {
+                      float lightIntensity, float consumption, LocalDateTime lifetime) {
         this.ID = ID;
         this.on = on;
         this.lampModel = lampModel;
@@ -80,11 +74,11 @@ public class StreetLamp {
         this.consumption = consumption;
     }
 
-    public Date getLifetime() {
+    public LocalDateTime getLifetime() {
         return lifetime;
     }
 
-    public void setLifetime(Date lifetime) {
+    public void setLifetime(LocalDateTime lifetime) {
         this.lifetime = lifetime;
     }
 }

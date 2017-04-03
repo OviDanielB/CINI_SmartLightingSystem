@@ -7,6 +7,7 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 
 import java.sql.Timestamp;
@@ -44,11 +45,11 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        int id =                (int) tuple.getValueByField(StreetLampMessage.ID);
-//        boolean state = (boolean) tuple.getValueByField(StreetLampMessage.ON);
-        String address =        tuple.getValueByField(StreetLampMessage.ADDRESS).toString();
-        Date lifetime =         (Date) tuple.getValueByField(StreetLampMessage.LIFETIME);
-        Timestamp timestamp =   (Timestamp) tuple.getValueByField(StreetLampMessage.TIMESTAMP);
+        int id =                (int) tuple.getValueByField(Constant.ID);
+//        boolean state = (boolean) tuple.getValueByField(Constant.ON);
+        String address =        tuple.getValueByField(Constant.ADDRESS).toString();
+        Date lifetime =         (Date) tuple.getValueByField(Constant.LIFETIME);
+        Timestamp timestamp =   (Timestamp) tuple.getValueByField(Constant.TIMESTAMP);
 
         emitClassifiableLampTuple(tuple, id, address, lifetime, timestamp);
         collector.ack(tuple);
@@ -91,7 +92,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(StreetLampMessage.ID, StreetLampMessage.ADDRESS,
-                StreetLampMessage.LIFETIME, StreetLampMessage.TIMESTAMP));
+        outputFieldsDeclarer.declare(new Fields(Constant.ID, Constant.ADDRESS,
+                Constant.LIFETIME, Constant.TIMESTAMP));
     }
 }

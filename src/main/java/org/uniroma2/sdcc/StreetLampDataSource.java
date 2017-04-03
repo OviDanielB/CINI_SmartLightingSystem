@@ -6,14 +6,21 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.uniroma2.sdcc.Model.*;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Date;
+import java.io.InputStreamReader;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeoutException;
 
 public class StreetLampDataSource {
 
-    private static String QUEUE_NAME = "storm";
-    private static float FAILURE_PROB = .3f;
+    private final static String DEFAULT_ADDRESS_NAME = "Via del Politecnico";
+    private final static String QUEUE_NAME = "storm";
+    private final static float FAILURE_PROB = .3f;
+    private final static String ADDRESS_FILE = "./address_list.txt";
+    private static BufferedReader br;
 
     public static void main(String[] args) {
 
@@ -46,11 +53,7 @@ public class StreetLampDataSource {
                     Thread.sleep(100);
                 }
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (IOException | TimeoutException | InterruptedException e) {
                 e.printStackTrace();
             }
         });
@@ -61,12 +64,9 @@ public class StreetLampDataSource {
     }
 
     private static StreetLampMessage generateRandomStreetLight() {
-        Address address = new Address();
-        address.setAddressType(AddressType.STREET);
-        address.setName("Politecnico");
-        address.setNumber(generateRandomInt());
-        address.setNumberType(AddressNumberType.CIVIC);
 
+
+        Address address = generateAddress();
         StreetLamp streetLamp = new StreetLamp();
         streetLamp.setAddress(address);
         streetLamp.setID(generateRandomInt());
@@ -74,34 +74,53 @@ public class StreetLampDataSource {
         streetLamp.setLampModel(Lamp.LED);
         streetLamp.setOn(randomMalfunctioning());
         streetLamp.setConsumption(generateRandomFloat());
-        streetLamp.setLifetime(new Date(231211310));
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+        streetLamp.setLifetime(LocalDateTime.parse("12-12-2000 12:48:48", formatter));
 
         StreetLampMessage message = new StreetLampMessage();
-        message.setNaturalLightLevel(new NaturalLightLevel(generateRandomFloat()));
+        message.setNaturalLightLevel(generateRandomFloat());
         message.setStreetLamp(streetLamp);
         message.setTimestamp(System.currentTimeMillis());
 
         return message;
     }
 
+    private static Address generateAddress() {
+        Address address = new Address();
+        try {
+            if (br == null) {
+                br = new BufferedReader(new InputStreamReader(new FileInputStream(ADDRESS_FILE)));
+            }
+            String line;
+            while ((line = br.readLine()) == null) {
+                br.close();
+                br = new BufferedReader(new InputStreamReader(new FileInputStream(ADDRESS_FILE)));
+            }
+
+            address.setName(line);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            address.setName(DEFAULT_ADDRESS_NAME);
+        }
+        address.setNumber(generateRandomInt());
+        address.setNumberType(AddressNumberType.CIVIC);
+        return address;
+    }
+
     private static boolean randomMalfunctioning() {
         float rand = (float) Math.random();
-        if (rand < FAILURE_PROB) {
-            return false;
-        }
-
-        return true;
+        return !(rand < FAILURE_PROB);
     }
 
     private static float generateRandomFloat() {
 
-        float rand = (float) (Math.random() * 100);
-        return rand;
+        return (float) (Math.random() * 100);
     }
 
     private static int generateRandomInt() {
 
-        int rand = (int) (Math.random() * 100000);
-        return rand;
+        return (int) (Math.random() * 100);
     }
 }

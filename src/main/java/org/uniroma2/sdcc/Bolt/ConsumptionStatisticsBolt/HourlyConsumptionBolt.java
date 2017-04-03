@@ -2,6 +2,8 @@ package org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt;
 
 
 import org.apache.storm.tuple.Tuple;
+import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 
 public class HourlyConsumptionBolt extends WindowSlidingStatisticsBolt {
@@ -27,10 +29,11 @@ public class HourlyConsumptionBolt extends WindowSlidingStatisticsBolt {
 
         } else {
 
-            String id = tuple.getValueByField("id").toString();
-            String street = tuple.getStringByField("address");
-            Long timestamp = tuple.getLongByField("timestamp");
-            Float consumption = tuple.getFloatByField("consumption");
+            String id = tuple.getValueByField(Constant.ID).toString();
+            Address address = (Address) tuple.getValueByField(Constant.ADDRESS);
+            String street = address.getName();
+            Long timestamp = tuple.getLongByField(Constant.TIMESTAMP);
+            Float consumption = tuple.getFloatByField(Constant.CONSUMPTION);
 
             try {
                 statStreetLamp.updatedConsumptionAvg(id, consumption, timestamp / 1000);
