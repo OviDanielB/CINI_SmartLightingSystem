@@ -27,12 +27,12 @@ public class StreetLampMessage {
 
     private StreetLamp streetLamp;
     private NaturalLightLevel naturalLightLevel;
-    private Timestamp timestamp;
+    private Long timestamp;
 
     public StreetLampMessage() {
     }
 
-    public StreetLampMessage(StreetLamp streetLamp, NaturalLightLevel naturalLightLevel, Timestamp timestamp) {
+    public StreetLampMessage(StreetLamp streetLamp, NaturalLightLevel naturalLightLevel, Long timestamp) {
         this.streetLamp = streetLamp;
         this.naturalLightLevel = naturalLightLevel;
         this.timestamp = timestamp;
@@ -54,11 +54,11 @@ public class StreetLampMessage {
         this.naturalLightLevel = naturalLightLevel;
     }
 
-    public Timestamp getTimestamp() {
+    public Long getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Timestamp timestamp) {
+    public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
     }
 }

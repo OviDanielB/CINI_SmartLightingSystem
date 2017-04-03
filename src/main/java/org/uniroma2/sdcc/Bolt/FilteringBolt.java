@@ -10,6 +10,7 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.TupleHelpers;
 
 import java.sql.Timestamp;
 import java.util.Date;
@@ -45,27 +46,31 @@ public class FilteringBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        String json = (String) tuple.getValueByField(StreetLampMessage.JSON_STRING);
+        if (!TupleHelpers.isTickTuple(tuple)) {
 
-        StreetLampMessage streetLampMessage;
-        try {
-            Gson gson = new Gson();
+            String json = (String) tuple.getValueByField(StreetLampMessage.JSON_STRING);
+
+            StreetLampMessage streetLampMessage;
+            try {
+                Gson gson = new Gson();
             /* JSON to Java object, read it from a Json String. */
-            streetLampMessage = gson.fromJson(json, StreetLampMessage.class);
+                streetLampMessage = gson.fromJson(json, StreetLampMessage.class);
 
-        } catch (JsonParseException e){
+            } catch (JsonParseException e) {
             /* wrong json format */
-            e.printStackTrace();
-            collector.ack(tuple);
-            return;
-        }
+                e.printStackTrace();
+                collector.ack(tuple);
+                return;
+            }
 
-        emitValidLampTuple(tuple,streetLampMessage);
+            emitValidLampTuple(tuple, streetLampMessage);
+        }
 
     }
 
     /**
      * retain only valuable information for address
+     *
      * @param lamp
      * @return examples: Via Politecnico 34, Via Appia km 30
      */
@@ -75,7 +80,7 @@ public class FilteringBolt extends BaseRichBolt {
         /* address composed as street/square + name + civic number  */
         if (address.getNumberType().toString().equals(AddressNumberType.CIVIC.toString()))
             return String.format("%s %s %s",
-                address.getAddressType().toString(), address.getName(), address.getNumber());
+                    address.getAddressType().toString(), address.getName(), address.getNumber());
         /* address composed as street/square + name + km number  */
         else if (address.getNumberType().toString().equals(AddressNumberType.KM.toString()))
             return String.format("%s %s km %s",
@@ -85,7 +90,8 @@ public class FilteringBolt extends BaseRichBolt {
 
     /**
      * check and emit only valid tuples
-     * @param tuple received from spout tuple
+     *
+     * @param tuple             received from spout tuple
      * @param streetLampMessage parsed from tuple
      */
     private void emitValidLampTuple(Tuple tuple, StreetLampMessage streetLampMessage) {
@@ -102,7 +108,7 @@ public class FilteringBolt extends BaseRichBolt {
             Float intensity = lamp.getLightIntensity();
             NaturalLightLevel naturalLightLevel = streetLampMessage.getNaturalLightLevel();
             Date lifetime = lamp.getLifetime();
-            Timestamp timestamp = streetLampMessage.getTimestamp();
+            Long timestamp = streetLampMessage.getTimestamp();
 
             Values values = new Values();
             values.add(id);
@@ -130,7 +136,8 @@ public class FilteringBolt extends BaseRichBolt {
     /**
      * the street light should have a valid format
      * ex: intensity and naturalLight level should be percentages,
-     *     timestamp should not be too far in the past, etc
+     * timestamp should not be too far in the past, etc
+     *
      * @param streetLamp needed validation
      * @return true if valid, false otherwise
      */
@@ -147,7 +154,6 @@ public class FilteringBolt extends BaseRichBolt {
                 StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,
                 StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
                 StreetLampMessage.NATURAL_LIGHT_LEVEL, StreetLampMessage.TIMESTAMP));
-
 
 
         //outputFieldsDeclarer.declare(new Fields(StreetLampMessage.STREET_LAMP_MSG));
