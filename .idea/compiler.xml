@@ -7,10 +7,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="CINI_SmartLightingSystem" />
+        <module name="CINI_StreetLamp_Client" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="CINI_SmartLightingSystem" target="1.8" />
+      <module name="CINI_StreetLamp_Client" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

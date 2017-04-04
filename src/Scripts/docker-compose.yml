@@ -1,0 +1,41 @@
+# rabbit queue
+version: "3"
+services:
+
+  rabbit:
+    image: rabbitmq:alpine
+    hostname: rabbit1
+    ports:
+      - "5672:5672"
+      - "1883:1883"
+      - "8883:8883"
+      - "15672:15672" #rabbit UI
+    restart: always
+
+  zookeeper:
+    image: zookeeper:3.4
+    restart: always
+
+  storm-nimbus:
+    image: storm:1.0.3
+    command: bash -c "storm nimbus"
+    restart: always
+    links:
+      - "zookeeper:zookeeper"
+
+  storm-supervisor:
+    image: storm:1.0.3
+    command: bash -c "storm supervisor"
+    restart: always
+    links:
+      - "zookeeper:zookeeper"
+      - "storm-nimbus:nimbus"
+
+  storm-ui:
+    image: storm:1.0.3
+    command: bash -c "storm ui"
+    restart: always
+    ports:
+      - "8080:8080" #storm UI
+    links:
+      - "storm-nimbus:nimbus"
