@@ -1,18 +1,27 @@
 package org.uniroma2.sdcc.Bolt;
 
+import com.github.fedy2.weather.YahooWeatherService;
+import com.github.fedy2.weather.data.Astronomy;
+import com.github.fedy2.weather.data.Atmosphere;
+import com.github.fedy2.weather.data.Channel;
+import com.github.fedy2.weather.data.Condition;
+import com.github.fedy2.weather.data.unit.DegreeUnit;
+import com.github.fedy2.weather.data.unit.Time;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
-import org.uniroma2.sdcc.Constant;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Model.MalfunctionType;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 
+import javax.xml.bind.JAXBException;
+import java.io.IOException;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -29,17 +38,65 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
     private static final Integer NUM_PROBABLE_MALF_THRESHOLD = 5;
     private static final Float ON_PERCENTAGE_THRESHOLD = 0.3f;
+    /* WOEID needed for YahooWeather ; 721943 = Rome */
+    private static final String CITY_WOEID = "721943";
+    private static final Long WEATHER_UPDATE_IN_HOURS = 1L;
+
+    private YahooWeatherService weatherService;
+    /* read and write conflict possible */
+    private volatile Channel weatherChannel;
+    private boolean weatherAvailable = false;
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         this.outputCollector = collector;
 
-        streetAverageConsumption = new HashMap<>();
-        probablyMalfunctioningCount = new HashMap<>();
+        initialization();
+        periodicWeatherUpdate();
         printTimerStart();
         periodicGlobalAvg();
+
     }
 
+    /**
+     * update weather forecast periodically;
+     * => needed to see if lamp is malfunctioning
+     */
+    private void periodicWeatherUpdate() {
+
+        /* update weather period */
+        long period = 1000 * 60 * 60 * WEATHER_UPDATE_IN_HOURS ;
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                    try {
+                        weatherService = new YahooWeatherService();
+                        weatherChannel = weatherService.getForecast(CITY_WOEID, DegreeUnit.CELSIUS);
+                        weatherAvailable = true;
+                        System.out.println("[CINI] Weather Service available : " + weatherChannel.toString());
+
+                    } catch (JAXBException | IOException e) {
+                        e.printStackTrace();
+                        weatherAvailable = false;
+                    }
+
+            }
+        }, 0, period);
+
+    }
+
+    /**
+     * initiliaze used variables
+     */
+    private void initialization() {
+        streetAverageConsumption = new HashMap<>();
+        probablyMalfunctioningCount = new HashMap<>();
+    }
+
+    /**
+     * prints periodic global average of light intensity
+     */
     private void periodicGlobalAvg() {
         Timer timer = new Timer();
         timer.schedule(new TimerTask() {
@@ -77,8 +134,8 @@ public class MalfunctionCheckBolt implements IRichBolt {
         String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
         Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
         Float intensity = (Float) input.getValueByField(StreetLampMessage.INTENSITY);
-        Date lifetime = (Date) input.getValueByField(StreetLampMessage.LIFETIME);
-        Timestamp timestamp = (Timestamp) input.getValueByField(StreetLampMessage.TIMESTAMP);
+        LocalDateTime lifetime = (LocalDateTime) input.getValueByField(StreetLampMessage.LIFETIME);
+        Long timestamp = (Long) input.getValueByField(StreetLampMessage.TIMESTAMP);
 
         String reducedAddress = composeAddress(address);
 
@@ -89,20 +146,39 @@ public class MalfunctionCheckBolt implements IRichBolt {
         Values values = new Values();
         String malfunctionTypes = "";
 
+        /* insert new street if not present and update statistics */
+        updateStreetLightIntensityAvg(reducedAddress,intensity);
+
+        /* check if light intensity is different from the average value of the street (continuously updated) */
         if(lightIntensityAnomalyDetected(reducedAddress,intensity)){
+
             System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
+
+            /* avoid errors from light transition (from sunny to cloudy and viceversa) */
             increaseProbablyMalfunctions(id);
 
+            /* the threshold of errors has been overcome =>
+             almost surely it is an anomaly */
             if(almostSurelyMalfunction(id)) {
 
                 malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY.toString() + ";";
             }
         }
+
+        /* checks if the state of the bulb (on or off) is as the most of the
+        * lamps on the street ; othwerwise it could be damaged */
         if(damagedBulb(reducedAddress,on)){
 
             malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
         }
 
+        /* checks for weather anomalies (low light on cloudy day, etc) */
+        if(weatherAnomaly(intensity)){
+
+            malfunctionTypes += MalfunctionType.WEATHER.toString() + ";";
+        }
+
+        /* if no anomalies detected */
         if(malfunctionTypes.isEmpty()){
             malfunctionTypes += MalfunctionType.NONE.toString() + ";";
         }
@@ -117,10 +193,38 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         outputCollector.emit(input,values);
         outputCollector.ack(input);
-
-        updateStreetLightIntensityAvg(reducedAddress,intensity);
-
     }
+
+    /**
+     * DOCS
+     * https://developer.yahoo.com/weather/documentation.html
+     * detects multiple types of weather anomalies like
+     * on cloudy days, on low visibility (foggy) and by
+     * looking at the intensity before sunrise and after sunset
+     *
+     * @param intensity light level
+     * @return true if no anomaly,false if AT LEAST ONCE is present
+     */
+    private boolean weatherAnomaly(Float intensity) {
+
+        if(!weatherAvailable){
+            return false;
+        } else {
+            Atmosphere atmosphere = weatherChannel.getAtmosphere();
+            Condition currentCondition = weatherChannel.getItem().getCondition();
+            Astronomy astronomy = weatherChannel.getAstronomy();
+
+            Integer conditionCode = currentCondition.getCode();
+            Float visibility = atmosphere.getVisibility();
+
+            boolean weatherIntensityRight = WeatherHelper.rightIntensityOnWeatherByCode(conditionCode,intensity);
+            boolean visibilityIntensityRight = WeatherHelper.rightIntensityByVisibility(intensity,visibility);
+            boolean astronomyIntensityRight = WeatherHelper.rightIntesityByAstronomy(intensity,astronomy);
+
+            return (weatherIntensityRight && visibilityIntensityRight && astronomyIntensityRight);
+        }
+    }
+
 
     private boolean almostSurelyMalfunction(Integer id) {
 
@@ -140,7 +244,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
      */
     private String composeAddress(Address address) {
 
-        String finalAddress = String.format("%s %s",address.getName());
+        String finalAddress = String.format("%s",address.getName());
         return finalAddress;
     }
 
@@ -211,7 +315,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
                 .filter(e -> e.getKey().equals(address))
                 .forEach(e -> ricalculateIntensityStatistics(e,intensity));
 
-        System.out.println(streetAverageConsumption.toString());
+       // System.out.println(streetAverageConsumption.toString());
     }
 
     /**
@@ -310,6 +414,62 @@ public class MalfunctionCheckBolt implements IRichBolt {
     @Override
     public Map<String, Object> getComponentConfiguration() {
         return null;
+    }
+
+    private static class WeatherHelper{
+
+        private static final Float CLOUDY_SKY_INTENSITY_MINIMUM = 70.0f;
+        private static final Float VISIBILITY_INTENSITY_MINIMUM = 80.0f;
+        private static final Float DARK_SKY_INTENSITY_MINIMUM = 90.0f;
+        private static final Integer[] darkSkyCodes = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,19,20,21,26,27,28,29,30,37,38,39,40,44,45,47};
+
+
+        public WeatherHelper() {
+        }
+
+        private static boolean darkSkyFromCode(Integer code){
+            return Arrays.stream(darkSkyCodes).
+                    filter( e -> e.equals(code)).count()  > 0;
+        }
+
+        private static boolean rightIntensityByVisibility(Float intensity,Float visibility){
+            // TODO Visibility Policy
+
+            if(visibility > .5){
+                return intensity > VISIBILITY_INTENSITY_MINIMUM;
+            }
+
+            return true;
+        }
+
+
+
+        public static boolean rightIntensityOnWeatherByCode(Integer code,Float intesity){
+
+            if(darkSkyFromCode(code)){
+                return intesity > CLOUDY_SKY_INTENSITY_MINIMUM;
+            }
+
+            return true;
+        }
+
+        public static boolean rightIntesityByAstronomy(Float intensity, Astronomy astronomy) {
+            LocalDateTime now = LocalDateTime.now();
+            Integer nowHour = now.getHour();
+            Integer nowMin = now.getMinute();
+
+            Time sunrise = astronomy.getSunrise();
+            Time sunset = astronomy.getSunset();
+
+            /* if it's dark */
+            if(nowHour < sunrise.getHours() || nowHour > sunset.getHours()){
+                return intensity > DARK_SKY_INTENSITY_MINIMUM;
+            }
+
+            return true;
+
+
+        }
     }
 
 

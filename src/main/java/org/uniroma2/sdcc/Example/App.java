@@ -30,7 +30,9 @@ public class App {
             YahooWeatherService yahoo = new YahooWeatherService();
             Channel channel = yahoo.getForecast("721943", DegreeUnit.CELSIUS);
 
-            System.out.println(channel.getAstronomy().getSunset());
+            System.out.println(channel.getAtmosphere().toString());
+            System.out.println(channel.getItem().toString());
+            System.out.println(channel.getAstronomy());
 
 
         } catch (JAXBException e) {
