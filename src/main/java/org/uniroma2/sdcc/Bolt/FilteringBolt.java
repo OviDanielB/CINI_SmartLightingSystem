@@ -44,6 +44,7 @@ public class FilteringBolt extends BaseRichBolt {
     *   8   timestamp                   32 bit value
     *
     */
+
     @Override
     public void execute(Tuple tuple) {
 
@@ -66,18 +67,18 @@ public class FilteringBolt extends BaseRichBolt {
 
             emitValidLampTuple(tuple, streetLampMessage);
         }
-
     }
+
+
 
     /**
      * check and emit only valid tuples
-     *
-     * @param tuple             received from spout tuple
+     * @param tuple received from spout tuple
      * @param streetLampMessage parsed from tuple
      */
     private void emitValidLampTuple(Tuple tuple, StreetLampMessage streetLampMessage) {
 
-        if (validStreetLampFormat(streetLampMessage)) {
+        if(validStreetLampFormat(streetLampMessage)) {
 
             StreetLamp lamp = streetLampMessage.getStreetLamp();
 
@@ -117,8 +118,7 @@ public class FilteringBolt extends BaseRichBolt {
     /**
      * the street light should have a valid format
      * ex: intensity and naturalLight level should be percentages,
-     * timestamp should not be too far in the past, etc
-     *
+     *     timestamp should not be too far in the past, etc
      * @param streetLamp needed validation
      * @return true if valid, false otherwise
      */
@@ -130,11 +130,14 @@ public class FilteringBolt extends BaseRichBolt {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
 
-        outputFieldsDeclarer.declare(new Fields(Constant.ID, Constant.ADDRESS, Constant.ON,
-                Constant.LAMP_MODEL, Constant.CONSUMPTION, Constant.INTENSITY, Constant.LIFETIME,
-                Constant.NATURAL_LIGHT_LEVEL, Constant.TIMESTAMP));
 
+        outputFieldsDeclarer.declare(new Fields(StreetLampMessage.ID, StreetLampMessage.ADDRESS,
+                StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,
+                StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
+                StreetLampMessage.NATURAL_LIGHT_LEVEL, StreetLampMessage.TIMESTAMP));
+
+
+
+        //outputFieldsDeclarer.declare(new Fields(StreetLampMessage.STREET_LAMP_MSG));
     }
-
-
 }

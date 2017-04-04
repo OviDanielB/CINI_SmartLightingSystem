@@ -7,6 +7,7 @@ import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
 import org.uniroma2.sdcc.Bolt.MalfunctionCheckBolt;
+import org.uniroma2.sdcc.Bolt.WeatherBolt;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
 
@@ -16,6 +17,7 @@ public class AnomaliesDetectionTopology {
     private static String RABBIT_SPOUT = "rabbitSpout";
     private static String FILTER_BOLT = "filterBolt";
     private static String MALFUNCTION_CHECK_BOLT = "malfCheckBolt";
+    private static String WEATHER_BOLT = "weatherBolt";
 
     public static void main(String[] args) throws Exception {
         Config config = new Config();
@@ -30,6 +32,9 @@ public class AnomaliesDetectionTopology {
 
         builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt())
                 .fieldsGrouping(FILTER_BOLT,new Fields(Constant.ADDRESS));
+
+        builder.setBolt(WEATHER_BOLT,new WeatherBolt())
+                .fieldsGrouping(MALFUNCTION_CHECK_BOLT,new Fields(StreetLampMessage.ID));
 
 
 

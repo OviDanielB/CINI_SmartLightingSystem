@@ -4,8 +4,12 @@ import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Constant;
+import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Model.Address;
+import org.uniroma2.sdcc.Model.MalfunctionType;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
 
 import java.sql.Timestamp;
@@ -18,12 +22,13 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
     private OutputCollector outputCollector;
 
-    private volatile Map<String, AverageStatistics> streetAverageConsumption;
+    private volatile Map<String, StreetStatistics> streetAverageConsumption;
     private Map<Integer, Integer> probablyMalfunctioningCount;
     private float receivedMessages = 0f;
     private float malfunctioningLamps = 0f;
 
-    private static final Integer NUM_PROBABLE_MALF_THRESHOLD = 5 ;
+    private static final Integer NUM_PROBABLE_MALF_THRESHOLD = 5;
+    private static final Float ON_PERCENTAGE_THRESHOLD = 0.3f;
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
@@ -57,7 +62,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
         }, 30000,10000);
     }
 
-    private static double getConsValue(Map.Entry<String, AverageStatistics> stringAverageStatisticsEntry) {
+    private static double getConsValue(Map.Entry<String, StreetStatistics> stringAverageStatisticsEntry) {
         return stringAverageStatisticsEntry.getValue().getCurrentMean();
     }
 
@@ -66,29 +71,101 @@ public class MalfunctionCheckBolt implements IRichBolt {
     public void execute(Tuple input) {
 
         //StreetLampMessage message = (StreetLampMessage) input.getValueByField(StreetLampMessage.STREET_LAMP_MSG);
-        Integer id = (Integer) input.getValueByField(Constant.ID);
-        String address = (String) input.getValueByField(Constant.ADDRESS).toString();
-        Boolean on = (Boolean) input.getValueByField(Constant.ON);
-        String model = (String) input.getValueByField(Constant.LAMP_MODEL);
-        Float consumption = (Float) input.getValueByField(Constant.CONSUMPTION);
-        Float intensity = (Float) input.getValueByField(Constant.INTENSITY);
-        Date lifetime = (Date) input.getValueByField(Constant.LIFETIME);
-        Timestamp timestamp = (Timestamp) input.getValueByField(Constant.TIMESTAMP);
+        Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
+        Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
+        Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
+        String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
+        Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
+        Float intensity = (Float) input.getValueByField(StreetLampMessage.INTENSITY);
+        Date lifetime = (Date) input.getValueByField(StreetLampMessage.LIFETIME);
+        Timestamp timestamp = (Timestamp) input.getValueByField(StreetLampMessage.TIMESTAMP);
+
+        String reducedAddress = composeAddress(address);
 
         incrementReceivedMessages();
 
-        countMalfunctioning(on);
-        System.out.println("[CINI] MalfunctionCheckBolt : " + intensity);
+        //countMalfunctioning(on);
 
-        if(lightIntensityAnomalyDetected(address,intensity)){
-            System.out.println("[CINI] LIGHT INTENSITY ANOMALY DETECTED ON " + address);
+        Values values = new Values();
+        String malfunctionTypes = "";
+
+        if(lightIntensityAnomalyDetected(reducedAddress,intensity)){
+            System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
             increaseProbablyMalfunctions(id);
+
+            if(almostSurelyMalfunction(id)) {
+
+                malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY.toString() + ";";
+            }
+        }
+        if(damagedBulb(reducedAddress,on)){
+
+            malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
         }
 
-        updateStreetLightIntensityAvg(address,intensity);
+        if(malfunctionTypes.isEmpty()){
+            malfunctionTypes += MalfunctionType.NONE.toString() + ";";
+        }
 
+        values.add(malfunctionTypes);
+        values.add(id);
+        values.add(address);
+        values.add(on);
+        values.add(model);
+        values.add(intensity);
+        values.add(timestamp);
 
+        outputCollector.emit(input,values);
         outputCollector.ack(input);
+
+        updateStreetLightIntensityAvg(reducedAddress,intensity);
+
+    }
+
+    private boolean almostSurelyMalfunction(Integer id) {
+
+        if(probablyMalfunctioningCount.get(id) > NUM_PROBABLE_MALF_THRESHOLD){
+            System.out.println("[ALERT] Street Lamp with ID " + id +
+                    " exceeded malfunctioning threshold of " + NUM_PROBABLE_MALF_THRESHOLD + "!");
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * retain only valuable information for address
+     * @param address
+     * @return ex: Via Politecnico  (without number)
+     */
+    private String composeAddress(Address address) {
+
+        String finalAddress = String.format("%s %s",address.getName());
+        return finalAddress;
+    }
+
+    /**
+     * comparing with the percentage of active lights on the same street,
+     * tests if it should be on or off => see if it's damaged or not
+     * @param address simple street name (without number or km)
+     * @param on the state of the particular light bulb
+     * @return true if bulb is damaged,false otherwise
+     */
+    private boolean damagedBulb(String address,Boolean on) {
+
+        StreetStatistics statistics = streetAverageConsumption.get(address);
+
+        if(on){ /* lamp is on */
+            statistics.updateOnPercentage(1f);
+            /* test if it should be on or off (seeing the other lamps on the same street )*/
+            return !(statistics.getOnPercentage() > (1 - ON_PERCENTAGE_THRESHOLD));
+
+        } else { /* lamp is off */
+            statistics.updateOnPercentage(0f);
+            /* test if it should be on or off (seeing the other lamps on the same street )*/
+            return !(statistics.getOnPercentage() < ON_PERCENTAGE_THRESHOLD);
+        }
+
     }
 
     private void increaseProbablyMalfunctions(Integer id) {
@@ -98,10 +175,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
         /* increment number of probable malfunctions */
         probablyMalfunctioningCount.put(id, probablyMalfunctioningCount.get(id) + 1);
 
-        if(probablyMalfunctioningCount.get(id) > NUM_PROBABLE_MALF_THRESHOLD){
-            System.out.println("[ALERT] Street Lamp with ID " + id +
-                    " exceeded malfunctioning threshold of " + NUM_PROBABLE_MALF_THRESHOLD + "!");
-        }
     }
 
     /**
@@ -132,7 +205,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
     private void updateStreetLightIntensityAvg(String address, Float intensity) {
 
-        streetAverageConsumption.putIfAbsent(address,new AverageStatistics(0,intensity,0f));
+        streetAverageConsumption.putIfAbsent(address,new StreetStatistics(0,intensity,0f,0f));
 
         streetAverageConsumption.entrySet().stream()
                 .filter(e -> e.getKey().equals(address))
@@ -157,11 +230,12 @@ public class MalfunctionCheckBolt implements IRichBolt {
      * @param e <Address, Statistics> tuple
      * @param intensity latest light intensity value
      */
-    private void ricalculateIntensityStatistics(Map.Entry<String, AverageStatistics> e, Float intensity) {
+    private void ricalculateIntensityStatistics(Map.Entry<String, StreetStatistics> e, Float intensity) {
 
         Integer sampleNum = e.getValue().getSampleNumb();
         Float oldMean = e.getValue().getCurrentMean();
         Float oldV = e.getValue().getCurrentV();
+        Float onPercentage = e.getValue().getOnPercentage();
 
         /* current value minus old mean (needed for further computations) */
         Float d = intensity - oldMean;
@@ -176,7 +250,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
         Float updatedMean = oldMean + d / sampleNum;
 
         // TODO updated statistics instance, not create a new one
-        e.setValue(new AverageStatistics( sampleNum , updatedMean, updatedV));
+        e.setValue(new StreetStatistics(sampleNum, updatedMean, updatedV, onPercentage));
 
 
     }
@@ -227,7 +301,10 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        // final Bolt; nothing to declare
+
+        declarer.declare(new Fields(StreetLampMessage.MALFUNCTIONS_TYPE,StreetLampMessage.ID,
+                StreetLampMessage.ADDRESS,StreetLampMessage.ON,StreetLampMessage.LAMP_MODEL,
+                StreetLampMessage.INTENSITY, StreetLampMessage.TIMESTAMP));
     }
 
     @Override
@@ -236,18 +313,20 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
 
-    private static class AverageStatistics {
+    private static class StreetStatistics {
         private Integer sampleNumb;
         private Float currentMean;
         private Float currentV;
+        private Float onPercentage;
 
-        public AverageStatistics(Integer sampleNumb, Float currentValue,Float currentV) {
+        public StreetStatistics(Integer sampleNumb, Float currentValue, Float currentV,Float onPercentage) {
             this.sampleNumb = sampleNumb;
             this.currentMean = currentValue;
             this.currentV = currentV;
+            this.onPercentage = onPercentage;
         }
 
-        public AverageStatistics() {
+        public StreetStatistics() {
         }
 
         public Float stdDev(){
@@ -278,13 +357,26 @@ public class MalfunctionCheckBolt implements IRichBolt {
             this.currentV = currentStdDev;
         }
 
+        public Float getOnPercentage() {
+            return onPercentage;
+        }
+
+        public void setOnPercentage(Float onPercentage) {
+            this.onPercentage = onPercentage;
+        }
+
+        public void updateOnPercentage(Float on){
+            this.onPercentage = onPercentage + (on - onPercentage) / (sampleNumb);
+        }
+
         @Override
         public String toString() {
-            return "AverageStatistics{" +
+            return "StreetStatistics{" +
                     "sampleNumb=" + sampleNumb +
                     ", currentMean=" + currentMean +
                     ", currentV=" + currentV +
                     ", currentStdDev = " + stdDev() +
+                    ", onPercentage = " + onPercentage +
                     '}';
         }
     }

@@ -51,26 +51,12 @@
                 </descriptorRefs>
                 <archive>
                   <manifest>
-                    <mainClass>org.uniroma2.sdcc.RankingOldestLampsTopology</mainClass>
+                    <mainClass>org.uniroma2.sdcc.AnomaliesDetectionTopology</mainClass>
                   </manifest>
                 </archive>
               </configuration>
             </plugin>
 
-
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <configuration>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                    <archive>
-                        <manifest>
-                            <mainClass>org.uniroma2.sdcc.ConsumptionStatisticsTopology</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -160,6 +146,12 @@
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
             <version>3.2.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.fedy2</groupId>
+            <artifactId>yahoo-weather-java-api</artifactId>
+            <version>2.0.2</version>
         </dependency>
 
     </dependencies>

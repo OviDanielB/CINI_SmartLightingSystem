@@ -10,6 +10,7 @@ public class Address implements Serializable {
 
     static final Long serialVersionUID = 1L;
 
+
     private String name;
     private int number;
     private AddressNumberType numberType;
