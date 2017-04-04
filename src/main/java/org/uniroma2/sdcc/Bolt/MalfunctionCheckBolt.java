@@ -127,13 +127,13 @@ public class MalfunctionCheckBolt implements IRichBolt {
     @Override
     public void execute(Tuple input) {
 
-        //StreetLampMessage message = (StreetLampMessage) input.getValueByField(StreetLampMessage.STREET_LAMP_MSG);
         Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
         Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
         Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
         String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
         Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
         Float intensity = (Float) input.getValueByField(StreetLampMessage.INTENSITY);
+        Float naturalLightLevel = (Float) input.getValueByField(StreetLampMessage.NATURAL_LIGHT_LEVEL);
         LocalDateTime lifetime = (LocalDateTime) input.getValueByField(StreetLampMessage.LIFETIME);
         Long timestamp = (Long) input.getValueByField(StreetLampMessage.TIMESTAMP);
 
@@ -188,8 +188,11 @@ public class MalfunctionCheckBolt implements IRichBolt {
         values.add(address);
         values.add(on);
         values.add(model);
+        values.add(consumption);
+        values.add(lifetime);
         values.add(intensity);
         values.add(timestamp);
+
 
         outputCollector.emit(input,values);
         outputCollector.ack(input);
@@ -266,7 +269,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         } else { /* lamp is off */
             statistics.updateOnPercentage(0f);
-            /* test if it should be on or off (seeing the other lamps on the same street )*/
+            /* test if it should be on or off (seeing the other lamps on the same street)*/
             return !(statistics.getOnPercentage() < ON_PERCENTAGE_THRESHOLD);
         }
 
@@ -408,7 +411,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         declarer.declare(new Fields(StreetLampMessage.MALFUNCTIONS_TYPE,StreetLampMessage.ID,
                 StreetLampMessage.ADDRESS,StreetLampMessage.ON,StreetLampMessage.LAMP_MODEL,
-                StreetLampMessage.INTENSITY, StreetLampMessage.TIMESTAMP));
+                StreetLampMessage.CONSUMPTION,StreetLampMessage.LIFETIME,
+                StreetLampMessage.INTENSITY, StreetLampMessage.NATURAL_LIGHT_LEVEL,
+                StreetLampMessage.TIMESTAMP));
     }
 
     @Override
@@ -416,6 +421,11 @@ public class MalfunctionCheckBolt implements IRichBolt {
         return null;
     }
 
+
+    /**
+     * defines methods for checking right light intensity
+     * comparing to given weather conditions
+     */
     private static class WeatherHelper{
 
         private static final Float CLOUDY_SKY_INTENSITY_MINIMUM = 70.0f;
@@ -432,17 +442,12 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     filter( e -> e.equals(code)).count()  > 0;
         }
 
-        private static boolean rightIntensityByVisibility(Float intensity,Float visibility){
+        private static boolean rightIntensityByVisibility(Float intensity,Float visibility) {
             // TODO Visibility Policy
 
-            if(visibility > .5){
-                return intensity > VISIBILITY_INTENSITY_MINIMUM;
-            }
+            return !(visibility > .5) || intensity > VISIBILITY_INTENSITY_MINIMUM;
 
-            return true;
         }
-
-
 
         public static boolean rightIntensityOnWeatherByCode(Integer code,Float intesity){
 
