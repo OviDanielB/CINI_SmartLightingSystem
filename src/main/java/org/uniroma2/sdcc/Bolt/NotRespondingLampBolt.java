@@ -1,5 +1,9 @@
 package org.uniroma2.sdcc.Bolt;
 
+import com.google.gson.Gson;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
@@ -7,9 +11,12 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Model.*;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Created by ovidiudanielbarba on 30/03/2017.
@@ -18,7 +25,9 @@ public class NotRespondingLampBolt implements IRichBolt {
 
     private OutputCollector collector;
     /* (K,V) -> (LampID, Timestamp last received message) */
-    private ConcurrentHashMap<Integer, Long> notRespondingCount;
+    private ConcurrentHashMap<Integer, AnomalyStreetLampMessage> notRespondingCount;
+
+    private ConcurrentLinkedQueue<AnomalyStreetLampMessage> noResponseLampsToRabbit;
 
     /* in seconds */
     private static final Integer RESPONSE_CHECKER_PERIOD = 10;
@@ -26,11 +35,19 @@ public class NotRespondingLampBolt implements IRichBolt {
     /* time after which a lamp not responding is considered malfunctioning  */
     private static final Long NO_RESPONSE_INTERVAL = 60L;
 
+    private static final String LOG_TAG = "[CINI] [NotRespondingLampBolt] ";
+
+    private Thread consumer;
+
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
         notRespondingCount = new ConcurrentHashMap<>();
+
+        noResponseLampsToRabbit = new ConcurrentLinkedQueue<>();
+
+        startPeriodicResponseChecker();
     }
 
     @Override
@@ -53,15 +70,15 @@ public class NotRespondingLampBolt implements IRichBolt {
         List<MalfunctionType> malfunctions = parseStringForMalf(malfunctionsStr);
 
         AnomalyStreetLampMessage anomalyMessage = new AnomalyStreetLampMessage(lamp,naturalLightLevel,
-                timestamp, malfunctions,0);
+                timestamp, malfunctions,0L);
 
-        // TODO continue
-        updateNotRespCount(id,timestamp);
 
-        startPeriodicResponseChecker();
+
+
+        updateLampList(id,anomalyMessage);
+
 
         collector.ack(input);
-
 
     }
 
@@ -81,33 +98,35 @@ public class NotRespondingLampBolt implements IRichBolt {
         return Lamp.UNKNOWN;
     }
 
+    /**
+     * periodically parses notRespondingCount hash map to determine those street lamps that haven't
+     * sent messages for NO_RESPONSE_INTERVAL
+     */
     private void startPeriodicResponseChecker() {
+
+        /* start periodic producer on queue */
         Timer timer = new Timer();
+        QueueProducer producer = new QueueProducer(noResponseLampsToRabbit,notRespondingCount);
+        timer.schedule(producer,5000, 1000 * RESPONSE_CHECKER_PERIOD);
 
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
 
-                notRespondingCount.entrySet().stream()
-                        .filter( e -> {
-                            Long now = System.currentTimeMillis();
-                            Long lastMessTime = e.getValue();
-                            /* if difference from time now and last received message
-                             is greater than NO_RESPONSE_INTERVAL => it's not working anymore */
-                            return ( now - lastMessTime ) > NO_RESPONSE_INTERVAL;
-                        }).mapToInt(e -> e.getKey());
-
-            }
-        },5000, 1000 * RESPONSE_CHECKER_PERIOD);
+        /* start consumer thread on queue */
+        Timer consumerTimer = new Timer();
+        QueueConsumerToRabbit consumerToRabbit = new QueueConsumerToRabbit(noResponseLampsToRabbit);
+        consumerTimer.schedule(consumerToRabbit,6000, 1000 * RESPONSE_CHECKER_PERIOD);
+        //consumer = new Thread(consumerToRabbit);
+        //consumer.start();
 
 
     }
 
-    private void updateNotRespCount(Integer id, Long timestamp) {
-        notRespondingCount.putIfAbsent(id, timestamp);
+    /* update lamp list with recent values */
+    private void updateLampList(Integer id, AnomalyStreetLampMessage timestamp) {
 
-        Long count = notRespondingCount.get(id);
-        count++;
+        // TODO
+        notRespondingCount.put(id, timestamp);
+        //System.out.println(LOG_TAG + "HASH MAP LENGTH = " + notRespondingCount.size());
+
     }
 
 
@@ -136,11 +155,142 @@ public class NotRespondingLampBolt implements IRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-
+        /* nothing to declare */
     }
 
     @Override
     public Map<String, Object> getComponentConfiguration() {
         return null;
     }
+
+
+    /**
+     * Thread that executes periodically (given by TimerTask),
+     * iterates the hashmap and produces in a queue the street lamps
+     * that have not responded for a while
+     */
+    private class QueueProducer extends TimerTask{
+
+        private ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue;
+
+        private ConcurrentHashMap<Integer,AnomalyStreetLampMessage> hashMap;
+
+        public QueueProducer(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue,
+                             ConcurrentHashMap map) {
+            this.queue = queue;
+            this.hashMap = map;
+        }
+
+        @Override
+        public void run() {
+
+            hashMap.entrySet().stream()
+                    .filter( e -> {
+                        Long now = System.currentTimeMillis();
+                        Long lastMessTime = e.getValue().getTimestamp();
+                            /* if difference from time now and last received message
+                             is greater than NO_RESPONSE_INTERVAL => it's not working anymore */
+                        return ( now - lastMessTime ) > NO_RESPONSE_INTERVAL * 1000; /* in milliseconds */
+                    }).forEach(e -> {
+
+                    queue.add(e.getValue());
+                    //System.out.println(LOG_TAG + " QUEUE LENGTH =  " + queue.size());
+                    hashMap.remove(e.getKey());
+                    System.out.println("[CINI] Not Responding LAMP with ID " + e.getKey() + " has not responded for longer than " +
+                            "" + NO_RESPONSE_INTERVAL + " seconds");
+
+            });
+        }
+    }
+
+    /**
+     * consumes messages from the queue and sends it on a rabbitmq
+     */
+    private class QueueConsumerToRabbit extends TimerTask{
+
+        private ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue;
+        private Connection connection;
+        private Channel channel;
+        private ConnectionFactory factory;
+
+        private Gson gson;
+
+        private  final String HOST = "localhost";
+        private  final Integer PORT =  5673;
+        private  final String QUEUE_NAME = "anomaly";
+
+        public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue) {
+            System.out.println(LOG_TAG + "RABBIT CONSUMER CONSTRUCTOR");
+            this.queue = queue;
+            gson = new Gson();
+            rabbitConnection();
+        }
+
+        /* set connection attributes */
+        private void rabbitConnection() {
+            factory = new ConnectionFactory();
+            factory.setHost(HOST);
+            factory.setPort(PORT);
+
+            tryConnection();
+        }
+
+        /* try to connect to rabbitmq
+         * else sets connection and channel to null
+         * can be recalled later to retry connection
+         */
+        private void tryConnection(){
+
+            try {
+                connection = factory.newConnection();
+                channel = connection.createChannel();
+
+                channel.queueDeclare(QUEUE_NAME,false,false,false,null);
+                System.out.println(LOG_TAG + " Rabbit connected on " + HOST+ ":" + PORT);
+
+            } catch (IOException | TimeoutException e) {
+                e.printStackTrace();
+                System.out.println(LOG_TAG + "No rabbit connection available! ");
+                connection = null;
+                channel = null;
+            }
+
+        }
+
+
+        public boolean rabbitConnectionAvailable(){
+            return ((connection != null) && (channel != null));
+        }
+
+        @Override
+        public void run() {
+
+            /* poll queue for new messages */
+            AnomalyStreetLampMessage message = null;
+            String jsonMsg;
+
+            while( (message = queue.poll()) != null){
+
+                /* convert to json */
+                jsonMsg = gson.toJson(message);
+                System.out.println(LOG_TAG + " sending " + jsonMsg);
+                try {
+
+                    if(rabbitConnectionAvailable()) {
+                        /* write on queue */
+                        channel.basicPublish("", "anomaly", null, jsonMsg.getBytes());
+                    } else {
+                        /* retry to connect */
+                        tryConnection();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.out.println(LOG_TAG + "Could not publish message on final rabbit queue! ");
+                }
+
+
+            }
+        }
+    }
+
 }

@@ -152,7 +152,8 @@ public class MalfunctionCheckBolt implements IRichBolt {
         /* check if light intensity is different from the average value of the street (continuously updated) */
         if(lightIntensityAnomalyDetected(reducedAddress,intensity)){
 
-            System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
+            // TODO debug
+            //System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
 
             /* avoid errors from light transition (from sunny to cloudy and viceversa) */
             increaseProbablyMalfunctions(id);
@@ -191,6 +192,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
         values.add(consumption);
         values.add(lifetime);
         values.add(intensity);
+        values.add(naturalLightLevel);
         values.add(timestamp);
 
 

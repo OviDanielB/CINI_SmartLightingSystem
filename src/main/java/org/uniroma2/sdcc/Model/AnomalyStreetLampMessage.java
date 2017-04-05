@@ -8,13 +8,13 @@ import java.util.List;
 public class AnomalyStreetLampMessage extends StreetLampMessage{
 
     private List<MalfunctionType> malfunctionTypes;
-    private Integer noResponseCount;
+    private Long noResponseCount;
 
     public AnomalyStreetLampMessage() {
     }
 
     public AnomalyStreetLampMessage(StreetLamp streetLamp, Float naturalLightLevel, Long timestamp,
-                                    List<MalfunctionType> malfunctionTypes, Integer noResponseCount) {
+                                    List<MalfunctionType> malfunctionTypes, Long noResponseCount) {
         super(streetLamp, naturalLightLevel, timestamp);
         this.malfunctionTypes = malfunctionTypes;
         this.noResponseCount = noResponseCount;
@@ -28,11 +28,11 @@ public class AnomalyStreetLampMessage extends StreetLampMessage{
         this.malfunctionTypes = malfunctionTypes;
     }
 
-    public Integer getNoResponseCount() {
+    public Long getNoResponseCount() {
         return noResponseCount;
     }
 
-    public void setNoResponseCount(Integer noResponseCount) {
+    public void setNoResponseCount(Long noResponseCount) {
         this.noResponseCount = noResponseCount;
     }
 }
