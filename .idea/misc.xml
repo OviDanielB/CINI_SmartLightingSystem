@@ -5,6 +5,7 @@
       <list>
         <option value="$PROJECT_DIR$/pom.xml" />
         <option value="$USER_HOME$/storm/examples/CINI_StreetLamp_Client/pom.xml" />
+        <option value="$PROJECT_DIR$/../CINI_StreetLamp_Client/pom.xml" />
       </list>
     </option>
   </component>

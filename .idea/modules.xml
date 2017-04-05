@@ -3,7 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/CINI_SmartLightingSystem.iml" filepath="$PROJECT_DIR$/CINI_SmartLightingSystem.iml" />
-      <module fileurl="file://$USER_HOME$/storm/examples/CINI_StreetLamp_Client/CINI_StreetLamp_Client.iml" filepath="$USER_HOME$/storm/examples/CINI_StreetLamp_Client/CINI_StreetLamp_Client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../CINI_StreetLamp_Client/CINI_StreetLamp_Client.iml" filepath="$PROJECT_DIR$/../CINI_StreetLamp_Client/CINI_StreetLamp_Client.iml" />
     </modules>
   </component>
 </project>
