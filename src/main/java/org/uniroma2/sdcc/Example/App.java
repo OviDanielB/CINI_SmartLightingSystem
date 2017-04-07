@@ -1,13 +1,11 @@
 package org.uniroma2.sdcc.Example;
 
-import com.github.fedy2.weather.YahooWeatherService;
-import com.github.fedy2.weather.data.Channel;
-import com.github.fedy2.weather.data.unit.DegreeUnit;
 
-import javax.xml.bind.JAXBException;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import com.amazonaws.SystemDefaultDnsResolver;
+import com.amazonaws.opensdk.SdkRequestConfig;
+import com.amazonaws.opensdk.config.ConnectionConfiguration;
+import org.uniroma2.sdcc.Traffic.Traffic;
+import org.uniroma2.sdcc.Traffic.model.*;
 
 /**
  * Created by ovidiudanielbarba on 23/03/2017.
@@ -15,30 +13,20 @@ import java.util.Map;
 public class App {
     public static void main(String[] args){
 
+        Traffic client = Traffic.builder().build();
+
+        GetStreeTrafficRequest request = new GetStreeTrafficRequest();
+        GetStreeTrafficResult result = client.getStreeTraffic(request.tableName("Traffic"));
+
         /*
-        Map<String, Float> streetAverageConsumption = new HashMap<>();
-        streetAverageConsumption.put("via",2.3f);
-        //streetAverageConsumption.putIfAbsent("via",2.2f);
-
-        streetAverageConsumption.replace("via",3.0f);
-
-
-        System.out.println(streetAverageConsumption.toString());
+        POSTReq p = new POSTReq().tableName("Traffic").item(new Item().city("Rome").street("Via Paolo I").trafficPerc(new Double(22)));
+        PostStreeTrafficRequest request = new PostStreeTrafficRequest();
+        request.setPOSTReq(p);
+        PostStreeTrafficResult result = client.postStreeTraffic(request);
         */
 
-        try {
-            YahooWeatherService yahoo = new YahooWeatherService();
-            Channel channel = yahoo.getForecast("721943", DegreeUnit.CELSIUS);
+        result.getGETTrafficResponse().getItems().stream().forEach(e -> System.out.println(e));
+        //System.out.println(result.toString());
 
-            System.out.println(channel.getAtmosphere().toString());
-            System.out.println(channel.getItem().toString());
-            System.out.println(channel.getAstronomy());
-
-
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 }

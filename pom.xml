@@ -91,6 +91,13 @@
         </dependency>
 
         <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-opensdk</artifactId>
+            <version>1.11.94</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.whalin</groupId>
             <artifactId>Memcached-Java-Client</artifactId>
             <version>3.0.2</version>
