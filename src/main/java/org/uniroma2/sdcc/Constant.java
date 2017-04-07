@@ -18,4 +18,6 @@ public class Constant {
     public static String GAP_TO_DECREASE = "gap_to_decrease";
     public static String TRAFFIC_BY_ADDRESS = "traffic_by_address";
 
+    public static String ADAPTED_INTENSITY = "adapted_intensity";
+
 }

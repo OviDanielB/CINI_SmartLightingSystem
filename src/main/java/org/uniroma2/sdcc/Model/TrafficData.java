@@ -15,6 +15,13 @@ public class TrafficData {
         this.timestamp = timestamp;
     }
 
+    public TrafficData(
+            String street, Float congestionPercentage) {
+        this.street = street;
+        this.congestionPercentage = congestionPercentage;
+//        this.timestamp = new Date().getTime();
+    }
+
     public String getStreet() {
         return street;
     }

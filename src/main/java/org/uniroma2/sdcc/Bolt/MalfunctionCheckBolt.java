@@ -20,7 +20,6 @@ import org.uniroma2.sdcc.Model.StreetLampMessage;
 
 import javax.xml.bind.JAXBException;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -28,6 +27,8 @@ import java.util.*;
  * Created by ovidiudanielbarba on 21/03/2017.
  */
 public class MalfunctionCheckBolt implements IRichBolt {
+
+    // TODO add check for *MORE anomalies
 
     private OutputCollector outputCollector;
 
@@ -150,37 +151,62 @@ public class MalfunctionCheckBolt implements IRichBolt {
         updateStreetLightIntensityAvg(reducedAddress,intensity);
 
         /* check if light intensity is different from the average value of the street (continuously updated) */
-        if(lightIntensityAnomalyDetected(reducedAddress,intensity)){
+        int checkLight = lightIntensityAnomalyDetected(reducedAddress,intensity);
+        switch (checkLight) {
+            case -1:
 
-            // TODO debug
-            //System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
+                // TODO debug
+                //System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
 
-            /* avoid errors from light transition (from sunny to cloudy and viceversa) */
-            increaseProbablyMalfunctions(id);
+                /* avoid errors from light transition (from sunny to cloudy and viceversa) */
+                increaseProbablyMalfunctions(id);
 
-            /* the threshold of errors has been overcome =>
-             almost surely it is an anomaly */
-            if(almostSurelyMalfunction(id)) {
+                /* the threshold of errors has been overcome =>
+                 almost surely it is an anomaly */
+                if(almostSurelyMalfunction(id)) {
 
-                malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY.toString() + ";";
-            }
+                    malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS.toString() + ";";
+                }
+                break;
+            case 1:
+                // TODO debug
+                //System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
+
+                /* avoid errors from light transition (from sunny to cloudy and viceversa) */
+                increaseProbablyMalfunctions(id);
+
+                /* the threshold of errors has been overcome =>
+                 almost surely it is an anomaly */
+                if (almostSurelyMalfunction(id)) {
+
+                    malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE.toString() + ";";
+                }
+                break;
+            default:
+                break;
         }
 
         /* checks if the state of the bulb (on or off) is as the most of the
         * lamps on the street ; othwerwise it could be damaged */
-        if(damagedBulb(reducedAddress,on)){
-
+        if (damagedBulb(reducedAddress,on)) {
             malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
         }
 
         /* checks for weather anomalies (low light on cloudy day, etc) */
-        if(weatherAnomaly(intensity)){
-
-            malfunctionTypes += MalfunctionType.WEATHER.toString() + ";";
+        int checkWeather = weatherAnomaly(intensity);
+        switch (checkWeather){
+            case -1:
+                malfunctionTypes += MalfunctionType.WEATHER_LESS.toString() + ";";
+                break;
+            case 1:
+                malfunctionTypes += MalfunctionType.WEATHER_MORE.toString() + ";";
+                break;
+            default:
+                break;
         }
 
         /* if no anomalies detected */
-        if(malfunctionTypes.isEmpty()){
+        if (malfunctionTypes.isEmpty()) {
             malfunctionTypes += MalfunctionType.NONE.toString() + ";";
         }
 
@@ -208,12 +234,14 @@ public class MalfunctionCheckBolt implements IRichBolt {
      * looking at the intensity before sunrise and after sunset
      *
      * @param intensity light level
-     * @return true if no anomaly,false if AT LEAST ONCE is present
+     * @return 0 if no anomaly (AT LEAST ONCE is present)
+     *         -1 if lack anomaly (less than necessary)
+     *         1 if excess anomaly (more than necessary)
      */
-    private boolean weatherAnomaly(Float intensity) {
+    private int weatherAnomaly(Float intensity) {
 
-        if(!weatherAvailable){
-            return false;
+        if (!weatherAvailable) {
+            return 0;
         } else {
             Atmosphere atmosphere = weatherChannel.getAtmosphere();
             Condition currentCondition = weatherChannel.getItem().getCondition();
@@ -222,11 +250,17 @@ public class MalfunctionCheckBolt implements IRichBolt {
             Integer conditionCode = currentCondition.getCode();
             Float visibility = atmosphere.getVisibility();
 
-            boolean weatherIntensityRight = WeatherHelper.rightIntensityOnWeatherByCode(conditionCode,intensity);
-            boolean visibilityIntensityRight = WeatherHelper.rightIntensityByVisibility(intensity,visibility);
-            boolean astronomyIntensityRight = WeatherHelper.rightIntesityByAstronomy(intensity,astronomy);
+            int weatherIntensityRight = WeatherHelper.rightIntensityOnWeatherByCode(conditionCode,intensity);
+            int visibilityIntensityRight = WeatherHelper.rightIntensityByVisibility(intensity,visibility);
+            int astronomyIntensityRight = WeatherHelper.rightIntesityByAstronomy(intensity,astronomy);
 
-            return (weatherIntensityRight && visibilityIntensityRight && astronomyIntensityRight);
+            int sum = weatherIntensityRight + visibilityIntensityRight + astronomyIntensityRight;
+            if ( sum < 0) {
+                return -1;
+            } else if ( sum > 0 ) {
+                return 1;
+            }
+            return 0;
         }
     }
 
@@ -294,11 +328,15 @@ public class MalfunctionCheckBolt implements IRichBolt {
      *  in the inverval [mean - stdev, mean + stdev], meaning it's in the good interval
      * @param address street name
      * @param intensity new value to evaluate
-     * @return true if anomaly is detected
+     * @return 0 if no anomaly detected
+     *         -1 if anomaly (less than necessary) is detected
+     *         1 if anomaly (more than necessary) is detected
      */
-    private boolean lightIntensityAnomalyDetected(String address, Float intensity) {
+    private int lightIntensityAnomalyDetected(String address, Float intensity) {
 
-        return streetAverageConsumption.entrySet().stream()
+        // true if intensity more than upper bound
+        boolean checkUpper =
+                streetAverageConsumption.entrySet().stream()
                 .filter(e -> e.getKey().equals(address))
                 .filter(e -> {
 
@@ -308,8 +346,35 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     Float lowerBound = mean - stdev;
                     Float upperBound = mean + stdev;
 
-                    return (!(intensity >= lowerBound && intensity <= upperBound));
-                }).count() > 0 ;
+                    return !(intensity >= upperBound);
+                }).count() > 0;
+
+        // true if intensity less than lower bound
+        boolean checkLower =
+                streetAverageConsumption.entrySet().stream()
+                        .filter(e -> e.getKey().equals(address))
+                        .filter(e -> {
+
+                            Float mean = e.getValue().getCurrentMean();
+                            Float stdev = e.getValue().stdDev();
+
+                            Float lowerBound = mean - stdev;
+                            Float upperBound = mean + stdev;
+
+                            return !(intensity <= lowerBound);
+                        }).count() > 0;
+
+
+        if ( checkUpper ) {
+            // lack anomaly detected
+            return 1;
+        } else if (checkLower) {
+            // lack anomaly detected
+            return -1;
+        } else {
+            // no anomaly detected
+            return 0;
+        }
     }
 
     private void updateStreetLightIntensityAvg(String address, Float intensity) {
@@ -428,11 +493,14 @@ public class MalfunctionCheckBolt implements IRichBolt {
      * defines methods for checking right light intensity
      * comparing to given weather conditions
      */
-    private static class WeatherHelper{
+    private static class WeatherHelper {
 
         private static final Float CLOUDY_SKY_INTENSITY_MINIMUM = 70.0f;
+        private static final Float SUNNY_SKY_INTENSITY_MAXIMUM = 50.0f;
         private static final Float VISIBILITY_INTENSITY_MINIMUM = 80.0f;
+        private static final Float VISIBILITY_INTENSITY_MAXIMUM = 50.0f;
         private static final Float DARK_SKY_INTENSITY_MINIMUM = 90.0f;
+        private static final Float GLARE_SKY_INTENSITY_MAXIMUM = 50.0f;
         private static final Integer[] darkSkyCodes = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,19,20,21,26,27,28,29,30,37,38,39,40,44,45,47};
 
 
@@ -444,23 +512,33 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     filter( e -> e.equals(code)).count()  > 0;
         }
 
-        private static boolean rightIntensityByVisibility(Float intensity,Float visibility) {
+        private static int rightIntensityByVisibility(Float intensity,Float visibility) {
             // TODO Visibility Policy
 
-            return !(visibility > .5) || intensity > VISIBILITY_INTENSITY_MINIMUM;
-
-        }
-
-        public static boolean rightIntensityOnWeatherByCode(Integer code,Float intesity){
-
-            if(darkSkyFromCode(code)){
-                return intesity > CLOUDY_SKY_INTENSITY_MINIMUM;
+            if (!(visibility > .5) && intensity < VISIBILITY_INTENSITY_MINIMUM) {
+                return -1;
+            } else if (visibility > .5 && intensity > VISIBILITY_INTENSITY_MAXIMUM) {
+                return 1;
             }
-
-            return true;
+            return 0;
         }
 
-        public static boolean rightIntesityByAstronomy(Float intensity, Astronomy astronomy) {
+
+        public static int rightIntensityOnWeatherByCode(Integer code,Float intensity){
+
+            // if cloudy sky
+            if (darkSkyFromCode(code)) {
+                if (intensity < CLOUDY_SKY_INTENSITY_MINIMUM){
+                    return -1;
+                }
+            // if sunny sky
+            } else if (intensity > SUNNY_SKY_INTENSITY_MAXIMUM) {
+                    return 1;
+            }
+            return 0;
+        }
+
+        public static int rightIntesityByAstronomy(Float intensity, Astronomy astronomy) {
             LocalDateTime now = LocalDateTime.now();
             Integer nowHour = now.getHour();
             Integer nowMin = now.getMinute();
@@ -469,13 +547,15 @@ public class MalfunctionCheckBolt implements IRichBolt {
             Time sunset = astronomy.getSunset();
 
             /* if it's dark */
-            if(nowHour < sunrise.getHours() || nowHour > sunset.getHours()){
-                return intensity > DARK_SKY_INTENSITY_MINIMUM;
+            if (nowHour < sunrise.getHours() || nowHour > sunset.getHours()) {
+                if (intensity < DARK_SKY_INTENSITY_MINIMUM) {
+                    return -1;
+                } else if (intensity > GLARE_SKY_INTENSITY_MAXIMUM) {
+                    return 1;
+                }
             }
 
-            return true;
-
-
+            return 0;
         }
     }
 
