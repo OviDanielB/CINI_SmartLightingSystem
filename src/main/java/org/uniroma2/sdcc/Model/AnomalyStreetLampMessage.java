@@ -1,31 +1,31 @@
 package org.uniroma2.sdcc.Model;
 
-import java.util.List;
+import java.util.HashMap;
 
 /**
  * Created by ovidiudanielbarba on 04/04/2017.
  */
-public class AnomalyStreetLampMessage extends StreetLampMessage{
+public class AnomalyStreetLampMessage extends StreetLampMessage {
 
-    private List<MalfunctionType> malfunctionTypes;
+    private HashMap<MalfunctionType,Float> anomalies;
     private Long noResponseCount;
 
     public AnomalyStreetLampMessage() {
     }
 
     public AnomalyStreetLampMessage(StreetLamp streetLamp, Float naturalLightLevel, Long timestamp,
-                                    List<MalfunctionType> malfunctionTypes, Long noResponseCount) {
+                                    HashMap<MalfunctionType,Float> anomalies, Long noResponseCount) {
         super(streetLamp, naturalLightLevel, timestamp);
-        this.malfunctionTypes = malfunctionTypes;
+        this.anomalies = anomalies;
         this.noResponseCount = noResponseCount;
     }
 
-    public List<MalfunctionType> getMalfunctionTypes() {
-        return malfunctionTypes;
+    public HashMap<MalfunctionType,Float> getAnomalies() {
+        return anomalies;
     }
 
-    public void setMalfunctionTypes(List<MalfunctionType> malfunctionTypes) {
-        this.malfunctionTypes = malfunctionTypes;
+    public void setAnomalies(HashMap<MalfunctionType,Float> anomalies) {
+        this.anomalies = anomalies;
     }
 
     public Long getNoResponseCount() {
