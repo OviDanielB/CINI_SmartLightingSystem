@@ -67,7 +67,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         StreetLamp lamp = new StreetLamp(id,on,getLampModelByString(model),
                 address,intensity,consumption,lifeTime);
 
-        List<MalfunctionType> malfunctions = parseStringForMalf(malfunctionsStr);
+        HashMap<MalfunctionType, Float> malfunctions = parseStringForMalf(malfunctionsStr);
 
         AnomalyStreetLampMessage anomalyMessage = new AnomalyStreetLampMessage(lamp,naturalLightLevel,
                 timestamp, malfunctions,0L);
@@ -134,18 +134,21 @@ public class NotRespondingLampBolt implements IRichBolt {
      * parse string provided by MalfunctionCheckBolt and
      * retrieve MalfunctionTypes
      * @param malfunctionsStr string (may contain only NONE)
-     * @return list of malfunctions
+     * @return list of mapping between malfunctions and difference
+     *          from correct value
      */
-    private List<MalfunctionType> parseStringForMalf(String malfunctionsStr) {
+    private HashMap<MalfunctionType, Float> parseStringForMalf(String malfunctionsStr) {
 
-        List<MalfunctionType> malfunctionTypes = new ArrayList<>();
+        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
         for(MalfunctionType t : MalfunctionType.values()){
             if(malfunctionsStr.contains(t.toString())){
-                malfunctionTypes.add(t);
+                anomalies.put(t, 0f);
+            } else {
+                anomalies.put(t, 0f);
             }
         }
 
-        return malfunctionTypes;
+        return anomalies;
     }
 
     @Override
@@ -287,8 +290,6 @@ public class NotRespondingLampBolt implements IRichBolt {
                     e.printStackTrace();
                     System.out.println(LOG_TAG + "Could not publish message on final rabbit queue! ");
                 }
-
-
             }
         }
     }

@@ -14,4 +14,8 @@ public class Constant {
     public final static String NATURAL_LIGHT_LEVEL = "naturalLightLevel";
     public final static String TIMESTAMP = "timestamp";
 
+    public static String GAP_TO_ENCREASE = "gat_to_encrease";
+    public static String GAP_TO_DECREASE = "gap_to_decrease";
+    public static String TRAFFIC_BY_ADDRESS = "traffic_by_address";
+
 }

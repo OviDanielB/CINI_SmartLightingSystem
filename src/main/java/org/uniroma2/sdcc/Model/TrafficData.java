@@ -1,16 +1,18 @@
 package org.uniroma2.sdcc.Model;
 
+import java.sql.Timestamp;
 
 public class TrafficData {
 
     private String street;
     private Float congestionPercentage;
-    private Long timestamp;
+    private Timestamp timestamp;
 
-    public TrafficData(String street, Float concegestionPercentage) {
+    public TrafficData(
+            String street, Float congestionPercentage, Timestamp timestamp) {
         this.street = street;
-        this.congestionPercentage = concegestionPercentage;
-        this.timestamp = System.currentTimeMillis();
+        this.congestionPercentage = congestionPercentage;
+        this.timestamp = timestamp;
     }
 
     public String getStreet() {
@@ -21,19 +23,19 @@ public class TrafficData {
         this.street = street;
     }
 
-    public Float getConcegestionPercentage() {
+    public Float getCongestionPercentage() {
         return congestionPercentage;
     }
 
-    public void setConcegestionPercentage(Float concegestionPercentage) {
-        this.congestionPercentage = concegestionPercentage;
+    public void setCongestionPercentage(Float congestionPercentage) {
+        this.congestionPercentage = congestionPercentage;
     }
 
-    public Long getTimestamp() {
+    public Timestamp getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Long timestamp) {
+    public void setTimestamp(Timestamp timestamp) {
         this.timestamp = timestamp;
     }
 }
