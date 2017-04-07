@@ -1,5 +1,6 @@
 package org.uniroma2.sdcc.Traffic;
 
+import com.amazonaws.opensdk.SdkRequestConfig;
 import org.uniroma2.sdcc.Model.TrafficData;
 import org.uniroma2.sdcc.Traffic.model.*;
 
@@ -19,11 +20,14 @@ import java.util.List;
  */
 public class StreetTrafficREST implements StreetTraffic {
 
-    private static final String CITY = "Rome";
-    private static final String TABLE_NAME = "Traffic";
     private final Traffic client;
 
-    private static final String UPDATE_EXPRESSION = "set TrafficPerc = r";
+    private static final String CITY = "Rome";
+    private static final String TABLE_NAME = "Traffic";
+    private static final String QUERY_PARAM_TABLE = "tableName";
+    private static final String QUERY_PARAM_CITY = "city";
+    private static final String QUERY_PARAM_STREET = "street";
+    private static final String QUERY_PARAM_NEW_TRAFFIC = "newTraffic";
 
     public StreetTrafficREST() {
         client = Traffic.builder().build();
@@ -43,7 +47,13 @@ public class StreetTrafficREST implements StreetTraffic {
         request.setTableName(TABLE_NAME);
 
         /* GET Response => traffic for all city streets */
-        GetStreeTrafficResult result = client.getStreeTraffic(request);
+        GetStreeTrafficResult result;
+        try { result = client.getStreeTraffic(request); } catch (TrafficException e){
+            e.printStackTrace();
+            /* return empty list if there's an error */
+            streetsTraffic.clear();
+            return streetsTraffic;
+        }
 
         result.getGETTrafficResponse().getItems()
                 .forEach(e -> {
@@ -63,7 +73,7 @@ public class StreetTrafficREST implements StreetTraffic {
      *                        street
      */
     @Override
-    public void insertNewStreet(String street, Float trafficCongPerc) {
+    public boolean insertNewStreet(String street, Float trafficCongPerc) {
 
         /* create insert operation via POST request */
         PostStreeTrafficRequest request = new PostStreeTrafficRequest();
@@ -83,7 +93,12 @@ public class StreetTrafficREST implements StreetTraffic {
         request.setPOSTReq(jsonRequestModel);
 
         /* send POST request */
-        client.postStreeTraffic(request);
+        try{ client.postStreeTraffic(request); } catch (TrafficException e){
+            e.printStackTrace();
+            return false; /* insertion Failed */
+        }
+
+        return true;
 
     }
 
@@ -93,20 +108,25 @@ public class StreetTrafficREST implements StreetTraffic {
      * @param newTraffic new traffic congestion percentage value
      */
     @Override
-    public void updateStreetTraffic(String street, Float newTraffic) {
+    public boolean updateStreetTraffic(String street, Float newTraffic) {
 
         /* construct PUT request for updating street traffic */
         PutStreeTrafficRequest request = new PutStreeTrafficRequest();
 
-        /* HTTP body json template for DynamoDB update */
-        PUTReq jsonModel =  new PUTReq();
-        jsonModel.tableName(TABLE_NAME)
-                .key(new Key().city(CITY).street(street))
-                .updateExpression(UPDATE_EXPRESSION)
-                .expressionAttributeValues(new ExpressionAttributeValues().r(newTraffic.doubleValue()));
+        /* add query parameters */
+        SdkRequestConfig.Builder builder = SdkRequestConfig.builder();
+        builder.customQueryParam(QUERY_PARAM_TABLE,TABLE_NAME)
+                .customQueryParam(QUERY_PARAM_CITY, CITY)
+                .customQueryParam(QUERY_PARAM_STREET, street)
+                .customQueryParam(QUERY_PARAM_NEW_TRAFFIC,newTraffic.toString());
 
         /* send PUT request */
-        client.putStreeTraffic(request);
+        try{ client.putStreeTraffic(request.sdkRequestConfig(builder.build())); } catch (TrafficException e){
+            e.printStackTrace();
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -114,27 +134,32 @@ public class StreetTrafficREST implements StreetTraffic {
      * @param street
      */
     @Override
-    public void deleteStreet(String street) {
+    public boolean deleteStreet(String street) {
 
         /* create DELETE request for street deletion */
         DeleteStreeTrafficRequest request = new DeleteStreeTrafficRequest();
 
-        /* HTTP body json template for DynamoDB deletion */
-        DELETEReq jsonTemplate = new DELETEReq();
-        jsonTemplate.tableName(TABLE_NAME)
-                .key(new Key().city(CITY).street(street));
-
-        /* assing HTTP message body */
-        request.setDELETEReq(jsonTemplate);
 
         /* send DELETE request */
-        client.deleteStreeTraffic(request);
+
+       SdkRequestConfig.Builder builder = SdkRequestConfig.builder();
+       builder.customQueryParam(QUERY_PARAM_TABLE,TABLE_NAME)
+               .customQueryParam(QUERY_PARAM_CITY, CITY)
+               .customQueryParam(QUERY_PARAM_STREET, street);
+
+        try{ client.deleteStreeTraffic(request.sdkRequestConfig(builder.build())); } catch (TrafficException e){
+            e.printStackTrace();
+            return false;
+        }
+
+        return true;
 
     }
 
     /**
      * shutdown AWS API gateway connection
      */
+    @Override
     public void closeConn(){
         client.shutdown();
     }
