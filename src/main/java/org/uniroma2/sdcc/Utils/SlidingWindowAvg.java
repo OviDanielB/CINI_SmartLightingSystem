@@ -1,6 +1,8 @@
 package org.uniroma2.sdcc.Utils;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,7 +11,6 @@ import java.util.Map;
  *
  * @param <T> key to which is associated a statistics value
  * @author Emanuele , Ovidiu , Laura , Marius
- * @see SlotBasedAvg
  */
 public class SlidingWindowAvg<T> implements Serializable {
 
@@ -18,12 +19,15 @@ public class SlidingWindowAvg<T> implements Serializable {
     private static final int WINDOWS_LENGTH_DEF = 24;
     private static final int SLOT_DURATION_IN_SECONDS_DEF = 60;
 
-    private SlotBasedAvg<T> slotBasedAvg;          // Slot structure. Each slot keep statistics for an interval of time
+    private final Map<T, AvgCalculator[]> slottedAvgs = new HashMap<>();
+
     private int headSlot;                          // current slot
     private int tailSlot;                          // next slot to use
     private int windowLengthInSlots;               // window length in slot
     private int slotDurationInSeconds;             // slot duration in time
-    private Long lastSlideInSeconds;               // instant of last slot change
+    private LocalDateTime lastSlide;               // instant of last slot change
+
+    private ChronoUnit truncation = ChronoUnit.MINUTES;
 
     /**
      * Default constructor
@@ -43,13 +47,12 @@ public class SlidingWindowAvg<T> implements Serializable {
             throw new IllegalArgumentException("Window length in slots must be at least two (you requested "
                     + windowLengthInSlots + ")");
         }
-        this.windowLengthInSlots = windowLengthInSlots;
+        this.windowLengthInSlots = windowLengthInSlots + 1;     //plus one to keep incoming data
         this.slotDurationInSeconds = slotDurationInSeconds;
-        this.slotBasedAvg = new SlotBasedAvg<>(this.windowLengthInSlots);
 
         this.headSlot = 0;
         this.tailSlot = slotAfter(headSlot);
-        this.lastSlideInSeconds = System.currentTimeMillis() / 1000;
+        this.lastSlide = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
     }
 
     /**
@@ -57,64 +60,108 @@ public class SlidingWindowAvg<T> implements Serializable {
      *
      * @param obj         key
      * @param consumption quantity to consider in the statistics
-     * @param timestamp   instant at which the consumption data are measured
+     * @param ts          instant at which the consumption data are measured
      * @throws IllegalArgumentException timestamp's value in the future or too old that doesn't enters in the window
      */
-    public void updatedConsumptionAvg(T obj, Float consumption, Long timestamp) throws IllegalArgumentException {
+    public void updatedConsumptionAvg(T obj, Float consumption, LocalDateTime ts) throws IllegalArgumentException {
 
-        Integer slot = -1, i;
+        Integer slot, i;
 
-        if (timestamp > (System.currentTimeMillis() / 1000))
+        LocalDateTime now = LocalDateTime.now();
+        if (ts.isAfter(now))
             throw new IllegalArgumentException("The specified timestamp has a value in the future");
 
-        while (timestamp > lastSlideInSeconds + slotDurationInSeconds)
+        LocalDateTime endHeadSlot = lastSlide.plus(slotDurationInSeconds, ChronoUnit.SECONDS);
+        while (ts.isAfter(endHeadSlot) || ts.isEqual(endHeadSlot))
             advanceWindow();
 
         // According to the timestamp, we found the right slot where consider the consumption value
         for (i = 0; i < windowLengthInSlots; i++) {
 
-            if (timestamp >= lastSlideInSeconds - slotDurationInSeconds * i &&
-                    timestamp <= lastSlideInSeconds + (1 - i) * slotDurationInSeconds) {
-                slot = (headSlot - i + windowLengthInSlots) % windowLengthInSlots;
-                break;
-            }
+            LocalDateTime startSlot = lastSlide.minus(slotDurationInSeconds * i, ChronoUnit.SECONDS);
+            LocalDateTime endSlot = lastSlide.plus((1 - i) * slotDurationInSeconds, ChronoUnit.SECONDS);
 
+            if ((ts.isEqual(startSlot) || ts.isAfter(startSlot)) && ts.isBefore(endSlot)) {
+                slot = (headSlot - i + windowLengthInSlots) % windowLengthInSlots;
+                updateSlot(obj, slot, consumption);
+                return;
+            }
         }
 
-        if (slot == -1)
-            throw new IllegalArgumentException("timestamp is too old");
+        throw new IllegalArgumentException("timestamp too old - no slot available");
 
-        slotBasedAvg.updateConsumptionAvg(obj, slot, consumption);
+    }
+
+    public void updateSlot(T key, int slot, Float consumption) {
+        AvgCalculator[] calculators = slottedAvgs.computeIfAbsent(key, k -> new AvgCalculator[windowLengthInSlots]);
+
+        if (calculators[slot] == null)
+            calculators[slot] = new AvgCalculator();
+
+        calculators[slot].add(consumption);
     }
 
     /**
      * Obtain statistics for all key and it slides the window considering a new slot.
      *
      * @return statistics in the actual window of time
-     * @see this#getAVgs()
+     * @see this#getAVgsSinceLastSlide() ()
      */
     public Map<T, Float> getAvgThenAdvanceWindow() {
-        Map<T, Float> result = getAVgs();
+        Map<T, Float> result = getAVgsSinceLastSlide();
         advanceWindow();
         return result;
     }
 
-    private void advanceWindow() {
-        slotBasedAvg.wipeSlot(tailSlot);
-        advanceHead();
-        lastSlideInSeconds = System.currentTimeMillis() / 1000;
-    }
-
     /**
      * @return statistics in the actual window of time
+     * @see this#computeTotalAvgExcludingCurrentSlot(Object)
      */
-    public Map<T, Float> getAVgs() {
+    public Map<T, Float> getAVgsSinceLastSlide() {
         Map<T, Float> result = new HashMap<>();
-        for (T obj : slotBasedAvg.getSlottedAvgs().keySet()) {
-            result.put(obj, slotBasedAvg.computeTotalAvg(obj));
+        for (T obj : slottedAvgs.keySet()) {
+            result.put(obj, computeTotalAvgExcludingCurrentSlot(obj));
         }
 
         return result;
+    }
+
+    public Float computeTotalAvgExcludingCurrentSlot(T obj) {
+
+        AvgCalculator[] curr = slottedAvgs.get(obj);
+        int i;
+
+        if (curr == null)
+            throw new IllegalArgumentException("Object specified not found");
+
+        Float sum = 0f;
+        for (i = 0; i < windowLengthInSlots; i++) {
+            AvgCalculator l = curr[i];
+            if (l != null && i != headSlot) {
+                sum += l.getAvg();
+            }
+        }
+
+        return sum / (windowLengthInSlots - 1);
+    }
+
+    private void advanceWindow() {
+        wipeSlot(tailSlot);
+        advanceHead();
+        lastSlide = LocalDateTime.now().truncatedTo(truncation);
+    }
+
+    public void wipeSlot(int slot) {
+        for (T obj : slottedAvgs.keySet())
+            resetSlotAvgToZero(obj, slot);
+    }
+
+    private void resetSlotAvgToZero(T obj, int slot) {
+        AvgCalculator[] values = slottedAvgs.get(obj);
+        if (values[slot] != null) {
+            values[slot].setSum(0f);
+            values[slot].setN(0);
+        }
     }
 
     private void advanceHead() {
@@ -130,8 +177,20 @@ public class SlidingWindowAvg<T> implements Serializable {
         this.windowLengthInSlots = windowLengthInSlots;
     }
 
-    public Long getLastSlideInSeconds() {
-        return lastSlideInSeconds;
+    public LocalDateTime getLastSlide() {
+        return lastSlide;
+    }
+
+    public ChronoUnit getTruncation() {
+        return truncation;
+    }
+
+    public void setTruncation(ChronoUnit truncation) {
+        this.truncation = truncation;
+    }
+
+    public static long getSerialVersionUID() {
+        return serialVersionUID;
     }
 
 }
