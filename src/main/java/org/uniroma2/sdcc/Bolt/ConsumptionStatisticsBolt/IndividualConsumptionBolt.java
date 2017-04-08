@@ -4,7 +4,9 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Utils.SlidingWindowAvg;
+import org.uniroma2.sdcc.Utils.TupleHelpers;
 import org.uniroma2.sdcc.Utils.WrappedKey;
 
 import java.time.LocalDateTime;
@@ -13,14 +15,65 @@ import java.util.Map;
 /**
  * @author emanuele
  */
-public abstract class ConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
+public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
 
+    protected Integer tickFrequencyInSeconds;        // tick tuple arrival frequency
+    protected Integer tickCount = 0;
 
-    public ConsumptionBolt() {
+    public IndividualConsumptionBolt() {
     }
 
-    public ConsumptionBolt(int windowLengthInSeconds, int emitFrequencyInSeconds) {
+    public IndividualConsumptionBolt(int windowLengthInSeconds, int emitFrequencyInSeconds) {
         super(windowLengthInSeconds, emitFrequencyInSeconds);
+        this.tickFrequencyInSeconds = emitFrequencyInSeconds;
+    }
+
+    @Override
+    public void execute(Tuple tuple) {
+
+        /*
+         * If bolt receives a tick tuple
+         * (a) slide window
+         * (b) emit statistics
+         *
+         * If bolt receives a data tuple
+         * (a) Update statistics
+         */
+
+         /*
+         * if tick tuple then increment counter.
+         * If counter is emitFrequencyInSeconds/tickFrequency then emit.
+         *
+         * Otherwise get timestamp for incoming tuple. If it corresponds to
+         * a fraction time (for example 10:00, 14:00 and not 10:04 or 14:26)
+         * insert it in the sliding window.
+         *
+         * The sliding window has 24 slot. The first keep statistics for data with timestamp
+         * 00:00 to 00:59 etc.
+         */
+        if (TupleHelpers.isTickTuple(tuple)) {
+
+            tickCount++;
+            if (tickCount == (emitFrequencyInSeconds / tickFrequencyInSeconds)) {
+                emitCurrentWindowAvgs(window);
+                tickCount = 0;
+            }
+
+        } else {
+
+            LocalDateTime timestamp = (LocalDateTime) tuple.getValueByField(Constant.TIMESTAMP);
+            Float hourAvg = tuple.getFloatByField(Constant.CONSUMPTION);
+            WrappedKey key = getStatisticsKey(tuple);
+
+            /*
+             * example : In the slot 19:00 / 20:00 we can put only
+             * tuple with timestamp from 19:00 to (i.e) 19:05
+             * Here we have to filter
+             */
+            if (isValid(timestamp))
+                window.updatedConsumptionAvg(key, hourAvg, timestamp);
+
+        }
     }
 
     /**
@@ -72,6 +125,10 @@ public abstract class ConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         outputFieldsDeclarer.declare(new Fields("id", "street", "consumption",
                 "timestamp", "window length"));
+    }
+
+    protected boolean isValid(LocalDateTime timestamp) {
+        return true;
     }
 
 }

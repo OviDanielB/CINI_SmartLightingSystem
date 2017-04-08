@@ -41,18 +41,20 @@ public class ConsumptionStatisticsTopology {
 
         builder.setBolt("parser", new ParserBolt(), 1).shuffleGrouping("filterBolt");
 
-        builder.setBolt("HourlyBolt", new HourlyConsumptionBolt(3600,
-                tickFrequencyInSeconds), 1).shuffleGrouping("parser");
+        builder.setBolt("HourlyBolt", new IndividualConsumptionBolt(3600,
+                tickFrequencyInSeconds) {
+        }, 1).shuffleGrouping("parser");
 
-        builder.setBolt("AggregateHourly", new AggregateHourlyConsumptionBolt(3600,
-                tickFrequencyInSeconds), 3)
+        builder.setBolt("AggregateHourly", new AggregateConsumptionBolt(3600,
+                tickFrequencyInSeconds) {
+        }, 3)
                 .fieldsGrouping("parser", new Fields("street"));
 
-        builder.setBolt("DailyBolt", new DailyConsumptionBolt(3600 * 24,
+        builder.setBolt("DailyBolt", new DailyIndividualConsumptionBolt(3600 * 24,
                 3600 / 2, tickFrequencyInSeconds), 1)
                 .shuffleGrouping("HourlyBolt");
 
-        builder.setBolt("AggregateDaily", new AggregateDailyConsumptionBolt(3600 * 24,
+        builder.setBolt("AggregateDaily", new DailyAggregateConsumptionBolt(3600 * 24,
                 3600 / 2, tickFrequencyInSeconds), 3)
                 .fieldsGrouping("AggregateHourly", new Fields("street"));
 

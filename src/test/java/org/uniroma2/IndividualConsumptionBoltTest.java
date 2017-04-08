@@ -9,7 +9,7 @@ import org.apache.storm.tuple.Values;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt.HourlyConsumptionBolt;
+import org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt.IndividualConsumptionBolt;
 import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Model.AddressNumberType;
 import tools.MockTupleHelpers;
@@ -28,7 +28,7 @@ import static org.mockito.Mockito.*;
  * @author emanuele
  */
 @RunWith(MockitoJUnitRunner.class)
-public class HourlyConsumptionBoltTest {
+public class IndividualConsumptionBoltTest {
 
     private final static int WINDOW_LENGTH = 60;
     private final static int EMIT_FREQUENCY = 5;
@@ -47,7 +47,7 @@ public class HourlyConsumptionBoltTest {
     public void shouldEmitNothingIfNoObjectHasBeenCountedYetAndTickTupleIsReceived() {
         // given
         Tuple tickTuple = MockTupleHelpers.mockTickTuple();
-        HourlyConsumptionBolt bolt = new HourlyConsumptionBolt(WINDOW_LENGTH, EMIT_FREQUENCY);
+        IndividualConsumptionBolt bolt = new IndividualConsumptionBolt(WINDOW_LENGTH, EMIT_FREQUENCY);
         Map conf = mock(Map.class);
         TopologyContext context = mock(TopologyContext.class);
         OutputCollector collector = mock(OutputCollector.class);
@@ -68,7 +68,7 @@ public class HourlyConsumptionBoltTest {
         Tuple normalTuple = mockNormalTuple(new Object());
         Tuple tickTuple = MockTupleHelpers.mockTickTuple();
 
-        HourlyConsumptionBolt bolt = new HourlyConsumptionBolt(WINDOW_LENGTH, EMIT_FREQUENCY);
+        IndividualConsumptionBolt bolt = new IndividualConsumptionBolt(WINDOW_LENGTH, EMIT_FREQUENCY);
         Map conf = mock(Map.class);
         TopologyContext context = mock(TopologyContext.class);
         OutputCollector collector = mock(OutputCollector.class);
@@ -97,7 +97,7 @@ public class HourlyConsumptionBoltTest {
     public void shouldDeclareOutputFields() {
         // given
         OutputFieldsDeclarer declarer = mock(OutputFieldsDeclarer.class);
-        HourlyConsumptionBolt bolt = new HourlyConsumptionBolt(WINDOW_LENGTH, EMIT_FREQUENCY);
+        IndividualConsumptionBolt bolt = new IndividualConsumptionBolt(WINDOW_LENGTH, EMIT_FREQUENCY);
 
         // when
         bolt.declareOutputFields(declarer);
