@@ -75,7 +75,7 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        String json = (String) tuple.getValueByField(Constant.JSON_STRING);
+        String json = (String) tuple.getValueByField(AnomalyStreetLampMessage.STREET_LAMP_MSG);
 
         AnomalyStreetLampMessage anomalyStreetLampMessage;
         try {
@@ -138,18 +138,15 @@ public class AnalyzeBolt extends BaseRichBolt {
                 // gap maintained at 0, because if no anomaly
                 // there's no gap from correct value to modify
                 // lamp not-active cannot be adapted
-//                collector.ack(tuple);
-//                return;
-//                gap = Math.max(Math.abs(gap), Math.abs(anomalyGap));
-//                adaptedIntensity = adaptByTrafficLevel(lamp, trafficData, gap);
+//                anomalyGap = 0f;
             }
             if (!toEncreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.WEATHER_LESS)))) {
                 // MalfunctionType.WEATHER_LESS
-                toEncreaseGap = Math.max(toEncreaseGap, anomalyGap);
+                toEncreaseGap = Math.max(toEncreaseGap, -anomalyGap);
 //                adaptedIntensity = adaptByWeather(lamp, trafficData, gap);
             } else if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.WEATHER_MORE)))) {
                 // MalfunctionType.WEATHER_MORE
-                toDecreaseGap = Math.max(toDecreaseGap, anomalyGap);
+                toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);
 //                adaptedIntensity = adaptByWeather(lamp, trafficData, gap);
             }
             if (!toEncreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.DAMAGED_BULB)))) {
@@ -157,16 +154,14 @@ public class AnalyzeBolt extends BaseRichBolt {
                 // gap maintained at 0, because if the bulb is damaged it can't be
                 // set to a correct value
                 // lamp not-active cannot be adapted
-//                collector.ack(tuple);
-//                return;
             }
             if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS)))) {
                 // MalfunctionType.LIGHT_INTENSITY_LESS
-                toEncreaseGap = Math.max(toEncreaseGap, anomalyGap);
+                toEncreaseGap = Math.max(toEncreaseGap, -anomalyGap);
 //                adaptedIntensity = adaptByNaturalLightLevel(lamp, trafficData);
             } else if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE)))) {
                 // MalfunctionType.LIGHT_INTENSITY_MORE
-                toDecreaseGap = Math.max(toDecreaseGap, anomalyGap);
+                toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);
 //                adaptedIntensity = adaptByNaturalLightLevel(lamp, trafficData);
             }
             if (!toEncreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.NOT_RESPONDING)))) {
@@ -174,19 +169,15 @@ public class AnalyzeBolt extends BaseRichBolt {
                 // gap maintained at 0, because if the bulb is damaged it can't be
                 // set to a correct value
                 // lamp not-active cannot be adapted
-//                collector.ack(tuple);
-//                return;
             }
 
             Values values = new Values();
             values.add(id);
             values.add(address);
-//            values.add(on);
             values.add(model);
             values.add(consumption);
             values.add(intensity);
             values.add(lifetime);
-//            values.add(naturalLightLevel);
             values.add(timestamp);
             values.add(toEncreaseGap);
             values.add(toDecreaseGap);
