@@ -7,6 +7,7 @@ import com.github.fedy2.weather.data.Channel;
 import com.github.fedy2.weather.data.Condition;
 import com.github.fedy2.weather.data.unit.DegreeUnit;
 import com.github.fedy2.weather.data.unit.Time;
+import com.google.gson.Gson;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
@@ -27,8 +28,6 @@ import java.util.*;
  * Created by ovidiudanielbarba on 21/03/2017.
  */
 public class MalfunctionCheckBolt implements IRichBolt {
-
-    // TODO add check for *MORE anomalies
 
     private OutputCollector outputCollector;
 
@@ -145,72 +144,42 @@ public class MalfunctionCheckBolt implements IRichBolt {
         //countMalfunctioning(on);
 
         Values values = new Values();
-        String malfunctionTypes = "";
 
         /* insert new street if not present and update statistics */
         updateStreetLightIntensityAvg(reducedAddress,intensity);
 
+        HashMap<MalfunctionType,Float> malfunctions = new HashMap<>();
+
         /* check if light intensity is different from the average value of the street (continuously updated) */
-        int checkLight = lightIntensityAnomalyDetected(reducedAddress,intensity);
-        switch (checkLight) {
-            case -1:
+        malfunctions = lightIntensityAnomalyDetected(malfunctions, id, reducedAddress,intensity);
 
-                // TODO debug
-                //System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
-
-                /* avoid errors from light transition (from sunny to cloudy and viceversa) */
-                increaseProbablyMalfunctions(id);
-
-                /* the threshold of errors has been overcome =>
-                 almost surely it is an anomaly */
-                if(almostSurelyMalfunction(id)) {
-
-                    malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS.toString() + ";";
-                }
-                break;
-            case 1:
-                // TODO debug
-                //System.out.println("[CINI] PROBABLE LIGHT INTENSITY ANOMALY DETECTED ON " + address);
-
-                /* avoid errors from light transition (from sunny to cloudy and viceversa) */
-                increaseProbablyMalfunctions(id);
-
-                /* the threshold of errors has been overcome =>
-                 almost surely it is an anomaly */
-                if (almostSurelyMalfunction(id)) {
-
-                    malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE.toString() + ";";
-                }
-                break;
-            default:
-                break;
-        }
 
         /* checks if the state of the bulb (on or off) is as the most of the
         * lamps on the street ; othwerwise it could be damaged */
         if (damagedBulb(reducedAddress,on)) {
-            malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
+            malfunctions.put(MalfunctionType.DAMAGED_BULB, 1f);
+//            malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
+        } else {
+            malfunctions.put(MalfunctionType.DAMAGED_BULB, 0f);
         }
 
         /* checks for weather anomalies (low light on cloudy day, etc) */
-        int checkWeather = weatherAnomaly(intensity);
-        switch (checkWeather){
-            case -1:
-                malfunctionTypes += MalfunctionType.WEATHER_LESS.toString() + ";";
-                break;
-            case 1:
-                malfunctionTypes += MalfunctionType.WEATHER_MORE.toString() + ";";
-                break;
-            default:
-                break;
+        malfunctions = weatherAnomaly(malfunctions, intensity);
+
+        /* check if no anomalies detected */
+        Float s = 0f;
+        for (MalfunctionType t : MalfunctionType.values()) {
+            s += malfunctions.get(t);
+        }
+        if (s.equals(0f)) {
+            malfunctions.put(MalfunctionType.NONE, 1f);
+        } else {
+            malfunctions.put(MalfunctionType.NONE, 0f);
         }
 
-        /* if no anomalies detected */
-        if (malfunctionTypes.isEmpty()) {
-            malfunctionTypes += MalfunctionType.NONE.toString() + ";";
-        }
-
-        values.add(malfunctionTypes);
+        Gson gson = new Gson();
+        String json_malfunctions = gson.toJson(malfunctions);
+        values.add(json_malfunctions);
         values.add(id);
         values.add(address);
         values.add(on);
@@ -238,10 +207,13 @@ public class MalfunctionCheckBolt implements IRichBolt {
      *         -1 if lack anomaly (less than necessary)
      *         1 if excess anomaly (more than necessary)
      */
-    private int weatherAnomaly(Float intensity) {
+    private HashMap<MalfunctionType,Float> weatherAnomaly(
+            HashMap<MalfunctionType,Float> malfunctions, Float intensity) {
 
         if (!weatherAvailable) {
-            return 0;
+            malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
+            malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+            return malfunctions;
         } else {
             Atmosphere atmosphere = weatherChannel.getAtmosphere();
             Condition currentCondition = weatherChannel.getItem().getCondition();
@@ -250,17 +222,38 @@ public class MalfunctionCheckBolt implements IRichBolt {
             Integer conditionCode = currentCondition.getCode();
             Float visibility = atmosphere.getVisibility();
 
-            int weatherIntensityRight = WeatherHelper.rightIntensityOnWeatherByCode(conditionCode,intensity);
-            int visibilityIntensityRight = WeatherHelper.rightIntensityByVisibility(intensity,visibility);
-            int astronomyIntensityRight = WeatherHelper.rightIntesityByAstronomy(intensity,astronomy);
+            HashMap<Float,Float> weatherIntensityRight = WeatherHelper.rightIntensityOnWeatherByCode(conditionCode,intensity);
+            HashMap<Float,Float> visibilityIntensityRight = WeatherHelper.rightIntensityByVisibility(intensity,visibility);
+            HashMap<Float,Float> astronomyIntensityRight = WeatherHelper.rightIntesityByAstronomy(intensity,astronomy);
 
-            int sum = weatherIntensityRight + visibilityIntensityRight + astronomyIntensityRight;
-            if ( sum < 0) {
-                return -1;
-            } else if ( sum > 0 ) {
-                return 1;
+            Float min_underGap = Math.min(Math.min(
+                    weatherIntensityRight.get(WeatherHelper.CLOUDY_SKY_INTENSITY_MINIMUM),
+                    visibilityIntensityRight.get(WeatherHelper.VISIBILITY_INTENSITY_MINIMUM)),
+                    astronomyIntensityRight.get(WeatherHelper.DARK_SKY_INTENSITY_MINIMUM));
+            if (min_underGap < 0) {
+                malfunctions.put(MalfunctionType.WEATHER_LESS, min_underGap);
+                malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+                return malfunctions;
             }
-            return 0;
+
+            Float min_overGap = Math.min(Math.min(
+                    weatherIntensityRight.get(WeatherHelper.SUNNY_SKY_INTENSITY_MAXIMUM),
+                    visibilityIntensityRight.get(WeatherHelper.VISIBILITY_INTENSITY_MAXIMUM)),
+                    astronomyIntensityRight.get(WeatherHelper.GLARE_SKY_INTENSITY_MAXIMUM));
+            if (min_overGap > 0) {
+                malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
+                malfunctions.put(MalfunctionType.WEATHER_MORE, min_overGap);
+                return malfunctions;
+            }
+//            int sum = weatherIntensityRight + visibilityIntensityRight + astronomyIntensityRight;
+//            if ( sum < 0) {
+//                return -1;
+//            } else if ( sum > 0 ) {
+//                return 1;
+//            }
+            malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
+            malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+            return malfunctions;
         }
     }
 
@@ -332,49 +325,44 @@ public class MalfunctionCheckBolt implements IRichBolt {
      *         -1 if anomaly (less than necessary) is detected
      *         1 if anomaly (more than necessary) is detected
      */
-    private int lightIntensityAnomalyDetected(String address, Float intensity) {
+    private HashMap<MalfunctionType,Float> lightIntensityAnomalyDetected(
+            HashMap<MalfunctionType,Float> malfunctions, int id, String address, Float intensity) {
 
         // true if intensity more than upper bound
-        boolean checkUpper =
-                streetAverageConsumption.entrySet().stream()
-                .filter(e -> e.getKey().equals(address))
-                .filter(e -> {
+        StreetStatistics streetStatistics = streetAverageConsumption.get(address);
+        Float mean = streetStatistics.getCurrentMean();
+        Float stdev = streetStatistics.stdDev();
+        Float lowerBound = mean - stdev;
+        Float upperBound = mean + stdev;
+        Float underGap = intensity - lowerBound;
+        Float overGap = intensity - upperBound;
 
-                    Float mean = e.getValue().getCurrentMean();
-                    Float stdev = e.getValue().stdDev();
+        if (underGap <=0) {
+            /* avoid errors from light transition (from sunny to cloudy and viceversa) */
+            increaseProbablyMalfunctions(id);
 
-                    Float lowerBound = mean - stdev;
-                    Float upperBound = mean + stdev;
+            /* the threshold of errors has been overcome =>
+                 almost surely it is an anomaly */
+            if (almostSurelyMalfunction(id)) {
+                malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, underGap);
+//                malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS.toString() + ";";
+            }
 
-                    return !(intensity >= upperBound);
-                }).count() > 0;
+        } else if (overGap >= 0) {
+            /* avoid errors from light transition (from sunny to cloudy and viceversa) */
+            increaseProbablyMalfunctions(id);
 
-        // true if intensity less than lower bound
-        boolean checkLower =
-                streetAverageConsumption.entrySet().stream()
-                        .filter(e -> e.getKey().equals(address))
-                        .filter(e -> {
-
-                            Float mean = e.getValue().getCurrentMean();
-                            Float stdev = e.getValue().stdDev();
-
-                            Float lowerBound = mean - stdev;
-                            Float upperBound = mean + stdev;
-
-                            return !(intensity <= lowerBound);
-                        }).count() > 0;
-
-
-        if ( checkUpper ) {
-            // lack anomaly detected
-            return 1;
-        } else if (checkLower) {
-            // lack anomaly detected
-            return -1;
-        } else {
-            // no anomaly detected
-            return 0;
+                /* the threshold of errors has been overcome =>
+                 almost surely it is an anomaly */
+            if (almostSurelyMalfunction(id)) {
+                malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, overGap);
+//                malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE.toString() + ";";
+            }
         }
+        // no anomaly detected
+        malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, 0f);
+        malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, 0f);
+        return malfunctions;
     }
 
     private void updateStreetLightIntensityAvg(String address, Float intensity) {
@@ -495,13 +483,13 @@ public class MalfunctionCheckBolt implements IRichBolt {
      */
     private static class WeatherHelper {
 
-        private static final Float CLOUDY_SKY_INTENSITY_MINIMUM = 70.0f;
-        private static final Float SUNNY_SKY_INTENSITY_MAXIMUM = 50.0f;
-        private static final Float VISIBILITY_INTENSITY_MINIMUM = 80.0f;
-        private static final Float VISIBILITY_INTENSITY_MAXIMUM = 50.0f;
-        private static final Float DARK_SKY_INTENSITY_MINIMUM = 90.0f;
-        private static final Float GLARE_SKY_INTENSITY_MAXIMUM = 50.0f;
-        private static final Integer[] darkSkyCodes = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,19,20,21,26,27,28,29,30,37,38,39,40,44,45,47};
+        public static final Float CLOUDY_SKY_INTENSITY_MINIMUM = 70.0f;
+        public static final Float SUNNY_SKY_INTENSITY_MAXIMUM = 50.0f;
+        public static final Float VISIBILITY_INTENSITY_MINIMUM = 80.0f;
+        public static final Float VISIBILITY_INTENSITY_MAXIMUM = 50.0f;
+        public static final Float DARK_SKY_INTENSITY_MINIMUM = 90.0f;
+        public static final Float GLARE_SKY_INTENSITY_MAXIMUM = 50.0f;
+        public static final Integer[] darkSkyCodes = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,19,20,21,26,27,28,29,30,37,38,39,40,44,45,47};
 
 
         public WeatherHelper() {
@@ -512,33 +500,56 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     filter( e -> e.equals(code)).count()  > 0;
         }
 
-        private static int rightIntensityByVisibility(Float intensity,Float visibility) {
+        private static HashMap<Float,Float> rightIntensityByVisibility(Float intensity,Float visibility) {
             // TODO Visibility Policy
+            HashMap<Float,Float> i = new HashMap<>();
 
-            if (!(visibility > .5) && intensity < VISIBILITY_INTENSITY_MINIMUM) {
-                return -1;
-            } else if (visibility > .5 && intensity > VISIBILITY_INTENSITY_MAXIMUM) {
-                return 1;
+            Float underGap = intensity - VISIBILITY_INTENSITY_MINIMUM;
+            Float overGap = intensity - VISIBILITY_INTENSITY_MAXIMUM;
+            if (!(visibility > .5) && underGap < 0) {
+                i.put(VISIBILITY_INTENSITY_MINIMUM, underGap);
+                i.put(VISIBILITY_INTENSITY_MAXIMUM, 0f);
+                return i;
+            } else if (visibility > .5 && overGap > 0) {
+                i.put(VISIBILITY_INTENSITY_MINIMUM, 0f);
+                i.put(VISIBILITY_INTENSITY_MAXIMUM, overGap);
+                return i;
             }
-            return 0;
+            i.put(VISIBILITY_INTENSITY_MINIMUM, 0f);
+            i.put(VISIBILITY_INTENSITY_MAXIMUM, 0f);
+            return i;
         }
 
 
-        public static int rightIntensityOnWeatherByCode(Integer code,Float intensity){
+        public static HashMap<Float, Float> rightIntensityOnWeatherByCode(Integer code,Float intensity){
 
+            HashMap<Float, Float> i = new HashMap<>();
+            Float underGap = intensity - CLOUDY_SKY_INTENSITY_MINIMUM;
+            Float overGap = intensity - SUNNY_SKY_INTENSITY_MAXIMUM;
             // if cloudy sky
             if (darkSkyFromCode(code)) {
-                if (intensity < CLOUDY_SKY_INTENSITY_MINIMUM){
-                    return -1;
+                if ( underGap <= 0 ) {
+                    i.put(CLOUDY_SKY_INTENSITY_MINIMUM, underGap);
+                    i.put(SUNNY_SKY_INTENSITY_MAXIMUM, 0f);
+                    return i;
                 }
-            // if sunny sky
-            } else if (intensity > SUNNY_SKY_INTENSITY_MAXIMUM) {
-                    return 1;
+//                    return -1;
+                // if sunny sky
+            } else if (overGap > 0 ) {
+                i.put(SUNNY_SKY_INTENSITY_MAXIMUM, overGap);
+                i.put(CLOUDY_SKY_INTENSITY_MINIMUM, 0f);
+                return i;
             }
-            return 0;
+            i.put(CLOUDY_SKY_INTENSITY_MINIMUM, 0f);
+            i.put(SUNNY_SKY_INTENSITY_MAXIMUM, 0f);
+            return i;
+//            } else if (intensity > SUNNY_SKY_INTENSITY_MAXIMUM) {
+//                    return 1;
+//            }
+//            return 0;
         }
 
-        public static int rightIntesityByAstronomy(Float intensity, Astronomy astronomy) {
+        public static HashMap<Float,Float> rightIntesityByAstronomy(Float intensity, Astronomy astronomy) {
             LocalDateTime now = LocalDateTime.now();
             Integer nowHour = now.getHour();
             Integer nowMin = now.getMinute();
@@ -546,16 +557,24 @@ public class MalfunctionCheckBolt implements IRichBolt {
             Time sunrise = astronomy.getSunrise();
             Time sunset = astronomy.getSunset();
 
+            HashMap<Float,Float> i = new HashMap<>();
+            Float underGap = intensity - DARK_SKY_INTENSITY_MINIMUM;
+            Float overGap = intensity - GLARE_SKY_INTENSITY_MAXIMUM;
             /* if it's dark */
             if (nowHour < sunrise.getHours() || nowHour > sunset.getHours()) {
-                if (intensity < DARK_SKY_INTENSITY_MINIMUM) {
-                    return -1;
-                } else if (intensity > GLARE_SKY_INTENSITY_MAXIMUM) {
-                    return 1;
+                if (underGap <= 0) {
+                    i.put(DARK_SKY_INTENSITY_MINIMUM,underGap);
+                    i.put(GLARE_SKY_INTENSITY_MAXIMUM, 0f);
+                    return i;
                 }
+            } else if (overGap > 0) {
+                i.put(DARK_SKY_INTENSITY_MINIMUM,0f);
+                i.put(GLARE_SKY_INTENSITY_MAXIMUM, overGap);
+                return i;
             }
-
-            return 0;
+            i.put(DARK_SKY_INTENSITY_MINIMUM,0f);
+            i.put(GLARE_SKY_INTENSITY_MAXIMUM, 0f);
+            return i;
         }
     }
 

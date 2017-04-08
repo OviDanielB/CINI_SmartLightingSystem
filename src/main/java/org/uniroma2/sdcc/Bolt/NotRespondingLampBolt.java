@@ -1,6 +1,7 @@
 package org.uniroma2.sdcc.Bolt;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -14,6 +15,7 @@ import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,7 +57,11 @@ public class NotRespondingLampBolt implements IRichBolt {
     @Override
     public void execute(Tuple input) {
 
-        String malfunctionsStr = (String) input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE);
+        Gson gson = new Gson();
+        Type type = new TypeToken<HashMap<MalfunctionCheckBolt, Float>>(){}.getType();
+        HashMap<MalfunctionType,Float> malfunctions =
+                gson.fromJson(input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE).toString(), type);
+
         Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
         Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
         Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
@@ -69,7 +75,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         StreetLamp lamp = new StreetLamp(id,on,getLampModelByString(model),
                 address,intensity,consumption,lifeTime);
 
-        HashMap<MalfunctionType, Float> malfunctions = parseStringForMalf(malfunctionsStr);
+        //HashMap<MalfunctionType, Float> malfunctions = parseStringForMalf(malfunctionsStr);
 
         AnomalyStreetLampMessage anomalyMessage = new AnomalyStreetLampMessage(lamp,naturalLightLevel,
                 timestamp, malfunctions,0L);
