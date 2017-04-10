@@ -65,7 +65,7 @@ public class StreetTrafficRESTTest {
 
         /* success if TEST_STREET is present with relative TEST_PERC */
         assertTrue(trafficDataList.stream()
-                .filter(e -> e.getStreet().equals(TEST_STREET) && e.getConcegestionPercentage().equals(TEST_PERC_UPD))
+                .filter(e -> e.getStreet().equals(TEST_STREET) && e.getCongestionPercentage().equals(TEST_PERC_UPD))
                 .count() > 0);
 
         traffic.closeConn();

@@ -7,6 +7,6 @@ package org.uniroma2.sdcc.Example;
 public class App {
     public static void main(String[] args){
 
-
+        System.out.println("Working");
     }
 }

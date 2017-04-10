@@ -47,8 +47,9 @@ public class NotRespondingLampBolt implements IRichBolt {
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
-        notRespondingCount = new ConcurrentHashMap<>();
 
+        /* initialization */
+        notRespondingCount = new ConcurrentHashMap<>();
         noResponseLampsToRabbit = new ConcurrentLinkedQueue<>();
 
         startPeriodicResponseChecker();
@@ -60,7 +61,8 @@ public class NotRespondingLampBolt implements IRichBolt {
         Gson gson = new Gson();
         Type type = new TypeToken<HashMap<MalfunctionCheckBolt, Float>>(){}.getType();
         HashMap<MalfunctionType,Float> malfunctions =
-                gson.fromJson(input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE).toString(), type);
+                (HashMap<MalfunctionType, Float>) input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE);
+               /* gson.fromJson(input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE).toString(), type); */
 
         Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
         Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
@@ -79,8 +81,6 @@ public class NotRespondingLampBolt implements IRichBolt {
 
         AnomalyStreetLampMessage anomalyMessage = new AnomalyStreetLampMessage(lamp,naturalLightLevel,
                 timestamp, malfunctions,0L);
-
-
 
 
         updateLampList(id,anomalyMessage);
@@ -129,10 +129,10 @@ public class NotRespondingLampBolt implements IRichBolt {
     }
 
     /* update lamp list with recent values */
-    private void updateLampList(Integer id, AnomalyStreetLampMessage timestamp) {
+    private void updateLampList(Integer id, AnomalyStreetLampMessage anomalyMess) {
 
         // TODO
-        notRespondingCount.put(id, timestamp);
+        notRespondingCount.put(id, anomalyMess);
         //System.out.println(LOG_TAG + "HASH MAP LENGTH = " + notRespondingCount.size());
 
     }
@@ -175,6 +175,7 @@ public class NotRespondingLampBolt implements IRichBolt {
     }
 
 
+
     /**
      * Thread that executes periodically (given by TimerTask),
      * iterates the hashmap and produces in a queue the street lamps
@@ -204,13 +205,27 @@ public class NotRespondingLampBolt implements IRichBolt {
                         return ( now - lastMessTime ) > NO_RESPONSE_INTERVAL * 1000; /* in milliseconds */
                     }).forEach(e -> {
 
-                    queue.add(e.getValue());
-                    //System.out.println(LOG_TAG + " QUEUE LENGTH =  " + queue.size());
-                    hashMap.remove(e.getKey());
-                    System.out.println("[CINI] Not Responding LAMP with ID " + e.getKey() + " has not responded for longer than " +
-                            "" + NO_RESPONSE_INTERVAL + " seconds");
+                        /* add another anomaly since it is not responding for a while */
+                        adjustAnomaliesList(e);
+
+                        queue.add(e.getValue());
+                        //System.out.println(LOG_TAG + " QUEUE LENGTH =  " + queue.size());
+                        hashMap.remove(e.getKey());
+                        System.out.println("[CINI] Not Responding LAMP with ID " + e.getKey() + " has not responded for longer than " +
+                               "" + NO_RESPONSE_INTERVAL + " seconds");
 
             });
+        }
+
+        private void adjustAnomaliesList(Map.Entry<Integer, AnomalyStreetLampMessage> e) {
+
+            HashMap<MalfunctionType, Float> map = e.getValue().getAnomalies();
+
+            if(map.containsKey(MalfunctionType.NONE)){
+                map.remove(MalfunctionType.NONE);
+            }
+
+            map.put(MalfunctionType.NOT_RESPONDING,0f);
         }
     }
 
@@ -229,6 +244,10 @@ public class NotRespondingLampBolt implements IRichBolt {
         private  final String HOST = "localhost";
         private  final Integer PORT =  5673;
         private  final String QUEUE_NAME = "anomaly";
+        private  final String  EXCHANGE_NAME = "dashboard_exchange";
+        /* topic based pub/sub */
+        private  final String EXCHANGE_TYPE = "topic";
+        private  final String ROUTING_KEY = "dashboard.anomalies";
 
         public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue) {
             System.out.println(LOG_TAG + "RABBIT CONSUMER CONSTRUCTOR");
@@ -256,8 +275,11 @@ public class NotRespondingLampBolt implements IRichBolt {
                 connection = factory.newConnection();
                 channel = connection.createChannel();
 
-                channel.queueDeclare(QUEUE_NAME,false,false,false,null);
-                System.out.println(LOG_TAG + " Rabbit connected on " + HOST+ ":" + PORT);
+                //channel.queueDeclare(QUEUE_NAME,false,false,false,null);
+                //System.out.println(LOG_TAG + " Rabbit connected on " + HOST+ ":" + PORT);
+
+                /* declare exchange point, consumer must bind a queue to it */
+                channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
 
             } catch (IOException | TimeoutException e) {
                 e.printStackTrace();
@@ -289,7 +311,7 @@ public class NotRespondingLampBolt implements IRichBolt {
 
                     if(rabbitConnectionAvailable()) {
                         /* write on queue */
-                        channel.basicPublish("", "anomaly", null, jsonMsg.getBytes());
+                        channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, jsonMsg.getBytes());
                     } else {
                         /* retry to connect */
                         tryConnection();

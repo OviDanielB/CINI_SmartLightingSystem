@@ -158,28 +158,35 @@ public class MalfunctionCheckBolt implements IRichBolt {
         * lamps on the street ; othwerwise it could be damaged */
         if (damagedBulb(reducedAddress,on)) {
             malfunctions.put(MalfunctionType.DAMAGED_BULB, 1f);
-//            malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
+ //           malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
         } else {
-            malfunctions.put(MalfunctionType.DAMAGED_BULB, 0f);
+            //malfunctions.put(MalfunctionType.DAMAGED_BULB, 0f);
         }
 
         /* checks for weather anomalies (low light on cloudy day, etc) */
         malfunctions = weatherAnomaly(malfunctions, intensity);
 
-        /* check if no anomalies detected */
+
+        /*
         Float s = 0f;
         for (MalfunctionType t : MalfunctionType.values()) {
-            s += malfunctions.get(t);
+            s += (malfunctions.get(t) != null) ? malfunctions.get(t) : 0f;
         }
         if (s.equals(0f)) {
             malfunctions.put(MalfunctionType.NONE, 1f);
         } else {
             malfunctions.put(MalfunctionType.NONE, 0f);
+        } */
+
+        /* check if no anomalies detected */
+        if(malfunctions.size() == 0){
+            malfunctions.put(MalfunctionType.NONE,0f);
         }
 
         Gson gson = new Gson();
+        // TODO
         String json_malfunctions = gson.toJson(malfunctions);
-        values.add(json_malfunctions);
+        values.add(malfunctions);
         values.add(id);
         values.add(address);
         values.add(on);
@@ -211,8 +218,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
             HashMap<MalfunctionType,Float> malfunctions, Float intensity) {
 
         if (!weatherAvailable) {
-            malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
-            malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+            // TODO why put if no anomaly ?!
+            //malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
+            //malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
             return malfunctions;
         } else {
             Atmosphere atmosphere = weatherChannel.getAtmosphere();
@@ -231,8 +239,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     visibilityIntensityRight.get(WeatherHelper.VISIBILITY_INTENSITY_MINIMUM)),
                     astronomyIntensityRight.get(WeatherHelper.DARK_SKY_INTENSITY_MINIMUM));
             if (min_underGap < 0) {
+                // TODO why put if no anomaly ?!
                 malfunctions.put(MalfunctionType.WEATHER_LESS, min_underGap);
-                malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+                //malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
                 return malfunctions;
             }
 
@@ -241,7 +250,8 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     visibilityIntensityRight.get(WeatherHelper.VISIBILITY_INTENSITY_MAXIMUM)),
                     astronomyIntensityRight.get(WeatherHelper.GLARE_SKY_INTENSITY_MAXIMUM));
             if (min_overGap > 0) {
-                malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
+                // TODO why put if no anomaly ?!
+                //malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
                 malfunctions.put(MalfunctionType.WEATHER_MORE, min_overGap);
                 return malfunctions;
             }
@@ -251,8 +261,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
 //            } else if ( sum > 0 ) {
 //                return 1;
 //            }
-            malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
-            malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+            // TODO why put if no anomaly ?!
+            //malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
+            //malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
             return malfunctions;
         }
     }
@@ -360,8 +371,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
             }
         }
         // no anomaly detected
-        malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, 0f);
-        malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, 0f);
+        // TODO why add if no anomaly ?!
+        //malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, 0f);
+        //malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, 0f);
         return malfunctions;
     }
 
