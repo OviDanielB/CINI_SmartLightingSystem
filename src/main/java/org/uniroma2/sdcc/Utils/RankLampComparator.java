@@ -16,6 +16,11 @@ public class RankLampComparator implements Comparator<RankLamp> {
 
         //int diff = (int) lamp1.getLifetime().getTime() - (int) lamp2.getLifetime().getTime();
         long diff = ChronoUnit.MILLIS.between(lamp2.getLifetime(),lamp1.getLifetime());
+        System.out.println("DIFFERENCE : " + diff);
+
+        if(diff == 0){
+            diff = lamp2.getTimestamp() - lamp1.getTimestamp();
+        }
         /*
         if ( diff == 0 ) {
             return (int) ( lamp1.getTimestamp().getTime() - lamp2.getTimestamp().getTime());

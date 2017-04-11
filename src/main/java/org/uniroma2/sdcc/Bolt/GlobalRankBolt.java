@@ -126,12 +126,15 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     private void sendWindowRank() {
 
+        // TODO json encoding memcached !!!
                     /* INIT BLOCK TO DESERIALIZE */
         String get_json_ranking = (String) memcachedClient.get("global_rank");
 
         try {
             /* send to queue with routink key */
-            channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, get_json_ranking.getBytes());
+            if(get_json_ranking != null) {
+                channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, get_json_ranking.getBytes());
+            }
             System.out.println(LOG_TAG + "Sent : "+ get_json_ranking);
 
         } catch (IOException e) {
@@ -184,7 +187,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
             String json_ranking = gson.toJson(globalOldestK);
 
-            memcachedClient.set("global_rank",3600, json_ranking);
+            memcachedClient.set("global_rank",100000, json_ranking);
 
 //             Shutdowns the memcached client
 //            memcachedClient.shutdown();

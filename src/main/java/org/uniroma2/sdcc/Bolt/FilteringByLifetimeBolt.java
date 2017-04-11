@@ -90,6 +90,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         LocalDateTime d2 = LocalDateTime.now();
         /* difference between now and lifetime */
         long diff = ChronoUnit.DAYS.between(lifetime,d2);
+        System.out.println("DIFF : " + diff + " " + Boolean.toString(diff>LIFETIME_THRESHOLD));
 
         return diff > LIFETIME_THRESHOLD;
     }
