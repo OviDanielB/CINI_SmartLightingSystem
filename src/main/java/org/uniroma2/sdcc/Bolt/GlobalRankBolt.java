@@ -2,6 +2,9 @@ package org.uniroma2.sdcc.Bolt;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import net.spy.memcached.MemcachedClient;
 import org.apache.storm.Config;
 import org.apache.storm.Constants;
@@ -20,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This Bolt merges rankings arriving from PartialRankBolts
@@ -30,13 +34,26 @@ import java.util.Map;
 public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    private static final String LOG_TAG = "[CINI] [GlobalRankBolt] ";
     private OutputCollector collector;
     private OldestKRanking ranking;
     private int K;
     private Gson gson;
     private Type listType;
 
+    /* rabbitMQ connection */
+    private final static String RABBIT_HOST = "localhost";
+    private final static Integer RABBIT_PORT = 5673;
+    private  final String  EXCHANGE_NAME = "dashboard_exchange";
+    /* topic based pub/sub */
+    private  final String EXCHANGE_TYPE = "topic";
+    private  final String ROUTING_KEY = "dashboard.rank";
+    private Connection connection;
+    private Channel channel;
 
+
+    private final static String MEMCAC_HOST = "localhost";
+    private final static Integer MEMCAC_PORT = 11211;
     private MemcachedClient memcachedClient;
 
 
@@ -52,10 +69,35 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         this.listType = new TypeToken<ArrayList<RankLamp>>(){}.getType();
 
         try {
-            memcachedClient = new MemcachedClient(new InetSocketAddress("localhost", 11211));
+            memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCAC_HOST, MEMCAC_PORT));
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        establishRabbitConnection();
+    }
+
+    /**
+     * connect to RabbitMQ to send ranking info to
+     * dashboard
+     */
+    private void establishRabbitConnection() {
+
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(RABBIT_HOST);
+        factory.setPort(RABBIT_PORT);
+
+        try {
+            connection = factory.newConnection();
+            channel = connection.createChannel();
+            channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
+            System.out.println(LOG_TAG + "Rabbit connection established on " + RABBIT_HOST + "/" + RABBIT_PORT);
+
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+            System.out.println(LOG_TAG + "Rabbit Connection Failed.");
+        }
+
     }
 
     /**
@@ -83,10 +125,21 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      * [...] and sent it to the dashboard [...]
      */
     private void sendWindowRank() {
-        // TODO sent to dashboard
+
                     /* INIT BLOCK TO DESERIALIZE */
         String get_json_ranking = (String) memcachedClient.get("global_rank");
 
+        try {
+            /* send to queue with routink key */
+            channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, get_json_ranking.getBytes());
+            System.out.println(LOG_TAG + "Sent : "+ get_json_ranking);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println(LOG_TAG + "Failed sending mess to Rabbit.");
+        }
+
+        /*
         List<RankLamp> rank_from_memory = gson.fromJson(get_json_ranking, listType);
 
         System.out.println(
@@ -102,6 +155,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
                     " Address: " + aGlobalOldestK.getAddress() +
                     " Last-Substitution: " + aGlobalOldestK.getLifetime() + "\n");
         }
+        */
             /* END BLOCK TO DESERIALIZE */
     }
 

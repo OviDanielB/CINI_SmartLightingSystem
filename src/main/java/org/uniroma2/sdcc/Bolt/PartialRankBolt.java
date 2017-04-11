@@ -17,6 +17,7 @@ import org.uniroma2.sdcc.Utils.RankLamp;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -71,8 +72,8 @@ public class PartialRankBolt extends BaseRichBolt {
 
         int id = (int) tuple.getValueByField(Constant.ID);
         String address = tuple.getValueByField(Constant.ADDRESS).toString();
-        Date lifetime = (Date) tuple.getValueByField(Constant.LIFETIME);
-        Timestamp timestamp = (Timestamp) tuple.getValueByField(Constant.TIMESTAMP);
+        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
+        Long timestamp = (Long) tuple.getValueByField(Constant.TIMESTAMP);
 
         /* Update local rank */
         RankLamp rankLamp = new RankLamp(id, address, lifetime, timestamp);

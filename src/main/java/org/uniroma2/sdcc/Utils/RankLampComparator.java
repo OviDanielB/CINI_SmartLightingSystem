@@ -1,5 +1,6 @@
 package org.uniroma2.sdcc.Utils;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 
 /**
@@ -13,12 +14,13 @@ public class RankLampComparator implements Comparator<RankLamp> {
     @Override
     public int compare(RankLamp lamp1, RankLamp lamp2) {
 
-        int diff = (int) lamp1.getLifetime().getTime() - (int) lamp2.getLifetime().getTime();
-
+        //int diff = (int) lamp1.getLifetime().getTime() - (int) lamp2.getLifetime().getTime();
+        long diff = ChronoUnit.MILLIS.between(lamp2.getLifetime(),lamp1.getLifetime());
+        /*
         if ( diff == 0 ) {
             return (int) ( lamp1.getTimestamp().getTime() - lamp2.getTimestamp().getTime());
-        }
+        } */
 
-        return diff;
+        return (int) diff;
     }
 }

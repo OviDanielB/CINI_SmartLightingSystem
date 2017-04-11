@@ -41,8 +41,6 @@ public class NotRespondingLampBolt implements IRichBolt {
 
     private static final String LOG_TAG = "[CINI] [NotRespondingLampBolt] ";
 
-    private Thread consumer;
-
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {

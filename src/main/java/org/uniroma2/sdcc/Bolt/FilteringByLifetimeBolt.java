@@ -7,10 +7,13 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.mockito.cglib.core.Local;
 import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -48,11 +51,12 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         int id =                (int) tuple.getValueByField(Constant.ID);
 //        boolean state = (boolean) tuple.getValueByField(Constant.ON);
         String address =        tuple.getValueByField(Constant.ADDRESS).toString();
-        Date lifetime =         (Date) tuple.getValueByField(Constant.LIFETIME);
-        Timestamp timestamp =   (Timestamp) tuple.getValueByField(Constant.TIMESTAMP);
+        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
+        Long timestamp =   (Long) tuple.getValueByField(Constant.TIMESTAMP);
 
         emitClassifiableLampTuple(tuple, id, address, lifetime, timestamp);
         collector.ack(tuple);
+
     }
 
     /**
@@ -65,7 +69,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      * @param timestamp parsed from tuple
      */
     private void emitClassifiableLampTuple(
-            Tuple tuple, int id, String address, Date lifetime, Timestamp timestamp) {
+            Tuple tuple, int id, String address, LocalDateTime lifetime, Long timestamp) {
 
         if (isOlderThan(lifetime)) {
             collector.emit(tuple, new Values(id, address, lifetime, timestamp));
@@ -81,13 +85,13 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      *
      * @return true if quite old, false otherwise
      */
-    private boolean isOlderThan(Date lifetime) {
+    private boolean isOlderThan(LocalDateTime lifetime) {
 
-        int d1 = (int) lifetime.getTime();
-        int d2 = (int) new Date().getTime();
-        int diff = d1 - d2 ;
+        LocalDateTime d2 = LocalDateTime.now();
+        /* difference between now and lifetime */
+        long diff = ChronoUnit.DAYS.between(lifetime,d2);
 
-        return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS) > LIFETIME_THRESHOLD;
+        return diff > LIFETIME_THRESHOLD;
     }
 
     @Override

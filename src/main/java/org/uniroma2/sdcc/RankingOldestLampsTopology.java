@@ -42,15 +42,15 @@ public class RankingOldestLampsTopology {
         builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout());
 
         /* Check of format correctness of received tuples   */
-        builder.setBolt(FILTER_BOLT, new FilteringBolt(),3)
+        builder.setBolt(FILTER_BOLT, new FilteringBolt())
                 .shuffleGrouping(RABBIT_SPOUT);
 
         /* Filtering from lamps which have been replace within LIFETIME_THRESHOLD days from now */
-        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt(),3)
+        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt())
                 .shuffleGrouping(FILTER_BOLT);
 
         /* Data grouped by "lifetime" field and partially sorted by it   */
-        builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(oldest_k),5)
+        builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(oldest_k))
                 .shuffleGrouping(FILTER_BY_LIFETIME_BOLT);
 
         /* Global ranking f the first K lamps with greater "lifetime" */
@@ -59,16 +59,16 @@ public class RankingOldestLampsTopology {
 
 
         /* LOCAL MODE */
-//        LocalCluster cluster = new LocalCluster();
-//        cluster.submitTopology(QUERY_2_TOPOLOGY, config, builder.createTopology());
-//
-//        Thread.sleep(600000);
-//
-//        cluster.killTopology(QUERY_2_TOPOLOGY);
-//        cluster.shutdown();
+        LocalCluster cluster = new LocalCluster();
+        cluster.submitTopology(QUERY_2_TOPOLOGY, config, builder.createTopology());
+
+        //Thread.sleep(600000);
+
+        //cluster.killTopology(QUERY_2_TOPOLOGY);
+        //cluster.shutdown();
 
 
-        StormSubmitter.submitTopology(QUERY_2_TOPOLOGY,config,builder.createTopology());
+        //StormSubmitter.submitTopology(QUERY_2_TOPOLOGY,config,builder.createTopology());
 
     }
 }

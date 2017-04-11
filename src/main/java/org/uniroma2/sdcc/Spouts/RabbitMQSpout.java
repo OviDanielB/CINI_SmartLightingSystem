@@ -25,7 +25,6 @@ public class RabbitMQSpout extends BaseRichSpout {
 
     private Connection connection;
     private Channel channel;
-    private ConnectionFactory connectionFactory;
     private SpoutOutputCollector outputCollector;
     private Consumer consumer;
 
