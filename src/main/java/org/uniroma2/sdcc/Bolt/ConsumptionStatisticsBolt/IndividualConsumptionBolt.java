@@ -13,19 +13,18 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
+ * Bolt produces statistics. SlidingWindow is set on one day. Every emitFrequencyInSeconds the
+ * updated window is emitted. Statistics are computed for streetLamp.
+ *
  * @author emanuele
+ * @see SlidingWindowBolt
  */
 public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
 
-    protected Integer tickFrequencyInSeconds;        // tick tuple arrival frequency
     protected Integer tickCount = 0;
 
-    public IndividualConsumptionBolt() {
-    }
-
-    public IndividualConsumptionBolt(int windowLengthInSeconds, int emitFrequencyInSeconds) {
-        super(windowLengthInSeconds, emitFrequencyInSeconds);
-        this.tickFrequencyInSeconds = emitFrequencyInSeconds;
+    public IndividualConsumptionBolt(int windowLengthInSeconds, int tickFrequencyInSeconds) {
+        super(windowLengthInSeconds, tickFrequencyInSeconds, tickFrequencyInSeconds);
     }
 
     @Override
@@ -107,7 +106,6 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
         System.out.println("[CINI] Intermediate hourly statistics at " + windowEnd + "\n\n");
         for (WrappedKey key : stat.keySet()) {
             Float avg = stat.get(key);
-            System.out.println(key.getId() + " avg: " + avg);
             collector.emit(new Values(key.getId(), key.getStreet(), avg, windowEnd,
                     actualWindowLengthInSeconds));
         }

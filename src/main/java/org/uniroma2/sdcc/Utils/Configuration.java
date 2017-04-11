@@ -1,7 +1,5 @@
 package org.uniroma2.sdcc.Utils;
 
-import java.util.Map;
-
 public class Configuration {
     ServiceConfig statisticsTopologyParams;
 

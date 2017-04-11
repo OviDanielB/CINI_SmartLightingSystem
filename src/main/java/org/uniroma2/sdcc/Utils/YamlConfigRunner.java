@@ -14,18 +14,21 @@ import org.yaml.snakeyaml.constructor.Constructor;
 
 public class YamlConfigRunner {
 
+    private String filePath;
 
-    public Configuration getConfiguration(String filePath) throws IOException {
+    public YamlConfigRunner(String filePath) {
+        this.filePath = filePath;
+    }
 
+    public Configuration getConfiguration() throws IOException {
 
         Constructor constructor = new Constructor(Configuration.class);
         Yaml yaml = new Yaml(constructor);
 
-        try (InputStream in = Files.newInputStream(Paths.get(filePath))) {
-            Configuration config = yaml.loadAs(in, Configuration.class);
-            System.out.println(config.toString());
-            return config;
-        }
+        InputStream in = Files.newInputStream(Paths.get(filePath));
+        Configuration config = yaml.loadAs(in, Configuration.class);
+        System.out.println(config.toString());
+        return config;
     }
-
 }
+

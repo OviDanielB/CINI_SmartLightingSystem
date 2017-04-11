@@ -28,8 +28,8 @@ public class PrinterBolt extends BaseRichBolt {
             Gson gson = new Gson();
             String toEmit = gson.toJson(tuple);
 
+            System.out.println(toEmit);
             /* todo put in queue*/
-
         }
 
     }

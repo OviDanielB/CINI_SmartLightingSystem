@@ -18,8 +18,8 @@ public class YamlConfigRunnerTest {
 
         Configuration configuration = null;
         try {
-            YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
-            configuration = yamlConfigRunner.getConfiguration("./config/statisticsConfig.yml");
+            YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/statisticsConfig.yml");
+            configuration = yamlConfigRunner.getConfiguration();
         } catch (IOException e) {
             e.printStackTrace();
         }

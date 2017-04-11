@@ -1,28 +1,30 @@
 package org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt;
 
-import org.apache.storm.topology.OutputFieldsDeclarer;
-import org.apache.storm.tuple.Fields;
-import org.apache.storm.tuple.Tuple;
-import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Model.Address;
-import org.uniroma2.sdcc.Utils.SlidingWindowAvg;
-import org.uniroma2.sdcc.Utils.TupleHelpers;
-
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
 
 /**
+ * Bolt produces statistics. SlidingWindow is set on one day. Every emitFrequencyInSeconds the
+ * updated window is emitted. Statistics are computed for street.
+ *
  * @author emanuele
+ * @see SlidingWindowBolt
  */
 public class DailyAggregateConsumptionBolt extends AggregateConsumptionBolt {
 
     public DailyAggregateConsumptionBolt(int windowLengthInSeconds, int emitFrequencyInSeconds, Integer tickFrequencyInSeconds) {
-        super(windowLengthInSeconds, emitFrequencyInSeconds);
-        this.tickFrequencyInSeconds = tickFrequencyInSeconds;
+        super(windowLengthInSeconds, tickFrequencyInSeconds);
+        // emitFrequencyInSeconds = tickFrequencyInSeconds to default
+        this.emitFrequencyInSeconds = emitFrequencyInSeconds;
     }
 
-
+    /**
+     * Consider only tuple with timestamp of the type hh:mm:00.
+     *
+     * @param timestamp of the incoming tuple
+     * @return true if the tuple must be considered in the statistics.
+     */
+    @Override
     protected boolean isValid(LocalDateTime timestamp) {
         LocalDateTime validTime = timestamp.truncatedTo(ChronoUnit.MINUTES);
         return timestamp.isEqual(validTime);
