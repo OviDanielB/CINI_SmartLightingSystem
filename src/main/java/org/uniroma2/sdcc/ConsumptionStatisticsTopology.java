@@ -58,6 +58,12 @@ public class ConsumptionStatisticsTopology {
                 3600 / 2, tickFrequencyInSeconds), 3)
                 .fieldsGrouping("AggregateHourly", new Fields("street"));
 
+        builder.setBolt("printer", new PrinterBolt(), 1)
+                .shuffleGrouping("HourlyBolt")
+                .shuffleGrouping("AggregateHourly")
+                .shuffleGrouping("AggregateDaily")
+                .shuffleGrouping("DailyBolt");
+
         LocalCluster cluster = new LocalCluster();
         cluster.submitTopology("req2", config, builder.createTopology());
 

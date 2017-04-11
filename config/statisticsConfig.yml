@@ -1,8 +1,10 @@
-statistics:
-  hourStat:
-    chunk: 60
-    windowLength: 60
+statisticsTopologyParams:
+  tickTupleFrequency: 60
 
-  dailyStat:
-    chunk: 60
-    windowLength: 1440
+  hourlyStatistics:
+    windowLength: 3600
+    emitFrequency: 60
+
+  dailyStatistics:
+    windowLength: 86400
+    emitFrequency: 3600
