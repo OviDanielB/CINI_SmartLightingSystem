@@ -1,7 +1,6 @@
 package org.uniroma2.sdcc.Bolt;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -11,11 +10,9 @@ import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
-import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,11 +53,8 @@ public class NotRespondingLampBolt implements IRichBolt {
     @Override
     public void execute(Tuple input) {
 
-        Gson gson = new Gson();
-        Type type = new TypeToken<HashMap<MalfunctionCheckBolt, Float>>(){}.getType();
         HashMap<MalfunctionType,Float> malfunctions =
                 (HashMap<MalfunctionType, Float>) input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE);
-               /* gson.fromJson(input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE).toString(), type); */
 
         Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
         Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);

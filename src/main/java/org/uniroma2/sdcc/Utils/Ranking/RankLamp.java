@@ -1,4 +1,6 @@
-package org.uniroma2.sdcc.Utils;
+package org.uniroma2.sdcc.Utils.Ranking;
+
+import org.uniroma2.sdcc.Model.Address;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -14,12 +16,12 @@ public class RankLamp {
         return id;
     }
 
-    public String getAddress() {
+    public Address getAddress() {
         return address;
     }
 
     private int id;
-    private String address;
+    private Address address;
     private LocalDateTime lifetime;
     private Long timestamp;
 
@@ -31,7 +33,7 @@ public class RankLamp {
         return lifetime;
     }
 
-    public RankLamp (int id, String address, LocalDateTime lifetime, Long timestamp) {
+    public RankLamp (int id, Address address, LocalDateTime lifetime, Long timestamp) {
         this.id = id;
         this.address = address;
         this.lifetime = lifetime;

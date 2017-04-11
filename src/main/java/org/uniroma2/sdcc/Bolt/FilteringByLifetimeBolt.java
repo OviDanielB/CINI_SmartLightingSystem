@@ -1,5 +1,8 @@
 package org.uniroma2.sdcc.Bolt;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import net.spy.memcached.MemcachedClient;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -7,16 +10,15 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.mockito.cglib.core.Local;
 import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 
-import java.sql.Timestamp;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.net.InetSocketAddress;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
 
 /**
  * This Bolt processes arriving tuple from FilteringBolt
@@ -29,6 +31,9 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     private OutputCollector collector;
     /*  days threshold to be considered for ranking  TODO da mettere come parametro di configurazione */
     private int LIFETIME_THRESHOLD = 7;
+    /*  number of old lamps  */
+    private HashMap<Integer,Integer> oldIds;
+    private MemcachedClient memcachedClient;
 
     public FilteringByLifetimeBolt() {
     }
@@ -36,6 +41,12 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
+        this.oldIds = new HashMap<>();
+        try {
+            this.memcachedClient = new MemcachedClient(new InetSocketAddress("localhost", 11211));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -48,19 +59,29 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
+        this.oldIds = new HashMap<>();
+
+        try {
+            oldIds = (HashMap<Integer,Integer>)
+                    memcachedClient.get("old_counter");
+        } catch (Exception e) {
+            //oldIds.put(0,0);
+        }
+
         int id =                (int) tuple.getValueByField(Constant.ID);
 //        boolean state = (boolean) tuple.getValueByField(Constant.ON);
-        String address =        tuple.getValueByField(Constant.ADDRESS).toString();
+        Address address = (Address) tuple.getValueByField(Constant.ADDRESS);
         LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
         Long timestamp =   (Long) tuple.getValueByField(Constant.TIMESTAMP);
 
         emitClassifiableLampTuple(tuple, id, address, lifetime, timestamp);
-        collector.ack(tuple);
 
+        collector.ack(tuple);
     }
 
     /**
      * Check and emit only tuple with value of lifetime > LIFETIME_THRESHOLD
+     * and save id in memory if true.
      *
      * @param tuple received from FilteringBolt
      * @param id parsed from tuple
@@ -69,10 +90,18 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      * @param timestamp parsed from tuple
      */
     private void emitClassifiableLampTuple(
-            Tuple tuple, int id, String address, LocalDateTime lifetime, Long timestamp) {
+            Tuple tuple, int id, Address address, LocalDateTime lifetime, Long timestamp) {
 
         if (isOlderThan(lifetime)) {
+            oldIds.put(id,1);
+            memcachedClient.set("old_counter", 0, oldIds);
+
             collector.emit(tuple, new Values(id, address, lifetime, timestamp));
+        } else {
+            if (oldIds.containsKey(id)) {
+                oldIds.remove(id);
+            }
+            memcachedClient.set("old_counter", 0, oldIds);
         }
     }
 
@@ -90,7 +119,6 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         LocalDateTime d2 = LocalDateTime.now();
         /* difference between now and lifetime */
         long diff = ChronoUnit.DAYS.between(lifetime,d2);
-        System.out.println("DIFF : " + diff + " " + Boolean.toString(diff>LIFETIME_THRESHOLD));
 
         return diff > LIFETIME_THRESHOLD;
     }

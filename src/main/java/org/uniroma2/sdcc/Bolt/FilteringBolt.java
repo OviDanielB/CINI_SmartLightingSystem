@@ -13,9 +13,7 @@ import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.Map;
 
 public class FilteringBolt extends BaseRichBolt {
@@ -129,15 +127,9 @@ public class FilteringBolt extends BaseRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-
-
         outputFieldsDeclarer.declare(new Fields(StreetLampMessage.ID, StreetLampMessage.ADDRESS,
                 StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,
                 StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
                 StreetLampMessage.NATURAL_LIGHT_LEVEL, StreetLampMessage.TIMESTAMP));
-
-
-
-        //outputFieldsDeclarer.declare(new Fields(StreetLampMessage.STREET_LAMP_MSG));
     }
 }

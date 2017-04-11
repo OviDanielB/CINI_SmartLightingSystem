@@ -13,14 +13,18 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
-import org.uniroma2.sdcc.Utils.OldestKRanking;
-import org.uniroma2.sdcc.Utils.RankLamp;
+import org.uniroma2.sdcc.Model.Address;
+import org.uniroma2.sdcc.Model.AddressNumberType;
+import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
+import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
+import org.uniroma2.sdcc.Utils.Ranking.RankingResults;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -126,40 +130,66 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     private void sendWindowRank() {
 
-        // TODO json encoding memcached !!!
-                    /* INIT BLOCK TO DESERIALIZE */
-        String get_json_ranking = (String) memcachedClient.get("global_rank");
+        String json_ranking = memcachedClient.get("current_global_rank").toString();
+        HashMap<Integer,Integer> oldIds = (HashMap<Integer, Integer>)
+                memcachedClient.get("old_counter");
 
-        try {
-            /* send to queue with routink key */
-            if(get_json_ranking != null) {
-                channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, get_json_ranking.getBytes());
+        // send to dashboard only if ranking has been updated
+        if (rankingUpdated(json_ranking)) {
+
+            String json_results;
+
+            try {
+                /* send to queue with routing key */
+                if (json_ranking != null) {
+
+                    RankingResults results = new RankingResults(
+                            gson.fromJson(json_ranking,listType), oldIds.size());
+
+                    json_results = gson.toJson(results);
+
+                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, json_results.getBytes());
+
+                    System.out.println(LOG_TAG + "Sent : " + json_results);
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.out.println(LOG_TAG + "Failed sending mess to Rabbit.");
             }
-            System.out.println(LOG_TAG + "Sent : "+ get_json_ranking);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println(LOG_TAG + "Failed sending mess to Rabbit.");
         }
+    }
 
-        /*
-        List<RankLamp> rank_from_memory = gson.fromJson(get_json_ranking, listType);
+    /**
+     * Compare list of last ranking sent (sent_ranking) saved in memory
+     * with that one of last ranking calculated (current_ranking).
+     *
+     * @param json_ranking current ranking saved
+     * @return true if sent_ranking has been updated as current_ranking values
+     */
+    private boolean rankingUpdated(String json_ranking) {
 
-        System.out.println(
-                "GLOBAL Oldest " +
-                        K +
-                        " (of " +
-                        memcachedClient.get("old_counter") +
-                        " lamps: (SIZE " +
-                        rank_from_memory.size() +
-                        ")\n");
-        for (RankLamp aGlobalOldestK : rank_from_memory) {
-            System.out.println("ID: " + aGlobalOldestK.getId() +
-                    " Address: " + aGlobalOldestK.getAddress() +
-                    " Last-Substitution: " + aGlobalOldestK.getLifetime() + "\n");
+        String json_sent_ranking;
+        List<RankLamp> sent_ranking;
+        try{
+            json_sent_ranking = memcachedClient.get("sent_global_ranking").toString();
+            sent_ranking = gson.fromJson(json_sent_ranking, listType);
+
+        } catch (Exception e) {
+            sent_ranking = new ArrayList<>();
         }
-        */
-            /* END BLOCK TO DESERIALIZE */
+        List<RankLamp> current_ranking = gson.fromJson(json_ranking, listType);
+        for (int i=0; i<current_ranking.size(); i++) {
+            if (sent_ranking.size()==0 || current_ranking.get(i).getId() != sent_ranking.get(i).getId()
+                    ) {
+                // updated last valid global ranking in memory
+                // if ranking list contains different lamp IDs or in a different order
+                // or no previous valid global ranking was sent
+                memcachedClient.set("sent_global_ranking",0, json_ranking);
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -187,17 +217,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
             String json_ranking = gson.toJson(globalOldestK);
 
-            memcachedClient.set("global_rank",100000, json_ranking);
-
-//             Shutdowns the memcached client
-//            memcachedClient.shutdown();
-
-//            System.out.println("GLOBAL Oldest 10 lamps: (SIZE "+globalOldestK.size() +")\n");
-//            for (RankLamp aGlobalOldestK : globalOldestK) {
-//                System.out.println("ID: " + aGlobalOldestK.getId() +
-//                        " Address: " + aGlobalOldestK.getAddress().toString() +
-//                        " Last-Substitution: " + aGlobalOldestK.getLifetime() + "\n");
-//            }
+            memcachedClient.set("current_global_rank",0, json_ranking);
         }
     }
 
@@ -213,6 +233,23 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         Config conf = new Config();
         conf.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, 60);
         return conf;
+    }
+
+    /**
+     * retain only valuable information for address
+     * @param address type
+     * @return ex: Via Politecnico 23 (if number is a civic number)
+     *              / Via Politecnico km 2000 (if number is a km number)
+     */
+    private String composeAddressString(Address address) {
+
+        String finalAddress;
+        if (address.getNumberType()== AddressNumberType.CIVIC) {
+            finalAddress = String.format("%s %s",address.getName(), address.getNumber());
+        } else {
+            finalAddress = String.format("%s km %s",address.getName(), address.getNumber());
+        }
+        return finalAddress;
     }
 
     @Override

@@ -1,4 +1,4 @@
-package org.uniroma2.sdcc.Utils;
+package org.uniroma2.sdcc.Utils.Ranking;
 
 
 import java.util.ArrayList;

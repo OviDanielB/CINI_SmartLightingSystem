@@ -1,7 +1,6 @@
 package org.uniroma2.sdcc.Bolt;
 
 import com.google.gson.Gson;
-import net.spy.memcached.MemcachedClient;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -10,15 +9,11 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constant;
-import org.uniroma2.sdcc.Model.StreetLampMessage;
-import org.uniroma2.sdcc.Utils.OldestKRanking;
-import org.uniroma2.sdcc.Utils.RankLamp;
+import org.uniroma2.sdcc.Model.Address;
+import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
+import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -36,9 +31,7 @@ public class PartialRankBolt extends BaseRichBolt {
     private OldestKRanking ranking;
     private Gson gson;
     private int k;
-    /*  number of old lamps  */
-    private int count;
-    private MemcachedClient memcachedClient;
+
 
 
     public PartialRankBolt(int k) {
@@ -50,12 +43,6 @@ public class PartialRankBolt extends BaseRichBolt {
         this.collector = outputCollector;
         this.ranking = new OldestKRanking(k);
         this.gson = new Gson();
-
-        try {
-            this.memcachedClient = new MemcachedClient(new InetSocketAddress("localhost", 11211));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     /**
@@ -67,11 +54,8 @@ public class PartialRankBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        count += 1;
-        memcachedClient.set("old_counter", 120, count);
-
         int id = (int) tuple.getValueByField(Constant.ID);
-        String address = tuple.getValueByField(Constant.ADDRESS).toString();
+        Address address = (Address) tuple.getValueByField(Constant.ADDRESS);
         LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
         Long timestamp = (Long) tuple.getValueByField(Constant.TIMESTAMP);
 
@@ -85,7 +69,10 @@ public class PartialRankBolt extends BaseRichBolt {
 
             String serializedRanking = gson.toJson(oldestK);
 
-            collector.emit(new Values(serializedRanking));
+            Values values = new Values();
+            values.add(serializedRanking);
+
+            collector.emit(values);
         }
 
         collector.ack(tuple);
