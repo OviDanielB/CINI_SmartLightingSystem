@@ -47,7 +47,7 @@ public class ConsumptionStatisticsTopology {
         Config config = new Config();
 
 
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/statisticsConfig");
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
 
         try {
             ServiceConfig serviceConfig = yamlConfigRunner.getConfiguration()
