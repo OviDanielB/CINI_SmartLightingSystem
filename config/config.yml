@@ -7,11 +7,11 @@ group_members:
         - emanuele
 
 statisticsTopologyParams:
-  tickTupleFrequency: 5
+  tickTupleFrequency: 60
 
   hourlyStatistics:
     windowLength: 3600
-    emitFrequency: 5
+    emitFrequency: 60
 
   dailyStatistics:
     windowLength: 86400

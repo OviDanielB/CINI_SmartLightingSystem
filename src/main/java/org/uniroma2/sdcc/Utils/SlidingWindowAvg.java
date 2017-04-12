@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Keep statistics on a specified window of time
@@ -111,6 +112,19 @@ public class SlidingWindowAvg<T> implements Serializable {
         Map<T, Float> result = getAVgsSinceLastSlide();
         advanceWindow();
         return result;
+    }
+
+    public Float getTotalAvg() {
+
+        AvgCalculator avgCalculator = new AvgCalculator();
+        Map<T, Float> map = getAVgsSinceLastSlide();
+        Set<T> keyset = map.keySet();
+
+        for (T key : keyset)
+            avgCalculator.add(map.get(key));
+
+        return avgCalculator.getAvg();
+
     }
 
     /**

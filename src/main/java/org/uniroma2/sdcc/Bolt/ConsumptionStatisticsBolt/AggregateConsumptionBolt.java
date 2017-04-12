@@ -81,6 +81,10 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
 
         Map<String, Float> statistics = slidingWindow.getAvgThenAdvanceWindow();
         emit(statistics, slidingWindow.getLastSlide(), actualWindowLengthInSeconds);
+
+        Float globalStat = slidingWindow.getTotalAvg();
+        collector.emit(new Values("*", globalStat, slidingWindow.getLastSlide(), actualWindowLengthInSeconds));
+
     }
 
     /**
