@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.TimeZone;
 
 /**
+ * Bolt to adjust incoming tuple to be emit.
+ *
  * @author emanuele
  */
 public class ParserBolt extends BaseRichBolt {

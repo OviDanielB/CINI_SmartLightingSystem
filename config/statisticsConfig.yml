@@ -1,8 +1,0 @@
-statistics:
-  hourStat:
-    chunk: 60
-    windowLength: 60
-
-  dailyStat:
-    chunk: 60
-    windowLength: 1440

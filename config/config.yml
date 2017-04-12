@@ -1,8 +1,24 @@
-project-name: CINI_SmartLightingSystem
+project_name: CINI_SmartLightingSystem
 version: 1.0
 
-group-members:
+group_members:
         - ovi
         - laura
         - emanuele
-        - marius
+
+statisticsTopologyParams:
+  tickTupleFrequency: 5
+
+  hourlyStatistics:
+    windowLength: 3600
+    emitFrequency: 5
+
+  dailyStatistics:
+    windowLength: 86400
+    emitFrequency: 3600
+
+
+queue_out:
+  queue_name: 'my-cookye'
+  hostname: 'localhost'
+  port: 5673

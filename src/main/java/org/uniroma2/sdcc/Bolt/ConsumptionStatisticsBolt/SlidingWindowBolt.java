@@ -27,9 +27,10 @@ public abstract class SlidingWindowBolt<T> extends BaseRichBolt {
     protected static final String WINDOW_LENGTH_WARNING_TEMPLATE = "Actual window length is %d seconds when it should" +
             " be %d seconds (you can safely ignore this warning during the startup phase)";
 
-    protected SlidingWindowAvg<T> window; // keep computation for street-lamp statistics
+    protected SlidingWindowAvg<T> window;               // keep computation for street-lamp statistics
     protected int windowLengthInSeconds;                // the length or duration of the window
     protected int emitFrequencyInSeconds;               // the interval at which the windowing slides
+    protected int tickFrequencyInSeconds;               // the interval between two tick tuple
 
 
     protected NthLastModifiedTimeTracker lastModifiedTracker; // keep track for last window slide
@@ -38,26 +39,20 @@ public abstract class SlidingWindowBolt<T> extends BaseRichBolt {
 
 
     /**
-     * Default constructor
-     */
-    public SlidingWindowBolt() {
-        this(DEFAULT_SLIDING_WINDOW_IN_SECONDS, DEFAULT_SLIDING_DURATION_IN_SECONDS);
-    }
-
-    /**
      * @param windowLengthInSeconds  Windows length into which the statistics are computed
-     * @param emitFrequencyInSeconds How often the statistics are emitted
+     * @param tickFrequencyInSeconds How often the statistics are emitted
      */
-    public SlidingWindowBolt(int windowLengthInSeconds, int emitFrequencyInSeconds) {
+    public SlidingWindowBolt(int windowLengthInSeconds, int tickFrequencyInSeconds, int emitFrequencyInSeconds) {
 
-        if (windowLengthInSeconds <= 0 || emitFrequencyInSeconds <= 0)
+        if (windowLengthInSeconds <= 0 || tickFrequencyInSeconds <= 0)
             throw new IllegalArgumentException("windows length and emit frequency must be > 0");
 
         this.windowLengthInSeconds = windowLengthInSeconds;
+        this.tickFrequencyInSeconds = tickFrequencyInSeconds;
         this.emitFrequencyInSeconds = emitFrequencyInSeconds;
 
         window = new SlidingWindowAvg<>(deriveNumWindowChunksFrom(this.windowLengthInSeconds,
-                this.emitFrequencyInSeconds), emitFrequencyInSeconds);
+                this.tickFrequencyInSeconds), tickFrequencyInSeconds);
 
     }
 
@@ -66,7 +61,7 @@ public abstract class SlidingWindowBolt<T> extends BaseRichBolt {
         this.collector = outputCollector;
         logger = LoggerFactory.getLogger(SlidingWindowBolt.class);
         lastModifiedTracker = new NthLastModifiedTimeTracker(deriveNumWindowChunksFrom(this.windowLengthInSeconds,
-                this.emitFrequencyInSeconds));
+                this.tickFrequencyInSeconds));
     }
 
     protected int deriveNumWindowChunksFrom(int windowLengthInSeconds, int windowUpdateFrequencyInSeconds) {
