@@ -24,9 +24,15 @@ import java.util.concurrent.TimeoutException;
 public class PrinterBolt extends BaseRichBolt {
 
     private final static String CONFIG_FILE = "./config/config.yml";
-
-    private Channel channel;
     private RabbitConfig rabbitConfig;
+
+    /* rabbitMQ connection */
+    private  final String  EXCHANGE_NAME = "dashboard_exchange";
+    /* topic based pub/sub */
+    private  final String EXCHANGE_TYPE = "topic";
+    private  final String ROUTING_KEY = "dashboard.rank";
+    private Connection connection;
+    private Channel channel;
 
     public PrinterBolt() throws IOException {
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner(CONFIG_FILE);
@@ -35,18 +41,8 @@ public class PrinterBolt extends BaseRichBolt {
 
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(rabbitConfig.getHostname());
-        factory.setPort(rabbitConfig.getPort());
-        Connection connection;
-        try {
-            connection = factory.newConnection();
-            channel = connection.createChannel();
-            channel.queueDeclare(rabbitConfig.getQueue_name(), false, false, false, null);
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
-        }
-
+        /* connect to rabbit */
+        establishRabbitConnection();
     }
 
     @Override
@@ -56,10 +52,9 @@ public class PrinterBolt extends BaseRichBolt {
             Gson gson = new Gson();
             String toEmit = gson.toJson(tuple);
 
-            System.out.println(toEmit);
-
             try {
-                channel.basicPublish("", rabbitConfig.getQueue_name(), null, toEmit.getBytes());
+                channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, toEmit.getBytes());
+                System.out.println("[CINI][PrintBolt] Sent : " + toEmit);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -70,6 +65,27 @@ public class PrinterBolt extends BaseRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
+    }
+
+    /**
+     * connect to RabbitMQ to send statistics info to
+     * dashboard
+     */
+    private void establishRabbitConnection() {
+
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(rabbitConfig.getHostname());
+        factory.setPort(rabbitConfig.getPort());
+
+        try {
+            connection = factory.newConnection();
+            channel = connection.createChannel();
+            channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
+
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+        }
+
     }
 
 }
