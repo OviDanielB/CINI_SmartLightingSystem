@@ -143,20 +143,20 @@ public class SlidingWindowAvg<T> implements Serializable {
     public Float computeTotalAvgExcludingCurrentSlot(T obj) {
 
         AvgCalculator[] curr = slottedAvgs.get(obj);
+        AvgCalculator avgCalculator = new AvgCalculator();
         int i;
 
         if (curr == null)
             throw new IllegalArgumentException("Object specified not found");
 
-        Float sum = 0f;
         for (i = 0; i < windowLengthInSlots; i++) {
             AvgCalculator l = curr[i];
             if (l != null && i != headSlot) {
-                sum += l.getAvg();
+                avgCalculator.add(l.getAvg());
             }
         }
 
-        return sum / (windowLengthInSlots - 1);
+        return avgCalculator.getAvg();
     }
 
     private void advanceWindow() {

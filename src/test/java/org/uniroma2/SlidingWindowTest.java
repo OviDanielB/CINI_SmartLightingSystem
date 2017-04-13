@@ -33,7 +33,7 @@ public class SlidingWindowTest {
         Map<Integer, Float> result = slidingWindowAvg.getAVgsSinceLastSlide();
 
         assertTrue(result.containsKey(3));
-        assertEquals(result.get(3), 12f / 10, 0.01);
+        assertEquals(result.get(3), 12f, 0.01);
     }
 
     @Test
@@ -54,7 +54,7 @@ public class SlidingWindowTest {
 
         Map<Integer, Float> result = slidingWindowAvg.getAVgsSinceLastSlide();
         assertTrue(result.containsKey(1));
-        assertEquals(result.get(1), GAUSSIAN_MEAN / WINDOW_LENGTH_IN_SLOT, 1);
+        assertEquals(result.get(1), GAUSSIAN_MEAN, GAUSSIAN_STDEV);
 
     }
 

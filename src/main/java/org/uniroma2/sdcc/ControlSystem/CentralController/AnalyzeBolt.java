@@ -1,7 +1,6 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import net.spy.memcached.MemcachedClient;
 import org.apache.storm.task.OutputCollector;
@@ -28,28 +27,25 @@ public class AnalyzeBolt extends BaseRichBolt {
     private OutputCollector collector;
     private Gson gson;
     private MemcachedClient memcachedClient;
-    private Float toEncreaseGap;
-    private Float toDecreaseGap;
+    private Float toEncreaseGap = 0f;           // positive max value to resolve the defecting anomalies
+    private Float toDecreaseGap = 0f;           // negative min value to resolve the excess anomalies
 
     private Type listType;
 
 
-
-    private static String MEMCACHED_SERVER = "localhost";
-    private static int MEMCACHED_PORT = 11211;
-
-    public AnalyzeBolt() {
-    }
+    private final static String MEMCACHED_SERVER = "localhost";
+    private final static int MEMCACHED_PORT = 11211;
 
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.gson = new Gson();
-        this.listType = new TypeToken<ArrayList<TrafficData>>(){}.getType();
+        this.listType = new TypeToken<ArrayList<TrafficData>>() {
+        }.getType();
 
         try {
-            memcachedClient =
-                    new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER, MEMCACHED_PORT));
+            memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER,
+                    MEMCACHED_PORT));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -75,121 +71,79 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
+        // retrieve AnomalyStreetLampMessage from incoming tuple
         String json = (String) tuple.getValueByField(AnomalyStreetLampMessage.STREET_LAMP_MSG);
+        AnomalyStreetLampMessage anomalyStreetLampMessage = gson.fromJson(json, AnomalyStreetLampMessage.class);
 
-        AnomalyStreetLampMessage anomalyStreetLampMessage;
-        try {
-            /* JSON to Java object, read it from a Json String. */
-            anomalyStreetLampMessage =
-                    gson.fromJson(json, AnomalyStreetLampMessage.class);
-
-        } catch (JsonParseException e) {
-            /* wrong json format */
-            e.printStackTrace();
-            collector.ack(tuple);
-            return;
-        }
-
-        String json_trafficDataList =  (String) memcachedClient.get("traffic");
+        // retrieve traffic data
+        String json_trafficDataList = (String) memcachedClient.get("traffic");
         List<TrafficData> trafficDataList = gson.fromJson(json_trafficDataList, listType);
 
+        // emit
         emitAnalyzedDataTuple(tuple, anomalyStreetLampMessage, trafficDataList);
-
         collector.ack(tuple);
     }
-
 
 
     /**
      * Check and emit only tuple referring to lamps to adapt
      *
-     * @param tuple             received from spout tuple
+     * @param tuple                    received from spout tuple
      * @param anomalyStreetLampMessage parsed from tuple
-     * @param totalTrafficData list of all streets with their traffic percentage
+     * @param totalTrafficData         list of all streets with their traffic percentage
      */
-    private void emitAnalyzedDataTuple(
-            Tuple tuple, AnomalyStreetLampMessage anomalyStreetLampMessage,
-            List<TrafficData> totalTrafficData) {
+    private void emitAnalyzedDataTuple(Tuple tuple, AnomalyStreetLampMessage anomalyStreetLampMessage,
+                                       List<TrafficData> totalTrafficData) {
 
-        if (validAnomalyStreetLampFormat(anomalyStreetLampMessage)) {
 
-            StreetLamp lamp = anomalyStreetLampMessage.getStreetLamp();
+        StreetLamp lamp = anomalyStreetLampMessage.getStreetLamp();
 
-            Integer id = lamp.getID();
-            org.uniroma2.sdcc.Model.Address address = lamp.getAddress();
-//            Boolean on = lamp.isOn();
-            String model = lamp.getLampModel().toString();
-            Float consumption = lamp.getConsumption();
-            Float intensity = lamp.getLightIntensity();
-            LocalDateTime lifetime = lamp.getLifetime();
-//            Float naturalLightLevel = anomalyStreetLampMessage.getNaturalLightLevel();
-            Long timestamp = anomalyStreetLampMessage.getTimestamp();
+        Integer id = lamp.getID();
+        Address address = lamp.getAddress();
+        String model = lamp.getLampModel().toString();
+        Float consumption = lamp.getConsumption();
+        Float intensity = lamp.getLightIntensity();
+        LocalDateTime lifetime = lamp.getLifetime();
 
-            TrafficData trafficData =
-                    getTrafficByStreet(totalTrafficData, lamp.getAddress().getName());
+        TrafficData trafficData = getTrafficByStreet(totalTrafficData, lamp.getAddress()
+                .getName());
 
-            HashMap<MalfunctionType, Float> anomalies =
-                    anomalyStreetLampMessage.getAnomalies();
+        HashMap<MalfunctionType, Float> anomalies = anomalyStreetLampMessage.getAnomalies();
 
-            Float anomalyGap;
+        Float anomalyGap;   // final positive or negative value to optimize light intensity
 
-            if (!(anomalyGap = anomalies.get(MalfunctionType.NONE)).equals(0f)) {
-                // MalfunctionType.NONE
-                // gap maintained at 0, because if no anomaly
-                // there's no gap from correct value to modify
-                // lamp not-active cannot be adapted
-//                anomalyGap = 0f;
-            }
-            if (!toEncreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.WEATHER_LESS)))) {
-                // MalfunctionType.WEATHER_LESS
-                toEncreaseGap = Math.max(toEncreaseGap, -anomalyGap);
-//                adaptedIntensity = adaptByWeather(lamp, trafficData, gap);
-            } else if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.WEATHER_MORE)))) {
-                // MalfunctionType.WEATHER_MORE
-                toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);
-//                adaptedIntensity = adaptByWeather(lamp, trafficData, gap);
-            }
-            if (!toEncreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.DAMAGED_BULB)))) {
-                // MalfunctionType.DAMAGED_BULB
-                // gap maintained at 0, because if the bulb is damaged it can't be
-                // set to a correct value
-                // lamp not-active cannot be adapted
-            }
-            if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS)))) {
-                // MalfunctionType.LIGHT_INTENSITY_LESS
-                toEncreaseGap = Math.max(toEncreaseGap, -anomalyGap);
-//                adaptedIntensity = adaptByNaturalLightLevel(lamp, trafficData);
-            } else if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE)))) {
-                // MalfunctionType.LIGHT_INTENSITY_MORE
-                toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);
-//                adaptedIntensity = adaptByNaturalLightLevel(lamp, trafficData);
-            }
-            if (!toEncreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.NOT_RESPONDING)))) {
-                // MalfunctionType.NOT_RESPONDING
-                // gap maintained at 0, because if the bulb is damaged it can't be
-                // set to a correct value
-                // lamp not-active cannot be adapted
-            }
 
-            Values values = new Values();
-            values.add(id);
-            values.add(address);
-            values.add(model);
-            values.add(consumption);
-            values.add(intensity);
-            values.add(lifetime);
-            values.add(timestamp);
-            values.add(toEncreaseGap);
-            values.add(toDecreaseGap);
+        /*
+         * Control on other anomalies cannot be resolved
+         * (e.i. DAMAGE_BULB, NOT RESPONDING)
+         */
+        if (!toEncreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.WEATHER_LESS))))
+            toEncreaseGap = Math.max(toEncreaseGap, -anomalyGap);   // MalfunctionType.WEATHER_LESS
 
-            String json_trafficData = gson.toJson(trafficData);
-            values.add(json_trafficData);
+        else if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.WEATHER_MORE))))
+            toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);    // MalfunctionType.WEATHER_MORE
 
-            //System.out.println("[CINI] FILTERING : " + values.toString());
 
-            collector.emit(tuple, values);
-        }
-        // if deformed tuple it is rejected
+        if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS))))
+            toEncreaseGap = Math.max(toEncreaseGap, -anomalyGap);   // MalfunctionType.LIGHT_INTENSITY_LESS
+
+        else if (!toDecreaseGap.equals((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE))))
+            toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);    // MalfunctionType.LIGHT_INTENSITY_MORE
+
+
+        Values values = new Values();
+        values.add(id);
+        values.add(address);
+        values.add(model);
+        values.add(consumption);
+        values.add(intensity);
+        values.add(lifetime);
+        values.add(toEncreaseGap);
+        values.add(toDecreaseGap);
+
+        String json_trafficData = gson.toJson(trafficData);
+        values.add(json_trafficData);
+        collector.emit(tuple, values);
     }
 
     private TrafficData getTrafficByStreet(List<TrafficData> totalTrafficData, String name) {
@@ -202,28 +156,13 @@ public class AnalyzeBolt extends BaseRichBolt {
         return null;
     }
 
-
-    /**
-     * the street light should have a valid format
-     * ex: intensity and naturalLight level should be percentages,
-     * timestamp should not be too far in the past, etc
-     *
-     * @param anomalyStreetLamp needed validation
-     * @return true if valid, false otherwise
-     */
-    private boolean validAnomalyStreetLampFormat(AnomalyStreetLampMessage anomalyStreetLamp) {
-        // TODO check if 1st field is ID,2nd is an address, etc
-        return true;
-    }
-
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         outputFieldsDeclarer.declare(new Fields(AnomalyStreetLampMessage.ID,
                 AnomalyStreetLampMessage.ADDRESS, AnomalyStreetLampMessage.LAMP_MODEL,
                 AnomalyStreetLampMessage.CONSUMPTION, AnomalyStreetLampMessage.INTENSITY,
-                AnomalyStreetLampMessage.LIFETIME, AnomalyStreetLampMessage.TIMESTAMP,
-                Constant.GAP_TO_ENCREASE, Constant.GAP_TO_DECREASE,
-                Constant.TRAFFIC_BY_ADDRESS));
+                AnomalyStreetLampMessage.LIFETIME, Constant.GAP_TO_ENCREASE,
+                Constant.GAP_TO_DECREASE, Constant.TRAFFIC_BY_ADDRESS));
 
     }
 }
