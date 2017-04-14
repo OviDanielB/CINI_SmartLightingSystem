@@ -20,6 +20,12 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * This Bolt is the last component of the Control System's MAPE architecture.
+ * Retrieve incoming tuple from Plan, publish output result on queue
+ * where is subscribed lamp Local Controller that effectively adapt lamp intensity
+ * to the planned value.
+ */
 public class ExecuteBolt extends BaseRichBolt{
 
     private OutputCollector collector;
@@ -28,7 +34,7 @@ public class ExecuteBolt extends BaseRichBolt{
 
     /* rabbitMQ connection */
     private final static String RABBIT_HOST = "localhost";
-    private final static Integer RABBIT_PORT = 5673;
+    private final static Integer RABBIT_PORT = 5672;
     private  static final String  EXCHANGE_NAME = "control_exchange";
     /* topic based pub/sub */
     private  static final String EXCHANGE_TYPE = "topic";
@@ -36,9 +42,13 @@ public class ExecuteBolt extends BaseRichBolt{
     private Connection connection;
     private Channel channel;
 
-
-
-
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = collector;
@@ -47,13 +57,18 @@ public class ExecuteBolt extends BaseRichBolt{
         establishRabbitConnection();
     }
 
+    /**
+     * ExecuteBolt operation on incoming tuple.
+     *
+     * @param tuple tuple received
+     */
     @Override
     public void execute(Tuple tuple) {
-        /* riceve la tupla contenente il valore di intensità della strada ottimale */
-        /* pubblica su pub/sub il valore */
 
-        int id =                    (int) tuple.getValueByField(AnomalyStreetLampMessage.ID);
+        // retrieve data from incoming tuple
+        Integer id =                (Integer) tuple.getValueByField(AnomalyStreetLampMessage.ID);
         Address address =           (Address) tuple.getValueByField(AnomalyStreetLampMessage.ADDRESS);
+        Integer cellID =            (Integer) tuple.getValueByField(AnomalyStreetLampMessage.CELL);
         Lamp model =                (Lamp) tuple.getValueByField(AnomalyStreetLampMessage.LAMP_MODEL);
         Float consumption =         (Float) tuple.getValueByField(AnomalyStreetLampMessage.CONSUMPTION);
         LocalDateTime lifetime =    (LocalDateTime) tuple.getValueByField(AnomalyStreetLampMessage.LIFETIME);
@@ -61,9 +76,10 @@ public class ExecuteBolt extends BaseRichBolt{
 
 
         StreetLamp adapted_lamp = new StreetLamp(
-                id, true, model, address, consumption, adapted_intensity, lifetime);
+                id, true, model, address, cellID, consumption, adapted_intensity, lifetime);
 
         String json_adapted_lamp = gson.toJson(adapted_lamp);
+        System.out.println(LOG_TAG + "ADAPTED : " + json_adapted_lamp);
 
         try {
 
@@ -78,7 +94,7 @@ public class ExecuteBolt extends BaseRichBolt{
     }
 
     /**
-     * Connect to RabbitMQ to send data to adapt lamp
+     * Connect to RabbitMQ to publish data of adapted lamp values.
      */
     private void establishRabbitConnection() {
 
@@ -99,8 +115,13 @@ public class ExecuteBolt extends BaseRichBolt{
 
     }
 
+    /**
+     * Declare name of the output tuple fields.
+     *
+     * @param outputFieldsDeclarer output fields declarer
+     */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-
+        // no output fields to declare
     }
 }

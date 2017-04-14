@@ -1,7 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import net.spy.memcached.MemcachedClient;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -14,7 +12,6 @@ import org.uniroma2.sdcc.Constant;
 import org.uniroma2.sdcc.Model.*;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -44,6 +41,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         this.oldIds = new HashMap<>();
         try {
             this.memcachedClient = new MemcachedClient(new InetSocketAddress("localhost", 11211));
+            this.memcachedClient.set("old_counter", 0, this.oldIds);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -59,20 +57,17 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        this.oldIds = new HashMap<>();
-
         try {
             oldIds = (HashMap<Integer,Integer>)
                     memcachedClient.get("old_counter");
         } catch (Exception e) {
-            //oldIds.put(0,0);
+            this.oldIds = new HashMap<>();
         }
 
-        int id =                (int) tuple.getValueByField(Constant.ID);
-//        boolean state = (boolean) tuple.getValueByField(Constant.ON);
-        Address address = (Address) tuple.getValueByField(Constant.ADDRESS);
-        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
-        Long timestamp =   (Long) tuple.getValueByField(Constant.TIMESTAMP);
+        int id =                    (int) tuple.getValueByField(Constant.ID);
+        Address address =           (Address) tuple.getValueByField(Constant.ADDRESS);
+        LocalDateTime lifetime =    (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
+        Long timestamp =            (Long) tuple.getValueByField(Constant.TIMESTAMP);
 
         emitClassifiableLampTuple(tuple, id, address, lifetime, timestamp);
 
@@ -123,6 +118,11 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         return diff > LIFETIME_THRESHOLD;
     }
 
+    /**
+     * Declare name of the output tuple fields.
+     *
+     * @param outputFieldsDeclarer output fields declarer
+     */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         outputFieldsDeclarer.declare(new Fields(Constant.ID, Constant.ADDRESS,

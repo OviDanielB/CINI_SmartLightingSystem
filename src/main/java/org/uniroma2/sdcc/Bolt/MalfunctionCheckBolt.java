@@ -87,7 +87,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
     /**
-     * initiliaze used variables
+     * Initialize used variables
      */
     private void initialization() {
         streetAverageConsumption = new HashMap<>();
@@ -95,7 +95,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
     /**
-     * prints periodic global average of light intensity
+     * Prints periodic global average of light intensity
      */
     private void periodicGlobalAvg() {
         Timer timer = new Timer();
@@ -129,6 +129,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
         Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
+        Integer cellID = (Integer) input.getValueByField(StreetLampMessage.CELL);
         Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
         String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
         Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
@@ -155,40 +156,26 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
 
         /* checks if the state of the bulb (on or off) is as the most of the
-        * lamps on the street ; othwerwise it could be damaged */
+        * lamps on the street ; otherwise it could be damaged */
         if (damagedBulb(reducedAddress,on)) {
             malfunctions.put(MalfunctionType.DAMAGED_BULB, 1f);
- //           malfunctionTypes += MalfunctionType.DAMAGED_BULB.toString() + ";";
-        } else {
-            //malfunctions.put(MalfunctionType.DAMAGED_BULB, 0f);
         }
 
         /* checks for weather anomalies (low light on cloudy day, etc) */
         malfunctions = weatherAnomaly(malfunctions, intensity);
 
-
-        /*
-        Float s = 0f;
-        for (MalfunctionType t : MalfunctionType.values()) {
-            s += (malfunctions.get(t) != null) ? malfunctions.get(t) : 0f;
-        }
-        if (s.equals(0f)) {
-            malfunctions.put(MalfunctionType.NONE, 1f);
-        } else {
-            malfunctions.put(MalfunctionType.NONE, 0f);
-        } */
-
         /* check if no anomalies detected */
-        if(malfunctions.size() == 0){
-            malfunctions.put(MalfunctionType.NONE,0f);
+        if (malfunctions.size() == 0){
+            malfunctions.put(MalfunctionType.NONE,1f);
         }
+
 
         Gson gson = new Gson();
         // TODO
-        String json_malfunctions = gson.toJson(malfunctions);
         values.add(malfunctions);
         values.add(id);
         values.add(address);
+        values.add(cellID);
         values.add(on);
         values.add(model);
         values.add(consumption);
@@ -218,11 +205,11 @@ public class MalfunctionCheckBolt implements IRichBolt {
             HashMap<MalfunctionType,Float> malfunctions, Float intensity) {
 
         if (!weatherAvailable) {
-            // TODO why put if no anomaly ?!
-            //malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
-            //malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+
             return malfunctions;
+
         } else {
+
             Atmosphere atmosphere = weatherChannel.getAtmosphere();
             Condition currentCondition = weatherChannel.getItem().getCondition();
             Astronomy astronomy = weatherChannel.getAstronomy();
@@ -239,9 +226,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     visibilityIntensityRight.get(WeatherHelper.VISIBILITY_INTENSITY_MINIMUM)),
                     astronomyIntensityRight.get(WeatherHelper.DARK_SKY_INTENSITY_MINIMUM));
             if (min_underGap < 0) {
-                // TODO why put if no anomaly ?!
                 malfunctions.put(MalfunctionType.WEATHER_LESS, min_underGap);
-                //malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
                 return malfunctions;
             }
 
@@ -250,20 +235,10 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     visibilityIntensityRight.get(WeatherHelper.VISIBILITY_INTENSITY_MAXIMUM)),
                     astronomyIntensityRight.get(WeatherHelper.GLARE_SKY_INTENSITY_MAXIMUM));
             if (min_overGap > 0) {
-                // TODO why put if no anomaly ?!
-                //malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
                 malfunctions.put(MalfunctionType.WEATHER_MORE, min_overGap);
                 return malfunctions;
             }
-//            int sum = weatherIntensityRight + visibilityIntensityRight + astronomyIntensityRight;
-//            if ( sum < 0) {
-//                return -1;
-//            } else if ( sum > 0 ) {
-//                return 1;
-//            }
-            // TODO why put if no anomaly ?!
-            //malfunctions.put(MalfunctionType.WEATHER_LESS, 0f);
-            //malfunctions.put(MalfunctionType.WEATHER_MORE, 0f);
+
             return malfunctions;
         }
     }
@@ -348,7 +323,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
         Float underGap = intensity - lowerBound;
         Float overGap = intensity - upperBound;
 
-        if (underGap <=0) {
+        if (underGap < 0) {
             /* avoid errors from light transition (from sunny to cloudy and viceversa) */
             increaseProbablyMalfunctions(id);
 
@@ -356,10 +331,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
                  almost surely it is an anomaly */
             if (almostSurelyMalfunction(id)) {
                 malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, underGap);
-//                malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS.toString() + ";";
             }
 
-        } else if (overGap >= 0) {
+        } else if (overGap > 0) {
             /* avoid errors from light transition (from sunny to cloudy and viceversa) */
             increaseProbablyMalfunctions(id);
 
@@ -367,13 +341,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
                  almost surely it is an anomaly */
             if (almostSurelyMalfunction(id)) {
                 malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, overGap);
-//                malfunctionTypes += MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE.toString() + ";";
             }
         }
         // no anomaly detected
-        // TODO why add if no anomaly ?!
-        //malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, 0f);
-        //malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, 0f);
         return malfunctions;
     }
 
@@ -477,8 +447,8 @@ public class MalfunctionCheckBolt implements IRichBolt {
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
 
         declarer.declare(new Fields(StreetLampMessage.MALFUNCTIONS_TYPE,StreetLampMessage.ID,
-                StreetLampMessage.ADDRESS,StreetLampMessage.ON,StreetLampMessage.LAMP_MODEL,
-                StreetLampMessage.CONSUMPTION,StreetLampMessage.LIFETIME,
+                StreetLampMessage.ADDRESS,StreetLampMessage.CELL,StreetLampMessage.ON,
+                StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,StreetLampMessage.LIFETIME,
                 StreetLampMessage.INTENSITY, StreetLampMessage.NATURAL_LIGHT_LEVEL,
                 StreetLampMessage.TIMESTAMP));
     }
@@ -540,7 +510,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
             Float overGap = intensity - SUNNY_SKY_INTENSITY_MAXIMUM;
             // if cloudy sky
             if (darkSkyFromCode(code)) {
-                if ( underGap <= 0 ) {
+                if ( underGap < 0 ) {
                     i.put(CLOUDY_SKY_INTENSITY_MINIMUM, underGap);
                     i.put(SUNNY_SKY_INTENSITY_MAXIMUM, 0f);
                     return i;
@@ -574,7 +544,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
             Float overGap = intensity - GLARE_SKY_INTENSITY_MAXIMUM;
             /* if it's dark */
             if (nowHour < sunrise.getHours() || nowHour > sunset.getHours()) {
-                if (underGap <= 0) {
+                if (underGap < 0) {
                     i.put(DARK_SKY_INTENSITY_MINIMUM,underGap);
                     i.put(GLARE_SKY_INTENSITY_MAXIMUM, 0f);
                     return i;

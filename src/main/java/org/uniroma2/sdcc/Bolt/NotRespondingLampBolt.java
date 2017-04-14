@@ -10,6 +10,7 @@ import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
+import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Model.*;
 
 import java.io.IOException;
@@ -58,6 +59,7 @@ public class NotRespondingLampBolt implements IRichBolt {
 
         Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
         Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
+        Integer cellID = (Integer) input.getValueByField(StreetLampMessage.CELL);
         Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
         String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
         Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
@@ -67,16 +69,28 @@ public class NotRespondingLampBolt implements IRichBolt {
         Long timestamp = (Long) input.getValueByField(StreetLampMessage.TIMESTAMP);
 
         StreetLamp lamp = new StreetLamp(id,on,getLampModelByString(model),
-                address,intensity,consumption,lifeTime);
-
-        //HashMap<MalfunctionType, Float> malfunctions = parseStringForMalf(malfunctionsStr);
+                address, cellID, intensity,consumption,lifeTime);
 
         AnomalyStreetLampMessage anomalyMessage = new AnomalyStreetLampMessage(lamp,naturalLightLevel,
-                timestamp, malfunctions,0L);
-
+                timestamp, malfunctions, 0L);
 
         updateLampList(id,anomalyMessage);
 
+
+        Values values = new Values();
+        values.add(malfunctions);
+        values.add(id);
+        values.add(address);
+        values.add(cellID);
+        values.add(on);
+        values.add(model);
+        values.add(consumption);
+        values.add(lifeTime);
+        values.add(intensity);
+        values.add(naturalLightLevel);
+        values.add(timestamp);
+
+        collector.emit(values);
 
         collector.ack(input);
 
@@ -130,35 +144,40 @@ public class NotRespondingLampBolt implements IRichBolt {
     }
 
 
-    /**
-     * parse string provided by MalfunctionCheckBolt and
-     * retrieve MalfunctionTypes
-     * @param malfunctionsStr string (may contain only NONE)
-     * @return list of mapping between malfunctions and difference
-     *          from correct value
-     */
-    private HashMap<MalfunctionType, Float> parseStringForMalf(String malfunctionsStr) {
-
-        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
-        for(MalfunctionType t : MalfunctionType.values()){
-            if(malfunctionsStr.contains(t.toString())){
-                anomalies.put(t, 0f);
-            } else {
-                anomalies.put(t, 0f);
-            }
-        }
-
-        return anomalies;
-    }
+//    /**
+//     * parse string provided by MalfunctionCheckBolt and
+//     * retrieve MalfunctionTypes
+//     * @param malfunctionsStr string (may contain only NONE)
+//     * @return list of mapping between malfunctions and difference
+//     *          from correct value
+//     */
+//    private HashMap<MalfunctionType, Float> parseStringForMalf(String malfunctionsStr) {
+//
+//        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
+//        for(MalfunctionType t : MalfunctionType.values()){
+//            if(malfunctionsStr.contains(t.toString())){
+//                anomalies.put(t, 0f);
+//            } else {
+//                anomalies.put(t, 0f);
+//            }
+//        }
+//
+//        return anomalies;
+//    }
 
     @Override
     public void cleanup() {
 
     }
 
+
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(AnomalyStreetLampMessage.STREET_LAMP_MSG));
+        outputFieldsDeclarer.declare(new Fields(StreetLampMessage.MALFUNCTIONS_TYPE,StreetLampMessage.ID,
+                StreetLampMessage.ADDRESS,StreetLampMessage.CELL,StreetLampMessage.ON,
+                StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,StreetLampMessage.LIFETIME,
+                StreetLampMessage.INTENSITY, StreetLampMessage.NATURAL_LIGHT_LEVEL,
+                StreetLampMessage.TIMESTAMP));
     }
 
     @Override
@@ -234,7 +253,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         private Gson gson;
 
         private  final String HOST = "localhost";
-        private  final Integer PORT =  5673;
+        private  final Integer PORT =  5672;
         private  final String QUEUE_NAME = "anomaly";
         private  final String  EXCHANGE_NAME = "dashboard_exchange";
         /* topic based pub/sub */

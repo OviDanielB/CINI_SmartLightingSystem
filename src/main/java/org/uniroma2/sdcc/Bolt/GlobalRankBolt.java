@@ -252,8 +252,14 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         return finalAddress;
     }
 
+    /**
+     * Declare name of the output tuple fields.
+     *
+     * @param outputFieldsDeclarer output fields declarer
+     */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
+        // nothing to declare
     }
 
     /** Check if the received tuple is a Tick Tuple

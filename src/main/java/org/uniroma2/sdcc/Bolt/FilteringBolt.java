@@ -2,6 +2,7 @@ package org.uniroma2.sdcc.Bolt;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
+import org.apache.commons.codec.binary.StringUtils;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -55,7 +56,10 @@ public class FilteringBolt extends BaseRichBolt {
                 Gson gson = new Gson();
             /* JSON to Java object, read it from a Json String. */
                 streetLampMessage = gson.fromJson(json, StreetLampMessage.class);
-
+                if (streetLampMessage == null) {
+                    collector.ack(tuple);
+                    return;
+                }
             } catch (JsonParseException e) {
             /* wrong json format */
                 e.printStackTrace();
@@ -76,12 +80,12 @@ public class FilteringBolt extends BaseRichBolt {
      */
     private void emitValidLampTuple(Tuple tuple, StreetLampMessage streetLampMessage) {
 
-        if(validStreetLampFormat(streetLampMessage)) {
-
-            StreetLamp lamp = streetLampMessage.getStreetLamp();
+        StreetLamp lamp;
+        if ( (lamp = streetLampMessage.getStreetLamp()) != null) {
 
             Integer id = lamp.getID();
             Address address = lamp.getAddress();
+            Integer cellID = lamp.getCellID();
             Boolean on = lamp.isOn();
             String model = lamp.getLampModel().toString();
             Float consumption = lamp.getConsumption();
@@ -93,6 +97,7 @@ public class FilteringBolt extends BaseRichBolt {
             Values values = new Values();
             values.add(id);
             values.add(address);
+            values.add(cellID);
             values.add(on);
             values.add(model);
             values.add(consumption);
@@ -103,33 +108,22 @@ public class FilteringBolt extends BaseRichBolt {
 
             //System.out.println("[CINI] FILTERING : " + values.toString());
 
-             /* anchor tuple to new streetLamp value */
+            /* anchor tuple to new streetLamp value */
             collector.emit(tuple, values);
-            collector.ack(tuple);
-
-        } else {
-
-            collector.ack(tuple);
         }
+        collector.ack(tuple);
     }
 
     /**
-     * the street light should have a valid format
-     * ex: intensity and naturalLight level should be percentages,
-     *     timestamp should not be too far in the past, etc
-     * @param streetLamp needed validation
-     * @return true if valid, false otherwise
+     * Declare name of the output tuple fields.
+     *
+     * @param outputFieldsDeclarer output fields declarer
      */
-    private boolean validStreetLampFormat(StreetLampMessage streetLamp) {
-        // TODO check if 1st field is ID,2nd is an address, etc
-        return true;
-    }
-
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         outputFieldsDeclarer.declare(new Fields(StreetLampMessage.ID, StreetLampMessage.ADDRESS,
-                StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,
-                StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
+                StreetLampMessage.CELL, StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL,
+                StreetLampMessage.CONSUMPTION, StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
                 StreetLampMessage.NATURAL_LIGHT_LEVEL, StreetLampMessage.TIMESTAMP));
     }
 }

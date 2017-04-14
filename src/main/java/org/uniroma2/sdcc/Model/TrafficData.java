@@ -1,25 +1,20 @@
 package org.uniroma2.sdcc.Model;
 
-import java.sql.Timestamp;
-
+/**
+ * Model of query result from request to Traffic REST API to obtain traffic
+ * level percentage by street specified.
+ */
 public class TrafficData {
 
     private String street;
     private Float congestionPercentage;
-    private Timestamp timestamp;
-
-    public TrafficData(
-            String street, Float congestionPercentage, Timestamp timestamp) {
-        this.street = street;
-        this.congestionPercentage = congestionPercentage;
-        this.timestamp = timestamp;
-    }
+    private Long timestamp;
 
     public TrafficData(
             String street, Float congestionPercentage) {
         this.street = street;
         this.congestionPercentage = congestionPercentage;
-//        this.timestamp = new Date().getTime();
+        this.timestamp = System.currentTimeMillis();
     }
 
     public String getStreet() {
@@ -38,11 +33,11 @@ public class TrafficData {
         this.congestionPercentage = congestionPercentage;
     }
 
-    public Timestamp getTimestamp() {
+    public Long getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Timestamp timestamp) {
+    public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
     }
 }

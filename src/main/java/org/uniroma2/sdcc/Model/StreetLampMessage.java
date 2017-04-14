@@ -17,6 +17,7 @@ public class StreetLampMessage {
     public static String STREET_LAMP_MSG = "streetLampMessage";
     public static String JSON_STRING = "jsonString";
     public static String ID = "id";
+    public static String CELL = "cell";
     public static String ADDRESS = "address";
     public static String ON = "on";
     public static String LAMP_MODEL = "model";
