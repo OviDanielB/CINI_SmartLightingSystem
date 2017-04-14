@@ -7,7 +7,6 @@ import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt.*;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
-import org.uniroma2.sdcc.Utils.Configuration;
 import org.uniroma2.sdcc.Utils.ServiceConfig;
 import org.uniroma2.sdcc.Utils.YamlConfigRunner;
 
@@ -32,6 +31,8 @@ public class ConsumptionStatisticsTopology {
     private final static int HOURLY_WINDOWSLEN = 3600;
     private final static int DAILY_WINDOWLEN = 3600 * 24;
     private final static int DAILY_EMIT_FREQUENCY = 1800;
+    private final static int WEEKLY_WINDOWLEN = DAILY_WINDOWLEN * 7;
+    private final static int WEEKLY_EMIT_FREQUENCY = 3600 * 24;
 
 
     public ConsumptionStatisticsTopology() {
@@ -83,19 +84,29 @@ public class ConsumptionStatisticsTopology {
         builder.setBolt("AggregateHourly", new AggregateConsumptionBolt(hourly_window, tickfrequency),
                 3).fieldsGrouping("parser", new Fields("street"));
 
-        builder.setBolt("DailyBolt", new DailyIndividualConsumptionBolt(daily_window,
+        builder.setBolt("DailyBolt", new ExtendendIndividualConsumptionBolt(daily_window,
                 daily_emit_frequency, tickfrequency), 1)
                 .shuffleGrouping("HourlyBolt");
 
-        builder.setBolt("AggregateDaily", new DailyAggregateConsumptionBolt(daily_window,
+        builder.setBolt("AggregateDaily", new ExtendedAggregateConsumptionBolt(daily_window,
                 daily_emit_frequency, tickfrequency), 3)
                 .fieldsGrouping("AggregateHourly", new Fields("street"));
+
+        builder.setBolt("WeeklyBolt", new ExtendendIndividualConsumptionBolt(WEEKLY_WINDOWLEN,
+                WEEKLY_EMIT_FREQUENCY, tickfrequency), 1)
+                .shuffleGrouping("DailyBolt");
+
+        builder.setBolt("AggregateWeekly", new ExtendedAggregateConsumptionBolt(WEEKLY_WINDOWLEN,
+                WEEKLY_EMIT_FREQUENCY, tickfrequency), 3)
+                .fieldsGrouping("AggregateDaily", new Fields("street"));
 
         builder.setBolt("printer", new PrinterBolt(), 1)
                 .shuffleGrouping("HourlyBolt")
                 .shuffleGrouping("AggregateHourly")
                 .shuffleGrouping("AggregateDaily")
-                .shuffleGrouping("DailyBolt");
+                .shuffleGrouping("DailyBolt")
+                .shuffleGrouping("AggregateWeekly")
+                .shuffleGrouping("WeeklyBolt");
 
         LocalCluster cluster = new LocalCluster();
         cluster.submitTopology("req2", config, builder.createTopology());
