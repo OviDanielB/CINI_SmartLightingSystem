@@ -8,6 +8,7 @@ public class ParkingData {
 
     private int cellID;
     // TODO add park street/ park ID ???
+    private String street;
     private Float occupationPercentage;
     private Long timestamp;
 
@@ -32,6 +33,14 @@ public class ParkingData {
 
     public void setOccupationPercentage(Float occupationPercentage) {
         this.occupationPercentage = occupationPercentage;
+    }
+
+    public void setStreet(String street) {
+        this.street = street;
+    }
+
+    public String getStreet() {
+        return this.street;
     }
 
     public Long getTimestamp() {
