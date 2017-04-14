@@ -5,14 +5,14 @@ import java.time.temporal.ChronoUnit;
 
 /**
  * Bolt produces statistics. SlidingWindow is set on one day. Every emitFrequencyInSeconds the
- * updated window is emitted. Statistics are computed for streetLamp.
+ * updated window is emitted. Statistics are computed for street.
  *
  * @author emanuele
  * @see SlidingWindowBolt
  */
-public class DailyIndividualConsumptionBolt extends IndividualConsumptionBolt {
+public class ExtendedAggregateConsumptionBolt extends AggregateConsumptionBolt {
 
-    public DailyIndividualConsumptionBolt(int windowLengthInSeconds, int emitFrequencyInSeconds, Integer tickFrequencyInSeconds) {
+    public ExtendedAggregateConsumptionBolt(int windowLengthInSeconds, int emitFrequencyInSeconds, Integer tickFrequencyInSeconds) {
         super(windowLengthInSeconds, tickFrequencyInSeconds);
         // emitFrequencyInSeconds = tickFrequencyInSeconds to default
         this.emitFrequencyInSeconds = emitFrequencyInSeconds;
