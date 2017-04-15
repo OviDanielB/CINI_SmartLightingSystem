@@ -1,0 +1,10 @@
+{
+  "name": "CINI_LocalController",
+  "version": "0.0.1",
+  "dependencies": {
+    "async": "^2.3.0",
+    "aws-iot-device-sdk": "^1.0.14",
+    "aws-sdk": "^2.41.0",
+    "moment-random": "^0.1.1"
+  }
+}

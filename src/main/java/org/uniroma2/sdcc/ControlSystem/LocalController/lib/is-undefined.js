@@ -27,6 +27,6 @@
  * @param {Object} value
  * @access public
  */
-module.exports = function(value) {
-   return typeof value === 'undefined' || typeof value === null;
+module.exports = function (value) {
+    return typeof value === 'undefined' || typeof value === null;
 };

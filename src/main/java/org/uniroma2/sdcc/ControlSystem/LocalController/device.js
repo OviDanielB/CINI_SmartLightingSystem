@@ -2,20 +2,24 @@
 const deviceModule = require('aws-iot-device-sdk');
 const cmdLineProcess = require('./lib/cmdline');
 const momentRandom = require('moment-random');
-var AWS = require('aws-sdk');
-var async = require("async");
+const AWS = require('aws-sdk');
+const async = require("async");
+const fs = require("fs");
 
 module.exports = cmdLineProcess;
 
-var iot = new AWS.Iot({region: 'us-west-2', apiVersion: '2015-05-28'});
+var iot = new AWS.Iot({region: 'eu-west-1', apiVersion: '2015-05-28'});
+var lifetimeDate = momentRandom();              // streetLamp lifetime random generated
+var delay = 10000;                              // publish data every delay time
+var thingName;                                  // device name
+var thingID;                                    // thing id
+var intensity = (Math.random() * 100) / 100;    // light intensity in percentage
+var street;
 
-var lifetimeDate = momentRandom();  // streetLamp lifetime random generated
-const delay = 10000;                // publish data every delay time
-var thingName;
-var thingID;
-
-generate();
-
+/*
+ Generate Id for device thing.
+ If id does'n exist yet it is used to attach certificate.
+ */
 var found = false;
 function generate() {
     var id = randomInt(0, 1000);
@@ -28,6 +32,9 @@ function generate() {
     list(params);
 }
 
+/*
+ List all device with attribute id generate to test if already exists or not.
+ */
 function list(params) {
 
     iot.listThings(params, function (err, data) {
@@ -42,6 +49,9 @@ function list(params) {
     });
 }
 
+/*
+ Create thing with generated id
+ */
 function createThing(thingID) {
 
     thingName = 'my-device-' + thingID;
@@ -58,7 +68,7 @@ function createThing(thingID) {
     iot.createThing(params, function (err, data) {
         if (err) console.log(err, err.stack); // an error occurred
         else {
-            console.log(data);           // successful response
+            console.log('\ndevice thing created\n');           // successful response
             createCertificate();
         }
     });
@@ -76,19 +86,20 @@ function createCertificate() {
     });
 }
 
-// called when creation of certificate and keys returns
+/*
+ Called when creation of certificate and keys returns
+ */
 var credential;
-
 function handleData(KeyandCert) {
 
     // attach policy to certificate
     var params = {
-        policyName: 'my-device-Policy', /* required */
+        policyName: 'my-device-policy', /* required */
         principal: KeyandCert.certificateArn  /* required */
     };
     iot.attachPrincipalPolicy(params, function (err, data) {
         if (err) console.log(err, err.stack); // an error occurred
-        else     console.log(data);           // successful response
+        else     console.log('\ncertificate created and attached to policy and thing\n');           // successful response
 
         // attach certificate to thing
         params = {
@@ -97,7 +108,6 @@ function handleData(KeyandCert) {
         };
         iot.attachThingPrincipal(params, function (err, data) {
             if (err) console.log(err, err.stack); // an error occurred
-            else     console.log(data);           // successful response
 
             credential = KeyandCert;
             iot_connection(process.argv.slice(2));
@@ -107,10 +117,10 @@ function handleData(KeyandCert) {
 
 }
 
-function randomInt(low, high) {
-    return Math.floor(Math.random() * (high - low) + low);
-}
-
+/*
+ The device subscribe and publish on topic.
+ Communication takes place via mqtts.
+ */
 function device_work(args) {
 
     // put private key and CA certificate in a buffer
@@ -124,29 +134,25 @@ function device_work(args) {
     // handle.
     //
     const device = deviceModule.device({
+
         privateKey: prvtKey,
         clientCert: cltCert,
-        region: 'us-west-2',
+        region: 'eu-west-1',
         caPath: './certs/root-CA.crt',
         clientId: args.clientId,
         baseReconnectTimeMs: args.baseReconnectTimeMs,
-        keepalive: args.keepAlive,
         protocol: args.Protocol,
-        port: args.Port,
-        host: args.Host,
-        debug: args.Debug
+        port: args.Port
     });
 
     // subscrive topic intensity to receive value to set
-    device.subscribe('intensity');
+    device.subscribe('control');
 
     // callback every delay seconds
     timeout = setInterval(function () {
-
         device.publish('data', JSON.stringify(
             generateState()
         ));
-
     }, delay);
 
 
@@ -158,11 +164,11 @@ function device_work(args) {
             "state": 1,
             "lampModel": "LED",
             "address": {
-                "name": "Via Cambridge",
-                "number": 23,
+                "name": street,
+                "number": randomInt(1, 100),
                 "numberType": "CIVIC"
             },
-            "lightIntensity": 0.7,
+            "lightIntensity": intensity,
             "consumption": consumption,
 
             "lifetime": {
@@ -175,7 +181,7 @@ function device_work(args) {
                 }
             },
             "timestamp": new Date().getTime(),
-            "naturalLightLevel": 0.7
+            "naturalLightLevel": randomInt(0, 1)
         }
     }
 
@@ -203,7 +209,9 @@ function device_work(args) {
     device
         .on('message', function (topic, payload) {
             console.log('message', topic, payload.toString());
-            intensity = payload;
+            var json = JSON.parse(payload.toString());
+            if (json.id == thingID)
+                intensity = json.intensity;
         });
 
 }
@@ -214,3 +222,23 @@ function iot_connection() {
             process.argv.slice(2), device_work);
     }
 }
+
+function get_line(filename, line_no, callback) {
+    var data = fs.readFileSync(filename, 'utf8');
+    var lines = data.split("\n");
+
+    if (+line_no > lines.length) {
+        throw new Error('File end reached without finding line');
+    }
+
+    callback(null, lines[+line_no]);
+}
+
+function randomInt(low, high) {
+    return Math.floor(Math.random() * (high - low) + low);
+}
+
+get_line('./address_list.txt', randomInt(0, 6), function (err, line) {
+    street = line;
+});
+generate();
