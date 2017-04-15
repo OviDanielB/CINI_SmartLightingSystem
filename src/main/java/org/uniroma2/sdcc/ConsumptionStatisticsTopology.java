@@ -72,7 +72,7 @@ public class ConsumptionStatisticsTopology {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("rabbitSpout", new RabbitMQSpout());
+        builder.setSpout("rabbitSpout", new RabbitMQSpout(),2);
 
         builder.setBolt("filterBolt", new FilteringBolt(), 1).shuffleGrouping("rabbitSpout");
 

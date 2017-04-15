@@ -31,13 +31,13 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
     private OutputCollector outputCollector;
 
-    private volatile Map<String, StreetStatistics> streetAverageConsumption;
+    private volatile Map<String, StreetStatistics> streetStatistics;
     private Map<Integer, Integer> probablyMalfunctioningCount;
     private float receivedMessages = 0f;
     private float malfunctioningLamps = 0f;
 
     private static final Integer NUM_PROBABLE_MALF_THRESHOLD = 5;
-    private static final Float ON_PERCENTAGE_THRESHOLD = 0.3f;
+    private volatile Float ON_PERCENTAGE_THRESHOLD = 0.7f;
     /* WOEID needed for YahooWeather ; 721943 = Rome */
     private static final String CITY_WOEID = "721943";
     private static final Long WEATHER_UPDATE_IN_HOURS = 1L;
@@ -53,7 +53,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         initialization();
         periodicWeatherUpdate();
-        printTimerStart();
         periodicGlobalAvg();
 
     }
@@ -74,7 +73,8 @@ public class MalfunctionCheckBolt implements IRichBolt {
                         weatherService = new YahooWeatherService();
                         weatherChannel = weatherService.getForecast(CITY_WOEID, DegreeUnit.CELSIUS);
                         weatherAvailable = true;
-                        System.out.println("[CINI] Weather Service available : " + weatherChannel.toString());
+                        updateOnThreshold();
+                        System.out.println("[CINI] Weather Service available! ");
 
                     } catch (JAXBException | IOException e) {
                         e.printStackTrace();
@@ -87,31 +87,45 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
     /**
+     * depending on the weather condition,
+     * update threshold of percentage of lamps
+     * that should be on
+     */
+    private void updateOnThreshold() {
+
+        if(WeatherHelper.isDay(weatherChannel) && !WeatherHelper.isCloudy(weatherChannel)){
+            ON_PERCENTAGE_THRESHOLD = 0.3f;
+        } else {
+            ON_PERCENTAGE_THRESHOLD = 0.7f;
+        }
+    }
+
+    /**
      * Initialize used variables
      */
-    private void initialization() {
-        streetAverageConsumption = new HashMap<>();
+    protected void initialization() {
+        streetStatistics = new HashMap<>();
         probablyMalfunctioningCount = new HashMap<>();
     }
 
     /**
      * Prints periodic global average of light intensity
      */
-    private void periodicGlobalAvg() {
+    protected void periodicGlobalAvg() {
         Timer timer = new Timer();
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
 
-                int streetsNum = streetAverageConsumption.size();
+                int streetsNum = streetStatistics.size();
 
-                Double globalAvg = streetAverageConsumption.entrySet().stream()
+                Double globalAvg = streetStatistics.entrySet().stream()
                         .mapToDouble(MalfunctionCheckBolt::getConsValue)
                         .reduce(0, (c,d) -> c + d)
                         / streetsNum; /* divide by number of streets to get average value */
 
 
-                System.out.println(streetAverageConsumption.toString());
+                System.out.println(streetStatistics.toString());
                 System.out.println("[CINI] GLOBAL CONSUMPTION AVERAGE = " + globalAvg + "\n");
 
 
@@ -142,8 +156,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         incrementReceivedMessages();
 
-        //countMalfunctioning(on);
-
         Values values = new Values();
 
         /* insert new street if not present and update statistics */
@@ -169,9 +181,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
             malfunctions.put(MalfunctionType.NONE,1f);
         }
 
-
-        Gson gson = new Gson();
-        // TODO
         values.add(malfunctions);
         values.add(id);
         values.add(address);
@@ -201,7 +210,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
      *         -1 if lack anomaly (less than necessary)
      *         1 if excess anomaly (more than necessary)
      */
-    private HashMap<MalfunctionType,Float> weatherAnomaly(
+    protected HashMap<MalfunctionType,Float> weatherAnomaly(
             HashMap<MalfunctionType,Float> malfunctions, Float intensity) {
 
         if (!weatherAvailable) {
@@ -244,10 +253,15 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
 
-    private boolean almostSurelyMalfunction(Integer id) {
+    /**
+     *  verify if light intensity anomaly counter
+     *  has exceeded THRESHOLD ;
+     *  if so => almost surely malfunctions
+     */
+    protected boolean almostSurelyMalfunction(Integer id) {
 
         if(probablyMalfunctioningCount.get(id) > NUM_PROBABLE_MALF_THRESHOLD){
-            System.out.println("[ALERT] Street Lamp with ID " + id +
+            System.out.println("[CINI] [ALERT] Street Lamp with ID " + id +
                     " exceeded malfunctioning threshold of " + NUM_PROBABLE_MALF_THRESHOLD + "!");
             return true;
         }
@@ -273,25 +287,29 @@ public class MalfunctionCheckBolt implements IRichBolt {
      * @param on the state of the particular light bulb
      * @return true if bulb is damaged,false otherwise
      */
-    private boolean damagedBulb(String address,Boolean on) {
+    protected boolean damagedBulb(String address,Boolean on) {
 
-        StreetStatistics statistics = streetAverageConsumption.get(address);
+        StreetStatistics statistics = streetStatistics.get(address);
 
         if(on){ /* lamp is on */
             statistics.updateOnPercentage(1f);
-            /* test if it should be on or off (seeing the other lamps on the same street )*/
-            return !(statistics.getOnPercentage() > (1 - ON_PERCENTAGE_THRESHOLD));
+            /* test if it should be on or off (seeing the other lamps on the same street) */
+            return statistics.getOnPercentage() < ON_PERCENTAGE_THRESHOLD;
 
         } else { /* lamp is off */
             statistics.updateOnPercentage(0f);
-            /* test if it should be on or off (seeing the other lamps on the same street)*/
-            return !(statistics.getOnPercentage() < ON_PERCENTAGE_THRESHOLD);
+            /* test if it should be on or off (seeing the other lamps on the same street) */
+            return statistics.getOnPercentage()  > ON_PERCENTAGE_THRESHOLD;
         }
 
     }
 
-    private void increaseProbablyMalfunctions(Integer id) {
-        // TODO
+    /**
+     * probably the lamp has a malfunction
+     * this probabily is later checked
+     * @param id street lamp
+     */
+    protected void increaseProbablyMalfunctions(Integer id) {
         probablyMalfunctioningCount.putIfAbsent(id,0);
 
         /* increment number of probable malfunctions */
@@ -311,11 +329,11 @@ public class MalfunctionCheckBolt implements IRichBolt {
      *         -1 if anomaly (less than necessary) is detected
      *         1 if anomaly (more than necessary) is detected
      */
-    private HashMap<MalfunctionType,Float> lightIntensityAnomalyDetected(
+    protected HashMap<MalfunctionType,Float> lightIntensityAnomalyDetected(
             HashMap<MalfunctionType,Float> malfunctions, int id, String address, Float intensity) {
 
         // true if intensity more than upper bound
-        StreetStatistics streetStatistics = streetAverageConsumption.get(address);
+        StreetStatistics streetStatistics = this.streetStatistics.get(address);
         Float mean = streetStatistics.getCurrentMean();
         Float stdev = streetStatistics.stdDev();
         Float lowerBound = mean - stdev;
@@ -342,20 +360,43 @@ public class MalfunctionCheckBolt implements IRichBolt {
             if (almostSurelyMalfunction(id)) {
                 malfunctions.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, overGap);
             }
+        } else {
+            /* decrease counter */
+            decreaseProbablyMalfunction(id);
         }
         // no anomaly detected
         return malfunctions;
     }
 
-    private void updateStreetLightIntensityAvg(String address, Float intensity) {
+    /**
+     * decrease counter if > 0;
+     * if == 0 don't do anything
+     * value can't be less than 0
+     * @param id street lamp
+     */
+    private void decreaseProbablyMalfunction(int id) {
+        probablyMalfunctioningCount.putIfAbsent(id,0);
 
-        streetAverageConsumption.putIfAbsent(address,new StreetStatistics(0,intensity,0f,0f));
+        if(probablyMalfunctioningCount.get(id) > 0) {
+            /* decrement number of probable malfunctions */
+            probablyMalfunctioningCount.put(id, probablyMalfunctioningCount.get(id) - 1);
+        }
 
-        streetAverageConsumption.entrySet().stream()
+    }
+
+    /**
+     * update street light intensity statistics based on new received value;
+     * insert into HashMap if street not already present, else update
+     * @param address street name
+     * @param intensity new value
+     */
+    protected void updateStreetLightIntensityAvg(String address, Float intensity) {
+
+        streetStatistics.putIfAbsent(address,new StreetStatistics(0,0f,0f,0f));
+
+        streetStatistics.entrySet().stream()
                 .filter(e -> e.getKey().equals(address))
                 .forEach(e -> ricalculateIntensityStatistics(e,intensity));
-
-       // System.out.println(streetAverageConsumption.toString());
     }
 
     /**
@@ -374,7 +415,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
      * @param e <Address, Statistics> tuple
      * @param intensity latest light intensity value
      */
-    private void ricalculateIntensityStatistics(Map.Entry<String, StreetStatistics> e, Float intensity) {
+    protected void ricalculateIntensityStatistics(Map.Entry<String, StreetStatistics> e, Float intensity) {
 
         Integer sampleNum = e.getValue().getSampleNumb();
         Float oldMean = e.getValue().getCurrentMean();
@@ -393,7 +434,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
         /* update average from updated values */
         Float updatedMean = oldMean + d / sampleNum;
 
-        // TODO updated statistics instance, not create a new one
         e.setValue(new StreetStatistics(sampleNum, updatedMean, updatedV, onPercentage));
 
 
@@ -412,31 +452,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
         receivedMessages++;
     }
 
-    /**
-     * counts malfunctioning street lamps
-     * @param on true if light bulb is working
-     */
-    private void countMalfunctioning(Boolean on) {
-
-        if(!on){
-            malfunctioningLamps++;
-        }
-    }
-
-    /**
-     * print every 30 seconds percentage of malfunctioning street lamps
-     */
-    private void printTimerStart() {
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                if(receivedMessages != 0) {
-                    System.out.println("[CINI] " + String.format("%.2f", malfunctioningLamps / receivedMessages * 100) + "% MALFUNCTIONING STREET LAMPS. \n");
-                }
-            }
-        }, 60000,10000);
-    }
 
     @Override
     public void cleanup() {
@@ -471,19 +486,64 @@ public class MalfunctionCheckBolt implements IRichBolt {
         public static final Float VISIBILITY_INTENSITY_MAXIMUM = 50.0f;
         public static final Float DARK_SKY_INTENSITY_MINIMUM = 90.0f;
         public static final Float GLARE_SKY_INTENSITY_MAXIMUM = 50.0f;
-        public static final Integer[] darkSkyCodes = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,19,20,21,26,27,28,29,30,37,38,39,40,44,45,47};
+        public static final Integer[] darkSkyCodes = {1,2,3,4,5,6,7,8,9,
+                10,11,12,13,14,19,20,21,26,27,28,29,30,37,38,39,40,44,45,47};
 
 
         public WeatherHelper() {
         }
 
+        /**
+         * checks if it's day now
+         * @param weather channel
+         * @return true if it's day, false otherwise
+         */
+        public static boolean isDay(Channel weather){
+            LocalDateTime now = LocalDateTime.now();
+            Integer nowHour = now.getHour();
+
+            Astronomy astronomy = weather.getAstronomy();
+            Time sunrise = astronomy.getSunrise();
+            Time sunset = astronomy.getSunset();
+
+            if(nowHour > sunrise.getHours() && nowHour < sunset.getHours()){
+                return true;
+            }
+
+            return false;
+
+        }
+
+        /**
+         * check if it's cloudy
+         * @param weather channel
+         * @return true if it's cloudy, else otherwise
+         */
+        public static boolean isCloudy(Channel weather){
+
+            return darkSkyFromCode(weather.getItem().getCondition().getCode());
+        }
+
+        /**
+         * checks if it's dark sky from yahoo condition code
+         * @param code yahoo condition code
+         * @return true if it's dark, false otherwise
+         */
         private static boolean darkSkyFromCode(Integer code){
             return Arrays.stream(darkSkyCodes).
                     filter( e -> e.equals(code)).count()  > 0;
         }
 
+        /**
+         * given certain visibility thresholds,
+         * determines the difference between
+         * the actual intensity and the interval
+         * in which it should be
+         * @param intensity value from lamp
+         * @param visibility
+         * @return hashmap with different values
+         */
         private static HashMap<Float,Float> rightIntensityByVisibility(Float intensity,Float visibility) {
-            // TODO Visibility Policy
             HashMap<Float,Float> i = new HashMap<>();
 
             Float underGap = intensity - VISIBILITY_INTENSITY_MINIMUM;
@@ -503,6 +563,15 @@ public class MalfunctionCheckBolt implements IRichBolt {
         }
 
 
+        /**
+         * given certain weather thresholds,
+         * determines the difference between
+         * the actual intensity and the interval
+         * in which it should be
+         * @param code yahoo condition code
+         * @param intensity value from lamp
+         * @return hashmap with different values
+         */
         public static HashMap<Float, Float> rightIntensityOnWeatherByCode(Integer code,Float intensity){
 
             HashMap<Float, Float> i = new HashMap<>();
@@ -515,8 +584,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
                     i.put(SUNNY_SKY_INTENSITY_MAXIMUM, 0f);
                     return i;
                 }
-//                    return -1;
-                // if sunny sky
             } else if (overGap > 0 ) {
                 i.put(SUNNY_SKY_INTENSITY_MAXIMUM, overGap);
                 i.put(CLOUDY_SKY_INTENSITY_MINIMUM, 0f);
@@ -525,12 +592,18 @@ public class MalfunctionCheckBolt implements IRichBolt {
             i.put(CLOUDY_SKY_INTENSITY_MINIMUM, 0f);
             i.put(SUNNY_SKY_INTENSITY_MAXIMUM, 0f);
             return i;
-//            } else if (intensity > SUNNY_SKY_INTENSITY_MAXIMUM) {
-//                    return 1;
-//            }
-//            return 0;
+
         }
 
+        /**
+         * given certain astronomy (sunset,sunrise) thresholds,
+         * determines the difference between
+         * the actual intensity and the interval
+         * in which it should be
+         * @param intensity lamp value
+         * @param astronomy sunset,sunrise,etc
+         * @return hashmap with different values
+         */
         public static HashMap<Float,Float> rightIntesityByAstronomy(Float intensity, Astronomy astronomy) {
             LocalDateTime now = LocalDateTime.now();
             Integer nowHour = now.getHour();
@@ -561,7 +634,11 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
 
-    private static class StreetStatistics {
+    /**
+     * maintains stastics (mean, percentage of on lamps,etc)
+     * for every street
+     */
+    protected static class StreetStatistics {
         private Integer sampleNumb;
         private Float currentMean;
         private Float currentV;
@@ -614,7 +691,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
         }
 
         public void updateOnPercentage(Float on){
-            this.onPercentage = onPercentage + (on - onPercentage) / (sampleNumb);
+            if(!sampleNumb.equals(0f)) {
+                this.onPercentage = onPercentage + (on - onPercentage) / (sampleNumb);
+            }
         }
 
         @Override

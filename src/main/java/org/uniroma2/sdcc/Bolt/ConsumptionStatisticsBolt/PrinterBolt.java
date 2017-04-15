@@ -30,7 +30,7 @@ public class PrinterBolt extends BaseRichBolt {
     private  final String  EXCHANGE_NAME = "dashboard_exchange";
     /* topic based pub/sub */
     private  final String EXCHANGE_TYPE = "topic";
-    private  final String ROUTING_KEY = "dashboard.rank";
+    private  final String ROUTING_KEY = "dashboard.statistics.";
     private Connection connection;
     private Channel channel;
 
@@ -52,8 +52,19 @@ public class PrinterBolt extends BaseRichBolt {
             Gson gson = new Gson();
             String toEmit = gson.toJson(tuple);
 
+            System.out.println("[CINI] [Printer] " + toEmit);
+
             try {
-                channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, toEmit.getBytes());
+
+                // TODO improve message distinction
+                if(toEmit.contains("id")) {
+                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "lamps", null, toEmit.getBytes());
+                } else if(toEmit.contains("*")){
+                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "global", null, toEmit.getBytes());
+                } else {
+                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "streets", null, toEmit.getBytes());
+
+                }
                 System.out.println("[CINI][PrintBolt] Sent : " + toEmit);
             } catch (IOException e) {
                 e.printStackTrace();

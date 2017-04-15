@@ -87,7 +87,8 @@ public class RabbitMQSpout extends BaseRichSpout {
 
             /* GET QUEUE MESSAGE COUNT with declareOk.getMessageCount() -> int */
             AMQP.Queue.DeclareOk declareOk = channel.queueDeclare(QUEUE_NAME,false,false,false,null);
-//            System.out.println("[CINI] RabbitMQSpout waiting for messages. To exit press CTRL+C");
+
+             System.out.println("[CINI] RabbitMQSpout waiting for messages. To exit press CTRL+C");
 
             consumer = new DefaultConsumer(channel) {
                 @Override
@@ -140,7 +141,7 @@ public class RabbitMQSpout extends BaseRichSpout {
 
         String mess = messageQueue.get(0);
         messageQueue.remove(0);
-        outputCollector.emit(new Values(mess));
+        outputCollector.emit(new Values(mess), mess.hashCode());
 
 
     }
