@@ -51,7 +51,7 @@ public class ExecuteBolt extends BaseRichBolt{
      */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
-        this.collector = collector;
+        this.collector = outputCollector;
         this.gson = new Gson();
 
         establishRabbitConnection();
@@ -69,28 +69,47 @@ public class ExecuteBolt extends BaseRichBolt{
         Integer id =                (Integer) tuple.getValueByField(AnomalyStreetLampMessage.ID);
         Address address =           (Address) tuple.getValueByField(AnomalyStreetLampMessage.ADDRESS);
         Integer cellID =            (Integer) tuple.getValueByField(AnomalyStreetLampMessage.CELL);
-        Lamp model =                (Lamp) tuple.getValueByField(AnomalyStreetLampMessage.LAMP_MODEL);
+        String model =                (String) tuple.getValueByField(AnomalyStreetLampMessage.LAMP_MODEL);
         Float consumption =         (Float) tuple.getValueByField(AnomalyStreetLampMessage.CONSUMPTION);
         LocalDateTime lifetime =    (LocalDateTime) tuple.getValueByField(AnomalyStreetLampMessage.LIFETIME);
         Float adapted_intensity =   (Float) tuple.getValueByField(Constant.ADAPTED_INTENSITY);
 
 
         StreetLamp adapted_lamp = new StreetLamp(
-                id, true, model, address, cellID, consumption, adapted_intensity, lifetime);
+                id, true, getLampModelByString(model), address, cellID, consumption, adapted_intensity, lifetime);
 
         String json_adapted_lamp = gson.toJson(adapted_lamp);
         System.out.println(LOG_TAG + "ADAPTED : " + json_adapted_lamp);
 
+        //TODO delete comment
+        /*
         try {
+
 
             channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, json_adapted_lamp.getBytes());
 
             System.out.println(LOG_TAG + "Sent : " + json_adapted_lamp);
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        } */
 
         collector.ack(tuple);
+    }
+
+    /**
+     * parse string for lamp model
+     * @param model string containing model
+     * @return Lamp Model or Unknown if none present in the string
+     */
+    private Lamp getLampModelByString(String model) {
+
+        for(Lamp lamp : Lamp.values()){
+            if(model.contains(lamp.toString())){
+                return lamp;
+            }
+        }
+
+        return Lamp.UNKNOWN;
     }
 
     /**

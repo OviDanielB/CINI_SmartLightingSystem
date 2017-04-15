@@ -35,7 +35,7 @@ public class NotRespondingLampBolt implements IRichBolt {
     private static final Integer RESPONSE_CHECKER_PERIOD = 10;
 
     /* time after which a lamp not responding is considered malfunctioning  */
-    private static final Long NO_RESPONSE_INTERVAL = 60L;
+    private static final Long NO_RESPONSE_INTERVAL = 60L; /* seconds */
 
     private static final String LOG_TAG = "[CINI] [NotRespondingLampBolt] ";
 
@@ -71,6 +71,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         StreetLamp lamp = new StreetLamp(id,on,getLampModelByString(model),
                 address, cellID, intensity,consumption,lifeTime);
 
+        /* construct anomaly message */
         AnomalyStreetLampMessage anomalyMessage = new AnomalyStreetLampMessage(lamp,naturalLightLevel,
                 timestamp, malfunctions, 0L);
 
@@ -114,7 +115,7 @@ public class NotRespondingLampBolt implements IRichBolt {
 
     /**
      * periodically parses notRespondingCount hash map to determine those street lamps that haven't
-     * sent messages for NO_RESPONSE_INTERVAL
+     * sent messages for NO_RESPONSE_INTERVAL time
      */
     private void startPeriodicResponseChecker() {
 
@@ -128,8 +129,6 @@ public class NotRespondingLampBolt implements IRichBolt {
         Timer consumerTimer = new Timer();
         QueueConsumerToRabbit consumerToRabbit = new QueueConsumerToRabbit(noResponseLampsToRabbit);
         consumerTimer.schedule(consumerToRabbit,6000, 1000 * RESPONSE_CHECKER_PERIOD);
-        //consumer = new Thread(consumerToRabbit);
-        //consumer.start();
 
 
     }
@@ -139,31 +138,8 @@ public class NotRespondingLampBolt implements IRichBolt {
 
         // TODO
         notRespondingCount.put(id, anomalyMess);
-        //System.out.println(LOG_TAG + "HASH MAP LENGTH = " + notRespondingCount.size());
 
     }
-
-
-//    /**
-//     * parse string provided by MalfunctionCheckBolt and
-//     * retrieve MalfunctionTypes
-//     * @param malfunctionsStr string (may contain only NONE)
-//     * @return list of mapping between malfunctions and difference
-//     *          from correct value
-//     */
-//    private HashMap<MalfunctionType, Float> parseStringForMalf(String malfunctionsStr) {
-//
-//        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
-//        for(MalfunctionType t : MalfunctionType.values()){
-//            if(malfunctionsStr.contains(t.toString())){
-//                anomalies.put(t, 0f);
-//            } else {
-//                anomalies.put(t, 0f);
-//            }
-//        }
-//
-//        return anomalies;
-//    }
 
     @Override
     public void cleanup() {
@@ -193,17 +169,26 @@ public class NotRespondingLampBolt implements IRichBolt {
      * that have not responded for a while
      */
     private class QueueProducer extends TimerTask{
-
+        /* queue where it produces */
         private ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue;
 
+        /* hashmap from where it gets anomaly messages */
         private ConcurrentHashMap<Integer,AnomalyStreetLampMessage> hashMap;
 
+        /* constructor */
         public QueueProducer(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue,
                              ConcurrentHashMap map) {
             this.queue = queue;
             this.hashMap = map;
         }
 
+        /**
+         * iterates hashmap, checks if messages
+         * have not been updated for more than
+         * NO_RESPONSE_INTERVAL time (meaning that the lamp
+         * is not sending messages anymore) and puts the old ones
+         * on a linked queue (where a consumer awaits to send them)
+         */
         @Override
         public void run() {
 
@@ -219,8 +204,10 @@ public class NotRespondingLampBolt implements IRichBolt {
                         /* add another anomaly since it is not responding for a while */
                         adjustAnomaliesList(e);
 
+                        /* adds on final queue, where consumer is present */
                         queue.add(e.getValue());
-                        //System.out.println(LOG_TAG + " QUEUE LENGTH =  " + queue.size());
+
+                        /* removes from hashMap (avoid being processed multiple times )*/
                         hashMap.remove(e.getKey());
                         System.out.println("[CINI] Not Responding LAMP with ID " + e.getKey() + " has not responded for longer than " +
                                "" + NO_RESPONSE_INTERVAL + " seconds");
@@ -228,6 +215,10 @@ public class NotRespondingLampBolt implements IRichBolt {
             });
         }
 
+        /**
+         * adds NOT_RESPONDING anomaly
+         * @param e (K, V) -> (Lamp ID, message received)
+         */
         private void adjustAnomaliesList(Map.Entry<Integer, AnomalyStreetLampMessage> e) {
 
             HashMap<MalfunctionType, Float> map = e.getValue().getAnomalies();
@@ -245,23 +236,26 @@ public class NotRespondingLampBolt implements IRichBolt {
      */
     private class QueueConsumerToRabbit extends TimerTask{
 
+        /* queue where it consumes*/
         private ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue;
+
+        /* rabbitmq connection*/
         private Connection connection;
         private Channel channel;
         private ConnectionFactory factory;
 
+        /* message -> json -> rabbit*/
         private Gson gson;
 
         private  final String HOST = "localhost";
-        private  final Integer PORT =  5672;
-        private  final String QUEUE_NAME = "anomaly";
+        private  final Integer PORT =  5673;
         private  final String  EXCHANGE_NAME = "dashboard_exchange";
         /* topic based pub/sub */
         private  final String EXCHANGE_TYPE = "topic";
         private  final String ROUTING_KEY = "dashboard.anomalies";
 
+        /* constructor */
         public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue) {
-            System.out.println(LOG_TAG + "RABBIT CONSUMER CONSTRUCTOR");
             this.queue = queue;
             gson = new Gson();
             rabbitConnection();
@@ -286,9 +280,6 @@ public class NotRespondingLampBolt implements IRichBolt {
                 connection = factory.newConnection();
                 channel = connection.createChannel();
 
-                //channel.queueDeclare(QUEUE_NAME,false,false,false,null);
-                //System.out.println(LOG_TAG + " Rabbit connected on " + HOST+ ":" + PORT);
-
                 /* declare exchange point, consumer must bind a queue to it */
                 channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
 
@@ -302,15 +293,21 @@ public class NotRespondingLampBolt implements IRichBolt {
         }
 
 
+        /* check if connection available */
         public boolean rabbitConnectionAvailable(){
             return ((connection != null) && (channel != null));
         }
 
+        /**
+         * continuously polls queue for new messages;
+         * if message present, takes it ,
+         * converts to json and sends on queue
+         */
         @Override
         public void run() {
 
             /* poll queue for new messages */
-            AnomalyStreetLampMessage message = null;
+            AnomalyStreetLampMessage message;
             String jsonMsg;
 
             while( (message = queue.poll()) != null){
