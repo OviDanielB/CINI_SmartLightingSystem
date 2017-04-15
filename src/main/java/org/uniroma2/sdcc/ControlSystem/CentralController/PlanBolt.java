@@ -9,12 +9,10 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constant;
-import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Model.AnomalyStreetLampMessage;
 import org.uniroma2.sdcc.Model.ParkingData;
 import org.uniroma2.sdcc.Model.TrafficData;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 
@@ -60,15 +58,9 @@ public class PlanBolt extends BaseRichBolt {
 
         // retrieve data from incoming tuple
         Integer id = tuple.getIntegerByField(AnomalyStreetLampMessage.ID);
-        Address address = (Address) tuple.getValueByField(AnomalyStreetLampMessage.ADDRESS);
-        Integer cellID = (Integer) tuple.getValueByField(AnomalyStreetLampMessage.CELL);
-        String model = tuple.getStringByField(AnomalyStreetLampMessage.LAMP_MODEL);
-        Float consumption = tuple.getFloatByField(AnomalyStreetLampMessage.CONSUMPTION);
         Float intensity = tuple.getFloatByField(AnomalyStreetLampMessage.INTENSITY);
-        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(AnomalyStreetLampMessage.LIFETIME);
         Float toIncreaseGap = tuple.getFloatByField(Constant.GAP_TO_INCREASE);
         Float toDecreaseGap = tuple.getFloatByField(Constant.GAP_TO_DECREASE);
-
         TrafficData traffic = gson.fromJson(tuple.getStringByField(Constant.TRAFFIC_BY_ADDRESS),
                 TrafficData.class);
         ParkingData parking = gson.fromJson(tuple.getStringByField(Constant.PARKING_BY_CELLID),
@@ -81,11 +73,6 @@ public class PlanBolt extends BaseRichBolt {
 
             Values values = new Values();
             values.add(id);
-            values.add(address);
-            values.add(cellID);
-            values.add(model);
-            values.add(consumption);
-            values.add(lifetime);
             values.add(adapted_intensity);
 
             collector.emit(tuple, values);
@@ -101,10 +88,8 @@ public class PlanBolt extends BaseRichBolt {
      */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(AnomalyStreetLampMessage.ID,
-                AnomalyStreetLampMessage.ADDRESS, AnomalyStreetLampMessage.CELL,
-                AnomalyStreetLampMessage.LAMP_MODEL, AnomalyStreetLampMessage.CONSUMPTION,
-                AnomalyStreetLampMessage.LIFETIME, Constant.ADAPTED_INTENSITY));
+        outputFieldsDeclarer.declare(new Fields(
+                AnomalyStreetLampMessage.ID, Constant.ADAPTED_INTENSITY));
     }
 
 

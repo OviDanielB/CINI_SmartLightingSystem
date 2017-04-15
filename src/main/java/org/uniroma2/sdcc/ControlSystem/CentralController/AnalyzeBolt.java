@@ -130,17 +130,10 @@ public class AnalyzeBolt extends BaseRichBolt {
      */
     private void emitAnalyzedDataTuple(Tuple tuple, List<TrafficData> totalTrafficData, List<ParkingData> totalParkingData) {
 
-
         Integer id = (Integer) tuple.getValueByField(StreetLampMessage.ID);
         Address address = (Address) tuple.getValueByField(StreetLampMessage.ADDRESS);
         Integer cellID = (Integer) tuple.getValueByField(StreetLampMessage.CELL);
-        Boolean on = (Boolean) tuple.getValueByField(StreetLampMessage.ON);
-        String model = (String) tuple.getValueByField(StreetLampMessage.LAMP_MODEL);
-        Float consumption = (Float) tuple.getValueByField(StreetLampMessage.CONSUMPTION);
         Float intensity = (Float) tuple.getValueByField(StreetLampMessage.INTENSITY);
-        Float naturalLightLevel = (Float) tuple.getValueByField(StreetLampMessage.NATURAL_LIGHT_LEVEL);
-        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(StreetLampMessage.LIFETIME);
-        Long timestamp = (Long) tuple.getValueByField(StreetLampMessage.TIMESTAMP);
 
         TrafficData trafficData;
         // check traffic availability
@@ -185,12 +178,7 @@ public class AnalyzeBolt extends BaseRichBolt {
 
             Values values = new Values();
             values.add(id);
-            values.add(address);
-            values.add(cellID);
-            values.add(model);
-            values.add(consumption);
             values.add(intensity);
-            values.add(lifetime);
             values.add(toIncreaseGap);
             values.add(toDecreaseGap);
             String json_trafficData = gson.toJson(trafficData);
@@ -261,11 +249,12 @@ public class AnalyzeBolt extends BaseRichBolt {
      */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(AnomalyStreetLampMessage.ID,
-                AnomalyStreetLampMessage.ADDRESS, AnomalyStreetLampMessage.CELL,
-                AnomalyStreetLampMessage.LAMP_MODEL, AnomalyStreetLampMessage.CONSUMPTION,
-                AnomalyStreetLampMessage.INTENSITY, AnomalyStreetLampMessage.LIFETIME,
-                Constant.GAP_TO_INCREASE, Constant.GAP_TO_DECREASE, Constant.TRAFFIC_BY_ADDRESS,
+        outputFieldsDeclarer.declare(new Fields(
+                AnomalyStreetLampMessage.ID,
+                AnomalyStreetLampMessage.INTENSITY,
+                Constant.GAP_TO_INCREASE,
+                Constant.GAP_TO_DECREASE,
+                Constant.TRAFFIC_BY_ADDRESS,
                 Constant.PARKING_BY_CELLID));
     }
 }

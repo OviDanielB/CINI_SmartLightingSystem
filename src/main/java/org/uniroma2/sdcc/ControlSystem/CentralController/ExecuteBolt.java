@@ -1,24 +1,21 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.AmazonSNSClient;
+import com.amazonaws.services.sns.model.CreateTopicRequest;
+import com.amazonaws.services.sns.model.PublishRequest;
 import com.google.gson.Gson;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Constant;
-import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Model.AnomalyStreetLampMessage;
-import org.uniroma2.sdcc.Model.Lamp;
-import org.uniroma2.sdcc.Model.StreetLamp;
 
-import java.io.IOException;
-import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 /**
  * This Bolt is the last component of the Control System's MAPE architecture.
@@ -30,17 +27,12 @@ public class ExecuteBolt extends BaseRichBolt{
 
     private OutputCollector collector;
     private Gson gson;
+    private AmazonSNS sns;
     private static final String LOG_TAG = "[CINI] [ExecuteBolt] ";
+    /* Amazon SNS connection */
+    private final static String SNS_TOPIC_ARN = "arn:aws:sns:eu-west-1:369927171895:control";
+    private final static String TOPIC = "control";
 
-    /* rabbitMQ connection */
-    private final static String RABBIT_HOST = "localhost";
-    private final static Integer RABBIT_PORT = 5672;
-    private  static final String  EXCHANGE_NAME = "control_exchange";
-    /* topic based pub/sub */
-    private  static final String EXCHANGE_TYPE = "topic";
-    private  static final String ROUTING_KEY = "control.adapt";
-    private Connection connection;
-    private Channel channel;
 
     /**
      * Bolt initialization
@@ -54,7 +46,7 @@ public class ExecuteBolt extends BaseRichBolt{
         this.collector = outputCollector;
         this.gson = new Gson();
 
-        establishRabbitConnection();
+        initializeSNSPublisher();
     }
 
     /**
@@ -67,71 +59,36 @@ public class ExecuteBolt extends BaseRichBolt{
 
         // retrieve data from incoming tuple
         Integer id =                (Integer) tuple.getValueByField(AnomalyStreetLampMessage.ID);
-        Address address =           (Address) tuple.getValueByField(AnomalyStreetLampMessage.ADDRESS);
-        Integer cellID =            (Integer) tuple.getValueByField(AnomalyStreetLampMessage.CELL);
-        String model =                (String) tuple.getValueByField(AnomalyStreetLampMessage.LAMP_MODEL);
-        Float consumption =         (Float) tuple.getValueByField(AnomalyStreetLampMessage.CONSUMPTION);
-        LocalDateTime lifetime =    (LocalDateTime) tuple.getValueByField(AnomalyStreetLampMessage.LIFETIME);
         Float adapted_intensity =   (Float) tuple.getValueByField(Constant.ADAPTED_INTENSITY);
 
-
-        StreetLamp adapted_lamp = new StreetLamp(
-                id, true, getLampModelByString(model), address, cellID, consumption, adapted_intensity, lifetime);
+        // composing control results
+        HashMap<String,Integer> adapted_lamp = new HashMap<>(2);
+        adapted_lamp.put("id", id);
+        adapted_lamp.put("intensity", Math.round(adapted_intensity));
 
         String json_adapted_lamp = gson.toJson(adapted_lamp);
-        System.out.println(LOG_TAG + "ADAPTED : " + json_adapted_lamp);
 
-        //TODO delete comment
-        /*
+        //publish to SNS topic
         try {
 
+            sns.publish(new PublishRequest(SNS_TOPIC_ARN, json_adapted_lamp));
 
-            channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, json_adapted_lamp.getBytes());
+            System.out.println(LOG_TAG + "Sent to SNS topic: " + json_adapted_lamp);
 
-            System.out.println(LOG_TAG + "Sent : " + json_adapted_lamp);
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-        } */
+        }
 
         collector.ack(tuple);
     }
 
     /**
-     * parse string for lamp model
-     * @param model string containing model
-     * @return Lamp Model or Unknown if none present in the string
+     * Connect to SNS to publish data of adapted lamp values.
      */
-    private Lamp getLampModelByString(String model) {
+    private void initializeSNSPublisher() {
 
-        for(Lamp lamp : Lamp.values()){
-            if(model.contains(lamp.toString())){
-                return lamp;
-            }
-        }
-
-        return Lamp.UNKNOWN;
-    }
-
-    /**
-     * Connect to RabbitMQ to publish data of adapted lamp values.
-     */
-    private void establishRabbitConnection() {
-
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(RABBIT_HOST);
-        factory.setPort(RABBIT_PORT);
-
-        try {
-            connection = factory.newConnection();
-            channel = connection.createChannel();
-            channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
-            System.out.println(LOG_TAG + "Rabbit connection established on " + RABBIT_HOST + "/" + RABBIT_PORT);
-
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
-            System.out.println(LOG_TAG + "Rabbit Connection Failed.");
-        }
-
+        this.sns = AmazonSNSClient.builder().withRegion(Regions.EU_WEST_1).build();
+        sns.createTopic(new CreateTopicRequest(TOPIC));
     }
 
     /**
