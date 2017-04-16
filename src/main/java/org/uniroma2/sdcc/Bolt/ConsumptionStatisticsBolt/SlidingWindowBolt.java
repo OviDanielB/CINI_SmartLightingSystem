@@ -56,6 +56,14 @@ public abstract class SlidingWindowBolt<T> extends BaseRichBolt {
 
     }
 
+
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;

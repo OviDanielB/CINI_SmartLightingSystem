@@ -1,6 +1,7 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
 import com.google.gson.Gson;
+import org.apache.storm.Config;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -8,11 +9,14 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.AnomalyStreetLampMessage;
 import org.uniroma2.sdcc.Model.ParkingData;
 import org.uniroma2.sdcc.Model.TrafficData;
+import org.uniroma2.sdcc.Utils.Config.ControlConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
+import java.io.IOException;
 import java.util.Map;
 
 
@@ -34,6 +38,10 @@ public class PlanBolt extends BaseRichBolt {
 
     private Float adapted_intensity; // final computed intensity to resolve anomalies
 
+    private Float TRAFFIC_TOLERANCE_DEFAULT = .2f;
+    private Float PARKING_TOLERANCE_DEFAULT = .2f;
+    private Float traffic_tolerance; // only above this value traffic level affect intensity adaptation
+    private Float parking_tolerance; // only above this value parking occupation affect intensity adaptation
 
     /**
      * Bolt initialization
@@ -46,6 +54,31 @@ public class PlanBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.gson = new Gson();
+        config();
+    }
+
+    /**
+     * Configuration.
+     */
+    private void config() {
+
+        Config config = new Config();
+        config.setDebug(true);
+        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
+
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+
+        try {
+            ControlConfig controlConfig = yamlConfigRunner.getConfiguration()
+                    .getControlConfig();
+
+            this.traffic_tolerance = controlConfig.getTraffic_tolerance();
+            this.parking_tolerance = controlConfig.getParking_tolerance();
+
+        } catch (IOException e) {
+            this.traffic_tolerance = TRAFFIC_TOLERANCE_DEFAULT;
+            this.parking_tolerance = PARKING_TOLERANCE_DEFAULT;
+        }
     }
 
     /**
@@ -57,13 +90,13 @@ public class PlanBolt extends BaseRichBolt {
     public void execute(Tuple tuple) {
 
         // retrieve data from incoming tuple
-        Integer id = tuple.getIntegerByField(AnomalyStreetLampMessage.ID);
-        Float intensity = tuple.getFloatByField(AnomalyStreetLampMessage.INTENSITY);
-        Float toIncreaseGap = tuple.getFloatByField(Constant.GAP_TO_INCREASE);
-        Float toDecreaseGap = tuple.getFloatByField(Constant.GAP_TO_DECREASE);
-        TrafficData traffic = gson.fromJson(tuple.getStringByField(Constant.TRAFFIC_BY_ADDRESS),
+        Integer id = tuple.getIntegerByField(Constants.ID);
+        Float intensity = tuple.getFloatByField(Constants.INTENSITY);
+        Float toIncreaseGap = tuple.getFloatByField(Constants.GAP_TO_INCREASE);
+        Float toDecreaseGap = tuple.getFloatByField(Constants.GAP_TO_DECREASE);
+        TrafficData traffic = gson.fromJson(tuple.getStringByField(Constants.TRAFFIC_BY_ADDRESS),
                 TrafficData.class);
-        ParkingData parking = gson.fromJson(tuple.getStringByField(Constant.PARKING_BY_CELLID),
+        ParkingData parking = gson.fromJson(tuple.getStringByField(Constants.PARKING_BY_CELLID),
                 ParkingData.class);
 
         adaptByTrafficLevelAndAnomalies(toIncreaseGap, toDecreaseGap, intensity, traffic, parking);
@@ -89,7 +122,8 @@ public class PlanBolt extends BaseRichBolt {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         outputFieldsDeclarer.declare(new Fields(
-                AnomalyStreetLampMessage.ID, Constant.ADAPTED_INTENSITY));
+                Constants.ID,
+                Constants.ADAPTED_INTENSITY));
     }
 
 
@@ -128,10 +162,10 @@ public class PlanBolt extends BaseRichBolt {
             adapted_intensity = current_intensity;
 
             // traffic level relevant just above a threshold
-            if ((traffic - 0f) > Constant.TRAFFIC_THRESHOLD) {
+            if ((traffic - 0f) > traffic_tolerance) {
                 // to increase intensity of traffic level percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + traffic * (1 - adapted_intensity);
-            } else if ((parking - 0f) > Constant.PARKING_THRESHOLD) { // parking availability relevant just above a threshold
+            } else if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
                 // to increase intensity of parking occupation percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + parking * (1 - adapted_intensity);
             } else {
@@ -143,10 +177,10 @@ public class PlanBolt extends BaseRichBolt {
 
             adapted_intensity = current_intensity + toIncreaseGap;
             // traffic level relevant just above a threshold
-            if ((traffic - 0f) > Constant.TRAFFIC_THRESHOLD) {
+            if ((traffic - 0f) > traffic_tolerance) {
                 // to increase intensity of traffic level percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + traffic * (1 - adapted_intensity);
-            } else if ((parking - 0f) > Constant.PARKING_THRESHOLD) { // parking availability relevant just above a threshold
+            } else if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
                 // to increase intensity of parking occupation percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + parking * (1 - adapted_intensity);
             }

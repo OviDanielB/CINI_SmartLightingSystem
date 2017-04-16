@@ -1,6 +1,7 @@
 package org.uniroma2.sdcc.Bolt;
 
 import net.spy.memcached.MemcachedClient;
+import org.apache.storm.Config;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -8,8 +9,10 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.Config.ControlConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -26,8 +29,9 @@ import java.util.*;
 public class FilteringByLifetimeBolt extends BaseRichBolt {
 
     private OutputCollector collector;
-    /*  days threshold to be considered for ranking  TODO da mettere come parametro di configurazione */
-    private int LIFETIME_THRESHOLD = 7;
+    /*  days threshold to be considered for ranking */
+    private int LIFETIME_THRESHOLD_DEFAULT = 7;
+    private int lifetime_threshold;
     /*  number of old lamps  */
     private HashMap<Integer,Integer> oldIds;
     private MemcachedClient memcachedClient;
@@ -35,6 +39,13 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     public FilteringByLifetimeBolt() {
     }
 
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
@@ -44,6 +55,29 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
             this.memcachedClient.set("old_counter", 0, this.oldIds);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        config();
+    }
+
+    /**
+     * Configuration.
+     */
+    private void config() {
+
+        Config config = new Config();
+        config.setDebug(true);
+        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
+
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+
+        try {
+            ControlConfig controlConfig = yamlConfigRunner.getConfiguration()
+                    .getControlConfig();
+
+            this.lifetime_threshold = controlConfig.getLifetime_threshold();
+
+        } catch (IOException e) {
+            this.lifetime_threshold = LIFETIME_THRESHOLD_DEFAULT;
         }
     }
 
@@ -64,10 +98,10 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
             this.oldIds = new HashMap<>();
         }
 
-        int id =                    (int) tuple.getValueByField(Constant.ID);
-        Address address =           (Address) tuple.getValueByField(Constant.ADDRESS);
-        LocalDateTime lifetime =    (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
-        Long timestamp =            (Long) tuple.getValueByField(Constant.TIMESTAMP);
+        int id =                    (int) tuple.getValueByField(Constants.ID);
+        Address address =           (Address) tuple.getValueByField(Constants.ADDRESS);
+        LocalDateTime lifetime =    (LocalDateTime) tuple.getValueByField(Constants.LIFETIME);
+        Long timestamp =            (Long) tuple.getValueByField(Constants.TIMESTAMP);
 
         emitClassifiableLampTuple(tuple, id, address, lifetime, timestamp);
 
@@ -115,7 +149,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         /* difference between now and lifetime */
         long diff = ChronoUnit.DAYS.between(lifetime,d2);
 
-        return diff > LIFETIME_THRESHOLD;
+        return diff > lifetime_threshold;
     }
 
     /**
@@ -125,7 +159,10 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(Constant.ID, Constant.ADDRESS,
-                Constant.LIFETIME, Constant.TIMESTAMP));
+        outputFieldsDeclarer.declare(new Fields(
+                Constants.ID,
+                Constants.ADDRESS,
+                Constants.LIFETIME,
+                Constants.TIMESTAMP));
     }
 }

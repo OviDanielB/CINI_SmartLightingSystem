@@ -1,10 +1,11 @@
 package org.uniroma2.sdcc.Model;
 
 import java.io.Serializable;
-import java.util.UUID;
 
 /**
- * defines a city address
+ * Define a city address composed by street or square name
+ * and number that can be a civic number or a kilometer indication.
+ * (e.i. "Via Tuscolana 4500", "Via Politecnico 1")
  */
 public class Address implements Serializable {
 

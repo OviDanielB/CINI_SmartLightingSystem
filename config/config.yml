@@ -22,3 +22,11 @@ queue_out:
   queue_name: 'my-cookye'
   hostname: 'localhost'
   port: 5673
+
+rankingTopologyParams:
+  rank_size: 10
+
+controlThresholds:
+  traffic_tolerance: 0.2
+  parking_tolerance: 0.2
+  lifetime_threshold: 7

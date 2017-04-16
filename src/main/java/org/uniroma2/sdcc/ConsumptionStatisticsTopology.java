@@ -7,8 +7,8 @@ import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt.*;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
-import org.uniroma2.sdcc.Utils.ServiceConfig;
-import org.uniroma2.sdcc.Utils.YamlConfigRunner;
+import org.uniroma2.sdcc.Utils.Config.ServiceConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
 

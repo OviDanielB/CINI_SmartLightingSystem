@@ -10,8 +10,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
-import org.uniroma2.sdcc.Model.StreetLampMessage;
+import org.uniroma2.sdcc.Constants;
 
 
 import java.io.IOException;
@@ -21,6 +20,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * This Spout is the input to the System.
+ * It consumes data produced by the sensors network on
+ * the entry queue and send to the processing components.
+ */
 public class RabbitMQSpout extends BaseRichSpout {
 
     private Connection connection;
@@ -61,6 +65,9 @@ public class RabbitMQSpout extends BaseRichSpout {
         reporter.start(60, TimeUnit.SECONDS);
     }
 
+    /**
+     * Connect to RabbitMQ to consume message from queue.
+     */
     private void prepareRabbitConnection() {
 
         /* RabbitMQ example
@@ -148,7 +155,7 @@ public class RabbitMQSpout extends BaseRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields(Constant.JSON_STRING));
+        declarer.declare(new Fields(Constants.JSON_STRING));
 
     }
 

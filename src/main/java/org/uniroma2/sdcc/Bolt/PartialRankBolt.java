@@ -8,7 +8,7 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
 import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
@@ -38,6 +38,13 @@ public class PartialRankBolt extends BaseRichBolt {
         this.k = k;
     }
 
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
@@ -54,10 +61,10 @@ public class PartialRankBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        int id = (int) tuple.getValueByField(Constant.ID);
-        Address address = (Address) tuple.getValueByField(Constant.ADDRESS);
-        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constant.LIFETIME);
-        Long timestamp = (Long) tuple.getValueByField(Constant.TIMESTAMP);
+        int id = (int) tuple.getValueByField(Constants.ID);
+        Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
+        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constants.LIFETIME);
+        Long timestamp = (Long) tuple.getValueByField(Constants.TIMESTAMP);
 
         /* Update local rank */
         RankLamp rankLamp = new RankLamp(id, address, lifetime, timestamp);

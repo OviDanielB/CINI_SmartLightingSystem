@@ -11,6 +11,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
 
 import java.io.IOException;
@@ -39,7 +40,13 @@ public class NotRespondingLampBolt implements IRichBolt {
 
     private static final String LOG_TAG = "[CINI] [NotRespondingLampBolt] ";
 
-
+    /**
+     * Bolt initialization
+     *
+     * @param stormConf conf
+     * @param context context
+     * @param collector collector
+     */
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
@@ -51,22 +58,27 @@ public class NotRespondingLampBolt implements IRichBolt {
         startPeriodicResponseChecker();
     }
 
+    /**
+     * Bolt operation on incoming tuple.
+     *
+     * @param input tuple received
+     */
     @Override
     public void execute(Tuple input) {
 
         HashMap<MalfunctionType,Float> malfunctions =
-                (HashMap<MalfunctionType, Float>) input.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE);
+                (HashMap<MalfunctionType, Float>) input.getValueByField(Constants.MALFUNCTIONS_TYPE);
 
-        Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
-        Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
-        Integer cellID = (Integer) input.getValueByField(StreetLampMessage.CELL);
-        Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
-        String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
-        Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
-        LocalDateTime lifeTime = (LocalDateTime) input.getValueByField(StreetLampMessage.LIFETIME);
-        Float intensity = (Float) input.getValueByField(StreetLampMessage.INTENSITY);
-        Float naturalLightLevel = (Float) input.getValueByField(StreetLampMessage.NATURAL_LIGHT_LEVEL);
-        Long timestamp = (Long) input.getValueByField(StreetLampMessage.TIMESTAMP);
+        Integer id = (Integer) input.getValueByField(Constants.ID);
+        Address address = (Address) input.getValueByField(Constants.ADDRESS);
+        Integer cellID = (Integer) input.getValueByField(Constants.CELL);
+        Boolean on = (Boolean) input.getValueByField(Constants.ON);
+        String model = (String) input.getValueByField(Constants.LAMP_MODEL);
+        Float consumption = (Float) input.getValueByField(Constants.CONSUMPTION);
+        LocalDateTime lifeTime = (LocalDateTime) input.getValueByField(Constants.LIFETIME);
+        Float intensity = (Float) input.getValueByField(Constants.INTENSITY);
+        Float naturalLightLevel = (Float) input.getValueByField(Constants.NATURAL_LIGHT_LEVEL);
+        Long timestamp = (Long) input.getValueByField(Constants.TIMESTAMP);
 
         StreetLamp lamp = new StreetLamp(id,on,getLampModelByString(model),
                 address, cellID, intensity,consumption,lifeTime);
@@ -149,11 +161,18 @@ public class NotRespondingLampBolt implements IRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(StreetLampMessage.MALFUNCTIONS_TYPE,StreetLampMessage.ID,
-                StreetLampMessage.ADDRESS,StreetLampMessage.CELL,StreetLampMessage.ON,
-                StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,StreetLampMessage.LIFETIME,
-                StreetLampMessage.INTENSITY, StreetLampMessage.NATURAL_LIGHT_LEVEL,
-                StreetLampMessage.TIMESTAMP));
+        outputFieldsDeclarer.declare(new Fields(
+                Constants.MALFUNCTIONS_TYPE,
+                Constants.ID,
+                Constants.ADDRESS,
+                Constants.CELL,
+                Constants.ON,
+                Constants.LAMP_MODEL,
+                Constants.CONSUMPTION,
+                Constants.LIFETIME,
+                Constants.INTENSITY,
+                Constants.NATURAL_LIGHT_LEVEL,
+                Constants.TIMESTAMP));
     }
 
     @Override

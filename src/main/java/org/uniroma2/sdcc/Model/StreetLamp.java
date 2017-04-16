@@ -2,6 +2,17 @@ package org.uniroma2.sdcc.Model;
 
 import java.time.LocalDateTime;
 
+/**
+ * Model of a lamp that describes:
+ * - identification code in the city
+ * - state (on/off)
+ * - bulb model of the lamp (LED/CFL/...)
+ * - position
+ * - identification code of the parking cell where it's placed (if any)
+ * - light intensity
+ * - consumption quantity
+ * - date of last lamp replacement
+ */
 public class StreetLamp {
 
     private int ID;

@@ -1,8 +1,9 @@
 package org.uniroma2.sdcc.Model;
 
 /**
- * Model of query result from request to Traffic REST API to obtain traffic
- * level percentage by street specified.
+ * Model of data to describe percentage of traffic level in a street
+ * at a specific time.
+ * This data are obtained requesting to a Traffic REST API.
  */
 public class TrafficData {
 

@@ -3,7 +3,12 @@ package org.uniroma2.sdcc.Model;
 import java.util.HashMap;
 
 /**
- * Created by ovidiudanielbarba on 04/04/2017.
+ * Message composed by Monitoring System about every street lamp,
+ * including: street lamp info (ID,address,..) along with
+ * natural light level and timestamp and additional condition
+ * information evaluated according to consumption and intensity level
+ * compared with the other lamps in the same street and weather condition
+ * to recognize behaviour anomalies.
  */
 public class AnomalyStreetLampMessage extends StreetLampMessage {
 

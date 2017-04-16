@@ -2,7 +2,6 @@ package org.uniroma2.sdcc.Bolt;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
-import org.apache.commons.codec.binary.StringUtils;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -10,12 +9,29 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+
+/**
+ * This Bolt processes arriving tuple from RabbitMQSpout
+ * to reject which ones are deformed and do not respect
+ * the expected format:
+ *
+ * CINI Data Format:
+ *
+ *   1   id                          32 bit street-lamp identifier
+ *   2   address                     street-lamp location (es Via/Piazza - km/civico -)
+ *   3   on ( state on/off )         state
+ *   4   consumption                 32 bit value representing energy consumption in Watt
+ *   5   intensity                   percentage of the maximum intensity
+ *   6   lifetime                    date
+ *   7   naturalLightLevel           level of the measured natural light intensity
+ *   8   timestamp                   32 bit value
+ */
 
 public class FilteringBolt extends BaseRichBolt {
 
@@ -24,32 +40,30 @@ public class FilteringBolt extends BaseRichBolt {
     public FilteringBolt() {
     }
 
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
     }
 
 
-    /*
-    *   CINI Data Format:
-    *
-    *   1   id                          32 bit street-lamp identifier
-    *   2   address                     street-lamp location (es Via/Piazza - km/civico -)
-    *   3   on ( state on/off )         state
-    *   4   consumption                 32 bit value representing energy consumption in Watt
-    *   5   intensity                   percentage of the maximum intensity
-    *   6   lifetime                    date
-    *   7   naturalLightLevel           level of the measured natural light intensity
-    *   8   timestamp                   32 bit value
-    *
-    */
-
+    /**
+     * Bolt operation on incoming tuple.
+     *
+     * @param tuple tuple received
+     */
     @Override
     public void execute(Tuple tuple) {
 
         if (!TupleHelpers.isTickTuple(tuple)) {
 
-            String json = (String) tuple.getValueByField(Constant.JSON_STRING);
+            String json = (String) tuple.getValueByField(Constants.JSON_STRING);
 
             StreetLampMessage streetLampMessage;
             try {
@@ -74,7 +88,8 @@ public class FilteringBolt extends BaseRichBolt {
 
 
     /**
-     * check and emit only valid tuples
+     * Check and emit only valid tuple.
+     *
      * @param tuple received from spout tuple
      * @param streetLampMessage parsed from tuple
      */
@@ -94,6 +109,7 @@ public class FilteringBolt extends BaseRichBolt {
             LocalDateTime lifetime = lamp.getLifetime();
             Long timestamp = streetLampMessage.getTimestamp();
 
+            // compose output tuple
             Values values = new Values();
             values.add(id);
             values.add(address);
@@ -105,8 +121,6 @@ public class FilteringBolt extends BaseRichBolt {
             values.add(lifetime);
             values.add(naturalLightLevel);
             values.add(timestamp);
-
-            //System.out.println("[CINI] FILTERING : " + values.toString());
 
             /* anchor tuple to new streetLamp value */
             collector.emit(tuple, values);
@@ -121,9 +135,16 @@ public class FilteringBolt extends BaseRichBolt {
      */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(StreetLampMessage.ID, StreetLampMessage.ADDRESS,
-                StreetLampMessage.CELL, StreetLampMessage.ON, StreetLampMessage.LAMP_MODEL,
-                StreetLampMessage.CONSUMPTION, StreetLampMessage.INTENSITY, StreetLampMessage.LIFETIME,
-                StreetLampMessage.NATURAL_LIGHT_LEVEL, StreetLampMessage.TIMESTAMP));
+        outputFieldsDeclarer.declare(new Fields(
+                Constants.ID,
+                Constants.ADDRESS,
+                Constants.CELL,
+                Constants.ON,
+                Constants.LAMP_MODEL,
+                Constants.CONSUMPTION,
+                Constants.INTENSITY,
+                Constants.LIFETIME,
+                Constants.NATURAL_LIGHT_LEVEL,
+                Constants.TIMESTAMP));
     }
 }

@@ -7,10 +7,9 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
-import org.uniroma2.sdcc.Utils.WrappedKey;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -26,6 +25,14 @@ public class ParserBolt extends BaseRichBolt {
 
     private OutputCollector collector;
 
+
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
@@ -36,10 +43,10 @@ public class ParserBolt extends BaseRichBolt {
 
         if (!TupleHelpers.isTickTuple(tuple)) {
 
-            Integer id = tuple.getIntegerByField(Constant.ID);
-            Address address = (Address) tuple.getValueByField(Constant.ADDRESS);
-            Float consumption = tuple.getFloatByField(Constant.CONSUMPTION);
-            Long timestamp = tuple.getLongByField(Constant.TIMESTAMP);
+            Integer id = tuple.getIntegerByField(Constants.ID);
+            Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
+            Float consumption = tuple.getFloatByField(Constants.CONSUMPTION);
+            Long timestamp = tuple.getLongByField(Constants.TIMESTAMP);
             LocalDateTime ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), TimeZone
                     .getDefault().toZoneId());
 

@@ -11,8 +11,7 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
-import org.uniroma2.sdcc.Constant;
-import org.uniroma2.sdcc.Model.AnomalyStreetLampMessage;
+import org.uniroma2.sdcc.Constants;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -58,8 +57,8 @@ public class ExecuteBolt extends BaseRichBolt{
     public void execute(Tuple tuple) {
 
         // retrieve data from incoming tuple
-        Integer id =                (Integer) tuple.getValueByField(AnomalyStreetLampMessage.ID);
-        Float adapted_intensity =   (Float) tuple.getValueByField(Constant.ADAPTED_INTENSITY);
+        Integer id =                (Integer) tuple.getValueByField(Constants.ID);
+        Float adapted_intensity =   (Float) tuple.getValueByField(Constants.ADAPTED_INTENSITY);
 
         // composing control results
         HashMap<String,Integer> adapted_lamp = new HashMap<>(2);

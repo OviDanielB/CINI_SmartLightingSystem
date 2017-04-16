@@ -1,7 +1,6 @@
 package org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -10,9 +9,9 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
-import org.uniroma2.sdcc.Utils.RabbitConfig;
+import org.uniroma2.sdcc.Utils.Config.RabbitConfig;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
-import org.uniroma2.sdcc.Utils.YamlConfigRunner;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
 import java.util.Map;
@@ -39,6 +38,14 @@ public class PrinterBolt extends BaseRichBolt {
         rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_out();
     }
 
+
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         /* connect to rabbit */

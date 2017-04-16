@@ -65,6 +65,13 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         this.K = K;
     }
 
+    /**
+     * Bolt initialization
+     *
+     * @param map map
+     * @param topologyContext context
+     * @param outputCollector collector
+     */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
@@ -82,8 +89,8 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     }
 
     /**
-     * connect to RabbitMQ to send ranking info to
-     * dashboard
+     * Connect to RabbitMQ to send ranking info to
+     * dashboard.
      */
     private void establishRabbitConnection() {
 
@@ -233,23 +240,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         Config conf = new Config();
         conf.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, 60);
         return conf;
-    }
-
-    /**
-     * retain only valuable information for address
-     * @param address type
-     * @return ex: Via Politecnico 23 (if number is a civic number)
-     *              / Via Politecnico km 2000 (if number is a km number)
-     */
-    private String composeAddressString(Address address) {
-
-        String finalAddress;
-        if (address.getNumberType()== AddressNumberType.CIVIC) {
-            finalAddress = String.format("%s %s",address.getName(), address.getNumber());
-        } else {
-            finalAddress = String.format("%s km %s",address.getName(), address.getNumber());
-        }
-        return finalAddress;
     }
 
     /**

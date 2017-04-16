@@ -4,7 +4,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Utils.SlidingWindowAvg;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 import org.uniroma2.sdcc.Utils.WrappedKey;
@@ -60,8 +60,8 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
 
         } else {
 
-            LocalDateTime timestamp = (LocalDateTime) tuple.getValueByField(Constant.TIMESTAMP);
-            Float hourAvg = tuple.getFloatByField(Constant.CONSUMPTION);
+            LocalDateTime timestamp = (LocalDateTime) tuple.getValueByField(Constants.TIMESTAMP);
+            Float hourAvg = tuple.getFloatByField(Constants.CONSUMPTION);
             WrappedKey key = getStatisticsKey(tuple);
 
             /*

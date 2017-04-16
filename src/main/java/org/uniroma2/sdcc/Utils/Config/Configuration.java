@@ -1,4 +1,4 @@
-package org.uniroma2.sdcc.Utils;
+package org.uniroma2.sdcc.Utils.Config;
 
 import java.util.List;
 
@@ -8,6 +8,8 @@ public class Configuration {
     private List<String> group_members;
     private ServiceConfig statisticsTopologyParams;
     private RabbitConfig queue_out;
+    private RankingConfig rankingTopologyParams;
+    private ControlConfig controlConfig;
 
     public Configuration() {
     }
@@ -57,6 +59,22 @@ public class Configuration {
 
     public void setGroup_members(List<String> group_members) {
         this.group_members = group_members;
+    }
+
+    public RankingConfig getRankingTopologyParams() {
+        return rankingTopologyParams;
+    }
+
+    public void setRankingTopologyParams(RankingConfig rankingTopologyParams) {
+        this.rankingTopologyParams = rankingTopologyParams;
+    }
+
+    public ControlConfig getControlConfig() {
+        return controlConfig;
+    }
+
+    public void setControlConfig(ControlConfig controlConfig) {
+        this.controlConfig = controlConfig;
     }
 }
 

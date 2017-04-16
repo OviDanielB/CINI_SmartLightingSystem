@@ -10,13 +10,12 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
-import org.uniroma2.sdcc.Constant;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -130,10 +129,10 @@ public class AnalyzeBolt extends BaseRichBolt {
      */
     private void emitAnalyzedDataTuple(Tuple tuple, List<TrafficData> totalTrafficData, List<ParkingData> totalParkingData) {
 
-        Integer id = (Integer) tuple.getValueByField(StreetLampMessage.ID);
-        Address address = (Address) tuple.getValueByField(StreetLampMessage.ADDRESS);
-        Integer cellID = (Integer) tuple.getValueByField(StreetLampMessage.CELL);
-        Float intensity = (Float) tuple.getValueByField(StreetLampMessage.INTENSITY);
+        Integer id = (Integer) tuple.getValueByField(Constants.ID);
+        Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
+        Integer cellID = (Integer) tuple.getValueByField(Constants.CELL);
+        Float intensity = (Float) tuple.getValueByField(Constants.INTENSITY);
 
         TrafficData trafficData;
         // check traffic availability
@@ -146,7 +145,7 @@ public class AnalyzeBolt extends BaseRichBolt {
             parkingData = new ParkingData(cellID, address.getName(), 0f);
 
         HashMap<MalfunctionType, Float> anomalies =
-                (HashMap<MalfunctionType,Float>) tuple.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE);
+                (HashMap<MalfunctionType,Float>) tuple.getValueByField(Constants.MALFUNCTIONS_TYPE);
 
         Float anomalyGap;   // final positive or negative value to optimize light intensity
 
@@ -250,11 +249,11 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         outputFieldsDeclarer.declare(new Fields(
-                AnomalyStreetLampMessage.ID,
-                AnomalyStreetLampMessage.INTENSITY,
-                Constant.GAP_TO_INCREASE,
-                Constant.GAP_TO_DECREASE,
-                Constant.TRAFFIC_BY_ADDRESS,
-                Constant.PARKING_BY_CELLID));
+                Constants.ID,
+                Constants.INTENSITY,
+                Constants.GAP_TO_INCREASE,
+                Constants.GAP_TO_DECREASE,
+                Constants.TRAFFIC_BY_ADDRESS,
+                Constants.PARKING_BY_CELLID));
     }
 }

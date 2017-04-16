@@ -15,6 +15,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Model.MalfunctionType;
 import org.uniroma2.sdcc.Model.StreetLampMessage;
@@ -47,6 +48,13 @@ public class MalfunctionCheckBolt implements IRichBolt {
     private volatile Channel weatherChannel;
     private boolean weatherAvailable = false;
 
+    /**
+     * Bolt initialization
+     *
+     * @param stormConf conf
+     * @param context context
+     * @param collector collector
+     */
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         this.outputCollector = collector;
@@ -137,20 +145,24 @@ public class MalfunctionCheckBolt implements IRichBolt {
         return stringAverageStatisticsEntry.getValue().getCurrentMean();
     }
 
-
+    /**
+     * Bolt operation on incoming tuple.
+     *
+     * @param input tuple received
+     */
     @Override
     public void execute(Tuple input) {
 
-        Integer id = (Integer) input.getValueByField(StreetLampMessage.ID);
-        Address address = (Address) input.getValueByField(StreetLampMessage.ADDRESS);
-        Integer cellID = (Integer) input.getValueByField(StreetLampMessage.CELL);
-        Boolean on = (Boolean) input.getValueByField(StreetLampMessage.ON);
-        String model = (String) input.getValueByField(StreetLampMessage.LAMP_MODEL);
-        Float consumption = (Float) input.getValueByField(StreetLampMessage.CONSUMPTION);
-        Float intensity = (Float) input.getValueByField(StreetLampMessage.INTENSITY);
-        Float naturalLightLevel = (Float) input.getValueByField(StreetLampMessage.NATURAL_LIGHT_LEVEL);
-        LocalDateTime lifetime = (LocalDateTime) input.getValueByField(StreetLampMessage.LIFETIME);
-        Long timestamp = (Long) input.getValueByField(StreetLampMessage.TIMESTAMP);
+        Integer id = (Integer) input.getValueByField(Constants.ID);
+        Address address = (Address) input.getValueByField(Constants.ADDRESS);
+        Integer cellID = (Integer) input.getValueByField(Constants.CELL);
+        Boolean on = (Boolean) input.getValueByField(Constants.ON);
+        String model = (String) input.getValueByField(Constants.LAMP_MODEL);
+        Float consumption = (Float) input.getValueByField(Constants.CONSUMPTION);
+        Float intensity = (Float) input.getValueByField(Constants.INTENSITY);
+        Float naturalLightLevel = (Float) input.getValueByField(Constants.NATURAL_LIGHT_LEVEL);
+        LocalDateTime lifetime = (LocalDateTime) input.getValueByField(Constants.LIFETIME);
+        Long timestamp = (Long) input.getValueByField(Constants.TIMESTAMP);
 
         String reducedAddress = composeAddress(address);
 
@@ -461,11 +473,18 @@ public class MalfunctionCheckBolt implements IRichBolt {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
 
-        declarer.declare(new Fields(StreetLampMessage.MALFUNCTIONS_TYPE,StreetLampMessage.ID,
-                StreetLampMessage.ADDRESS,StreetLampMessage.CELL,StreetLampMessage.ON,
-                StreetLampMessage.LAMP_MODEL, StreetLampMessage.CONSUMPTION,StreetLampMessage.LIFETIME,
-                StreetLampMessage.INTENSITY, StreetLampMessage.NATURAL_LIGHT_LEVEL,
-                StreetLampMessage.TIMESTAMP));
+        declarer.declare(new Fields(
+                Constants.MALFUNCTIONS_TYPE,
+                Constants.ID,
+                Constants.ADDRESS,
+                Constants.CELL,
+                Constants.ON,
+                Constants.LAMP_MODEL,
+                Constants.CONSUMPTION,
+                Constants.LIFETIME,
+                Constants.INTENSITY,
+                Constants.NATURAL_LIGHT_LEVEL,
+                Constants.TIMESTAMP));
     }
 
     @Override
@@ -481,9 +500,9 @@ public class MalfunctionCheckBolt implements IRichBolt {
     private static class WeatherHelper {
 
         public static final Float CLOUDY_SKY_INTENSITY_MINIMUM = 70.0f;
-        public static final Float SUNNY_SKY_INTENSITY_MAXIMUM = 50.0f;
+        public static final Float SUNNY_SKY_INTENSITY_MAXIMUM = 10.0f;
         public static final Float VISIBILITY_INTENSITY_MINIMUM = 80.0f;
-        public static final Float VISIBILITY_INTENSITY_MAXIMUM = 50.0f;
+        public static final Float VISIBILITY_INTENSITY_MAXIMUM = 10.0f;
         public static final Float DARK_SKY_INTENSITY_MINIMUM = 90.0f;
         public static final Float GLARE_SKY_INTENSITY_MAXIMUM = 50.0f;
         public static final Integer[] darkSkyCodes = {1,2,3,4,5,6,7,8,9,

@@ -7,7 +7,7 @@ package org.uniroma2.sdcc.Model;
 public class ParkingData {
 
     private int cellID;
-    // TODO add park street/ park ID ???
+    // TODO add park ID ???
     private String street;
     private Float occupationPercentage;
     private Long timestamp;

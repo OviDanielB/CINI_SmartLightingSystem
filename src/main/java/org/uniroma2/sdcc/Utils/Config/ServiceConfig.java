@@ -1,4 +1,4 @@
-package org.uniroma2.sdcc.Utils;
+package org.uniroma2.sdcc.Utils.Config;
 
 import java.util.Map;
 

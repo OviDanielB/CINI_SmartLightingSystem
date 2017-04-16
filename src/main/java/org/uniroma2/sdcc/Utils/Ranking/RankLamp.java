@@ -2,9 +2,7 @@ package org.uniroma2.sdcc.Utils.Ranking;
 
 import org.uniroma2.sdcc.Model.Address;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 /**
  * Define the ranking object to be sorted, described by ID, address, lifetime and timestamp
