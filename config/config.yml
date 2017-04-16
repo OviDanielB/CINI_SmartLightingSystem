@@ -27,6 +27,6 @@ rankingTopologyParams:
   rank_size: 10
 
 controlThresholds:
-  traffic_tolerance: 0.2
-  parking_tolerance: 0.2
+  traffic_tolerance: 20
+  parking_tolerance: 20
   lifetime_threshold: 7

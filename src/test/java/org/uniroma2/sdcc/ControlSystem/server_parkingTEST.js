@@ -20,7 +20,7 @@ var server = http.createServer( function(req, res) {
         for (var i=0; i<n; i++) {
             cell_list += '{"cellID": ' + (1001+i)
                     + ', "street": ' + '"'+streets[0]+'"'
-                    + ', "occupationPercentage": ' + 0.2
+                    + ', "occupationPercentage": ' + 20
                     + ', "timestamp": ' + (new Date().getTime())
                 + '}';
             if (i < n-1) {

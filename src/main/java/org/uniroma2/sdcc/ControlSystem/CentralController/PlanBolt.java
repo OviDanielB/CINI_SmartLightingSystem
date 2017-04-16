@@ -10,7 +10,6 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
-import org.uniroma2.sdcc.Model.AnomalyStreetLampMessage;
 import org.uniroma2.sdcc.Model.ParkingData;
 import org.uniroma2.sdcc.Model.TrafficData;
 import org.uniroma2.sdcc.Utils.Config.ControlConfig;
@@ -38,8 +37,8 @@ public class PlanBolt extends BaseRichBolt {
 
     private Float adapted_intensity; // final computed intensity to resolve anomalies
 
-    private Float TRAFFIC_TOLERANCE_DEFAULT = .2f;
-    private Float PARKING_TOLERANCE_DEFAULT = .2f;
+    private Float TRAFFIC_TOLERANCE_DEFAULT = 20f;
+    private Float PARKING_TOLERANCE_DEFAULT = 20f;
     private Float traffic_tolerance; // only above this value traffic level affect intensity adaptation
     private Float parking_tolerance; // only above this value parking occupation affect intensity adaptation
 
@@ -164,14 +163,15 @@ public class PlanBolt extends BaseRichBolt {
             // traffic level relevant just above a threshold
             if ((traffic - 0f) > traffic_tolerance) {
                 // to increase intensity of traffic level percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + traffic * (1 - adapted_intensity);
-            } else if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
+                adapted_intensity = adapted_intensity + traffic * (100 - adapted_intensity)/100;
+            }
+            if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
                 // to increase intensity of parking occupation percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + parking * (1 - adapted_intensity);
+                adapted_intensity = adapted_intensity + parking * (100 - adapted_intensity)/100;
             } else {
                 // if no positive gap measured and no relevant traffic or parking percentages
                 // the negative gap is considered
-                adapted_intensity = current_intensity + toDecreaseGap;
+                adapted_intensity = current_intensity - toDecreaseGap;
             }
         } else {
 
@@ -179,10 +179,11 @@ public class PlanBolt extends BaseRichBolt {
             // traffic level relevant just above a threshold
             if ((traffic - 0f) > traffic_tolerance) {
                 // to increase intensity of traffic level percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + traffic * (1 - adapted_intensity);
-            } else if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
+                adapted_intensity = adapted_intensity + traffic * (100 - adapted_intensity)/100;
+            }
+            if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
                 // to increase intensity of parking occupation percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + parking * (1 - adapted_intensity);
+                adapted_intensity = adapted_intensity + parking * (100 - adapted_intensity)/100;
             }
         }
     }

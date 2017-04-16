@@ -59,11 +59,11 @@ public class ParkingSourceTest {
         List<ParkingData> testResponse = gson.fromJson(
                 "[{'cellID': 1001, " +
                         "'street': 'Via Cambridge', " +
-                        "'occupationPercentage': 0.2, " +
+                        "'occupationPercentage': 20, " +
                         "'timestamp': "+ System.currentTimeMillis() + "}," +
                         "{'cellID': 1002, " +
                         "street: 'Via Cambridge', " +
-                        "'occupationPercentage': 0.2, " +
+                        "'occupationPercentage': 20, " +
                         "'timestamp': "+ System.currentTimeMillis() + "}]", listType);
 
         org.apache.http.client.HttpClient httpClient = HttpClientBuilder.create().build();
