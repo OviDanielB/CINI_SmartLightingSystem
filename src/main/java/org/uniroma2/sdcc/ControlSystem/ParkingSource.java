@@ -23,29 +23,69 @@ public class ParkingSource {
 
     private static String MEMCACHED_SERVER = "localhost";
     private static int MEMCACHED_PORT = 11211;
+    private static MemcachedClient memcachedClient;
 
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        MemcachedClient memcachedClient =
-                new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER, MEMCACHED_PORT));
+        initializeMem();
 
-        // asking forever (every 10 seconds) traffic information
+        // asking forever (every 10 seconds) parking information
         while (true) {
 
-            org.apache.http.client.HttpClient httpClient = HttpClientBuilder.create().build();
-            HttpGet httpGet = new HttpGet(REST_URL);
+            String responseBody = getParkingOccupation();
 
-            // Execute HTTP GET Request to ParkingServer
-            ResponseHandler<String> responseHandler = new BasicResponseHandler();
-            String responseBody = httpClient.execute(httpGet, responseHandler);
-
-            memcachedClient.set("parking_list", 0, responseBody);
-
-            System.out.println(" [ParkingSource] Received: " + responseBody + "\n");
+            saveCurrentData(responseBody);
 
             // requesting for data every 10 seconds
             sleep(10000);
+        }
+    }
+
+    /**
+     * Initialize memory client.
+     */
+    private static void initializeMem() {
+
+        try {
+            memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER, MEMCACHED_PORT));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Save current parking occupation information in memory.
+     *
+     * @param responseBody body of response to GET request
+     */
+    private static void saveCurrentData(String responseBody) {
+
+        if ((responseBody = getParkingOccupation()) != null) {
+            // save in memory
+            memcachedClient.set("parking_list", 0, responseBody);
+
+            System.out.println(" [ParkingSource] Received: " + responseBody + "\n");
+        }
+    }
+
+    /**
+     * Request for list of parking occupation percentages by cell ids
+     *
+     * @return response body to GET request
+     */
+    private static String getParkingOccupation() {
+
+        org.apache.http.client.HttpClient httpClient = HttpClientBuilder.create().build();
+        HttpGet httpGet = new HttpGet(REST_URL);
+
+        // Execute HTTP GET Request to ParkingServer
+        ResponseHandler<String> responseHandler = new BasicResponseHandler();
+        try {
+            return httpClient.execute(httpGet, responseHandler);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }

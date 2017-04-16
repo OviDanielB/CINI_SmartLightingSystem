@@ -143,7 +143,7 @@ public class AnalyzeBolt extends BaseRichBolt {
         ParkingData parkingData;
         // check parking availability
         if ((parkingData = getParkingByCellID(totalParkingData, cellID)) == null)
-            parkingData = new ParkingData(cellID, 0f);
+            parkingData = new ParkingData(cellID, address.getName(), 0f);
 
         HashMap<MalfunctionType, Float> anomalies =
                 (HashMap<MalfunctionType,Float>) tuple.getValueByField(StreetLampMessage.MALFUNCTIONS_TYPE);

@@ -13,8 +13,9 @@ public class ParkingData {
     private Long timestamp;
 
     public ParkingData(
-            int cellID, Float occupationPercentage) {
+            int cellID, String street, Float occupationPercentage) {
         this.cellID = cellID;
+        this.street = street;
         this.occupationPercentage = occupationPercentage;
         this.timestamp = System.currentTimeMillis();
     }
