@@ -9,12 +9,15 @@ const fs = require("fs");
 module.exports = cmdLineProcess;
 
 var iot = new AWS.Iot({region: 'eu-west-1', apiVersion: '2015-05-28'});
+
 var lifetimeDate = momentRandom();              // streetLamp lifetime random generated
 var delay = 10000;                              // publish data every delay time
 var thingName;                                  // device name
 var thingID;                                    // thing id
 var intensity = (Math.random() * 100) / 100;    // light intensity in percentage
 var street;
+
+var clientTokenUpdate;
 
 /*
  Generate Id for device thing.
@@ -133,8 +136,7 @@ function device_work(args) {
     // Once connected, it will emit events which our application can
     // handle.
     //
-    const device = deviceModule.device({
-
+    const device = deviceModule.thingShadow({
         privateKey: prvtKey,
         clientCert: cltCert,
         region: 'eu-west-1',
@@ -144,6 +146,7 @@ function device_work(args) {
         protocol: args.Protocol,
         port: args.Port
     });
+
 
     // subscrive topic intensity to receive value to set
     device.subscribe('control');
@@ -186,33 +189,88 @@ function device_work(args) {
     }
 
 
-    device
-        .on('connect', function () {
-            console.log('connect');
+    device.on('connect', function () {
+        console.log('connect');
+        device.register(thingName, function () {
+
+            // Once registration is complete, update the Thing Shadow named
+            // 'intensity' with the latest device state and save the clientToken
+            // so that we can correlate it with status or timeout events.
+            //
+            // Thing shadow state
+            var lampState = {"state": {"desired": {"intensity": intensity}}};
+
+            clientTokenUpdate = device.update(thingName, lampState);
+
+            //
+            // The update method returns a clientToken; if non-null, this value will
+            // be sent in a 'status' event when the operation completes, allowing you
+            // to know whether or not the update was successful.  If the update method
+            // returns null, it's because another operation is currently in progress and
+            // you'll need to wait until it completes (or times out) before updating the
+            // shadow.
+            //
+            if (clientTokenUpdate === null) {
+                console.log('update shadow failed, operation still in progress');
+            }
         });
-    device
-        .on('close', function () {
-            console.log('close');
-        });
-    device
-        .on('reconnect', function () {
-            console.log('reconnect');
-        });
-    device
-        .on('offline', function () {
-            console.log('offline');
-        });
-    device
-        .on('error', function (error) {
-            console.log('error', error);
-        });
-    device
-        .on('message', function (topic, payload) {
-            console.log('message', topic, payload.toString());
-            var json = JSON.parse(payload.toString());
-            if (json.id == thingID)
-                intensity = json.intensity;
-        });
+    });
+
+
+    device.on('status', function (thingName, stat, clientToken, stateObject) {
+        console.log('received ' + stat + ' on ' + thingName + ': ' +
+            JSON.stringify(stateObject));
+        //
+        // These events report the status of update(), get(), and delete()
+        // calls.  The clientToken value associated with the event will have
+        // the same value which was returned in an earlier call to get(),
+        // update(), or delete().  Use status events to keep track of the
+        // status of shadow operations.
+        //
+    });
+
+
+    device.on('delta', function (thingName, stateObject) {
+
+        var jsonState = JSON.stringify(stateObject);
+        console.log('received delta on ' + thingName + ': ' + jsonState);
+        intensity = stateObject.state.intensity;
+    });
+
+    device.on('timeout', function (thingName, clientToken) {
+        console.log('received timeout on ' + thingName +
+            ' with token: ' + clientToken);
+        //
+        // In the event that a shadow operation times out, you'll receive
+        // one of these events.  The clientToken value associated with the
+        // event will have the same value which was returned in an earlier
+        // call to get(), update(), or delete().
+        //
+    });
+
+    device.on('close', function () {
+        console.log('close');
+        device.unregister(thingName);
+
+    });
+
+    device.on('reconnect', function () {
+        console.log('reconnect');
+    });
+
+    device.on('offline', function () {
+        console.log('offline');
+    });
+
+    device.on('error', function (error) {
+        console.log('error', error);
+    });
+    device.on('message', function (topic, payload) {
+        console.log('message', topic, payload.toString());
+        var json = JSON.parse(payload.toString());
+        if (json.id == thingID)
+            intensity = json.intensity;
+    });
 
 }
 
