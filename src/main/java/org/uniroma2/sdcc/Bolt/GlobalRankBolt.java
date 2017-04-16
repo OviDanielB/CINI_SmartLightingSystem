@@ -187,8 +187,8 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         }
         List<RankLamp> current_ranking = gson.fromJson(json_ranking, listType);
         for (int i=0; i<current_ranking.size(); i++) {
-            if (sent_ranking.size()==0 || current_ranking.get(i).getId() != sent_ranking.get(i).getId()
-                    ) {
+            if (sent_ranking.size()==0
+                    || current_ranking.get(i).getId() != sent_ranking.get(i).getId()) {
                 // updated last valid global ranking in memory
                 // if ranking list contains different lamp IDs or in a different order
                 // or no previous valid global ranking was sent

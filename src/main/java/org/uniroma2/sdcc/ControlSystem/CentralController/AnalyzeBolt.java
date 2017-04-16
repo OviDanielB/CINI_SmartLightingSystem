@@ -90,29 +90,47 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        // retrieve traffic data from memory - if available
-        String json_trafficDataList;
-        List<TrafficData> trafficDataList;
-        try {
-            json_trafficDataList = (String) memcachedClient.get("traffic_list");
-            trafficDataList = gson.fromJson(json_trafficDataList, listTypeTraffic);
-        } catch (Exception e) {
-            trafficDataList = new ArrayList<>();
-        }
-
-        // retrieve parking data from memory - if available
-        String json_parkingDataList;
-        List<ParkingData> parkingDataList;
-        try {
-            json_parkingDataList = (String) memcachedClient.get("parking_list");
-            parkingDataList = gson.fromJson(json_parkingDataList, listTypeParking);
-        } catch (Exception e) {
-            parkingDataList = new ArrayList<>();
-        }
+        // get traffic data from memory (if available)
+        List<TrafficData> trafficDataList = getTrafficDataInMemory();
+        // get parking data from memory (if available)
+        List<ParkingData> parkingDataList = getParkingDataInMemory();
 
         // emit
         emitAnalyzedDataTuple(tuple, trafficDataList, parkingDataList);
+
         collector.ack(tuple);
+    }
+
+    /**
+     * Get Parking Data from memory (if available).
+     *
+     * @return list of parking data referring to all streets
+     */
+    private List<ParkingData> getParkingDataInMemory() {
+
+        String json_parkingDataList;
+        try {
+            json_parkingDataList = (String) memcachedClient.get("parking_list");
+            return gson.fromJson(json_parkingDataList, listTypeParking);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Get Traffic Data from memory (if available).
+     *
+     * @return list of traffic data referring to all streets
+     */
+    private List<TrafficData> getTrafficDataInMemory() {
+
+        String json_trafficDataList;
+        try {
+            json_trafficDataList = (String) memcachedClient.get("traffic_list");
+            return gson.fromJson(json_trafficDataList, listTypeTraffic);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 
 
@@ -147,8 +165,6 @@ public class AnalyzeBolt extends BaseRichBolt {
         HashMap<MalfunctionType, Float> anomalies =
                 (HashMap<MalfunctionType,Float>) tuple.getValueByField(Constants.MALFUNCTIONS_TYPE);
 
-        Float anomalyGap;   // final positive or negative value to optimize light intensity
-
 
         /*
          * Control on other anomalies cannot be resolved
@@ -156,24 +172,7 @@ public class AnalyzeBolt extends BaseRichBolt {
          */
         if (!lampDamaged(anomalies)) {
 
-
-            if ( (anomalyGap = anomalies.get(MalfunctionType.WEATHER_LESS)) != null )
-                if (!toIncreaseGap.equals(anomalyGap))
-                    toIncreaseGap = Math.max(toIncreaseGap, -anomalyGap);   // MalfunctionType.WEATHER_LESS
-
-            else if ( (anomalyGap = anomalies.get(MalfunctionType.WEATHER_MORE)) != null)
-                if (!toDecreaseGap.equals(anomalyGap))
-                    toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);    // MalfunctionType.WEATHER_MORE
-
-
-            if ( (anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS)) != null)
-                if (!toDecreaseGap.equals(anomalyGap))
-                    toIncreaseGap = Math.max(toIncreaseGap, -anomalyGap);   // MalfunctionType.LIGHT_INTENSITY_LESS
-
-            else if ( (anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE)) != null)
-                if (!toDecreaseGap.equals(anomalyGap))
-                    toDecreaseGap = Math.min(toDecreaseGap, anomalyGap);    // MalfunctionType.LIGHT_INTENSITY_MORE
-
+            computeGapToSolve(anomalies);
 
             Values values = new Values();
             values.add(id);
@@ -187,6 +186,28 @@ public class AnalyzeBolt extends BaseRichBolt {
 
             collector.emit(tuple, values);
         }
+    }
+
+    /**
+     * Compute amount of intensity to increase/decrease to solve gap anomaly measured.
+     *
+     * @param anomalies couples (anomaly, gap) measured
+     */
+    private void computeGapToSolve(HashMap<MalfunctionType,Float> anomalies) {
+
+        Float anomalyGap;
+
+        if ((anomalyGap = anomalies.get(MalfunctionType.WEATHER_LESS)) != null)
+            toIncreaseGap = Math.max(toIncreaseGap, -anomalyGap);   // MalfunctionType.WEATHER_LESS
+
+        if ((anomalyGap = anomalies.get(MalfunctionType.WEATHER_MORE)) != null)
+            toDecreaseGap = Math.min(toDecreaseGap, -anomalyGap);    // MalfunctionType.WEATHER_MORE
+
+        if ((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS)) != null)
+            toIncreaseGap = Math.max(toIncreaseGap, -anomalyGap);   // MalfunctionType.LIGHT_INTENSITY_LESS
+
+        if ((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE)) != null)
+            toDecreaseGap = Math.min(toDecreaseGap, -anomalyGap);    // MalfunctionType.LIGHT_INTENSITY_MORE
     }
 
     /**

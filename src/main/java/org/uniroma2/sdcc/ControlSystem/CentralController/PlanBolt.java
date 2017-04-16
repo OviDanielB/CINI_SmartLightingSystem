@@ -171,7 +171,7 @@ public class PlanBolt extends BaseRichBolt {
             } else {
                 // if no positive gap measured and no relevant traffic or parking percentages
                 // the negative gap is considered
-                adapted_intensity = current_intensity - toDecreaseGap;
+                adapted_intensity = current_intensity + toDecreaseGap;
             }
         } else {
 

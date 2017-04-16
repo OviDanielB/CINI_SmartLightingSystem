@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
-import com.google.gson.Gson;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -12,16 +11,12 @@ import static org.junit.Assert.*;
  */
 public class PlanBoltTest {
 
-    private Gson gson;
-
     private Float traffic_tolerance = 20f;
     private Float parking_tolerance = 20f;
 
     @Before
     public void setUp() throws Exception {
         System.out.println("[CINI] [TEST] Beginning PlanBolt Test");
-
-        this.gson = new Gson();
 
     }
 
@@ -34,7 +29,7 @@ public class PlanBoltTest {
 
         Float intensity = 50f;
         Float toIncreaseGap = 10f;
-        Float toDecreaseGap = 5f;
+        Float toDecreaseGap = -5f;
         Float traffic = 60f;
         Float parking = 50f;
 
@@ -56,7 +51,7 @@ public class PlanBoltTest {
 
         Float intensity = 50f;
         Float toIncreaseGap = 0f;
-        Float toDecreaseGap = 10f;
+        Float toDecreaseGap = -10f;
         Float traffic = 60f;
         Float parking = 50f;
 
@@ -77,11 +72,11 @@ public class PlanBoltTest {
 
         Float intensity = 50f;
         Float toIncreaseGap = 0f;
-        Float toDecreaseGap = 10f;
+        Float toDecreaseGap = -10f;
         Float traffic = 10f;
         Float parking = 5f;
 
-        Float expected_adapted_intensity = intensity - toDecreaseGap;
+        Float expected_adapted_intensity = intensity + toDecreaseGap;
 
         Float adapted_intensity = adaptByTrafficLevelAndAnomalies(toIncreaseGap,toDecreaseGap,intensity,traffic, parking);
 
@@ -98,7 +93,7 @@ public class PlanBoltTest {
 
         Float intensity = 50f;
         Float toIncreaseGap = 5f;
-        Float toDecreaseGap = 10f;
+        Float toDecreaseGap = -10f;
         Float traffic = 10f;
         Float parking = 5f;
 
@@ -139,7 +134,7 @@ public class PlanBoltTest {
             } else {
                 // if no positive gap measured and no relevant traffic or parking percentages
                 // the negative gap is considered
-                adapted_intensity = current_intensity - toDecreaseGap;
+                adapted_intensity = current_intensity + toDecreaseGap;
             }
         } else {
 
