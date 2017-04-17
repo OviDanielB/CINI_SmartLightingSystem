@@ -1,7 +1,6 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
 import com.google.gson.Gson;
-import org.apache.storm.Config;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -12,10 +11,7 @@ import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.ParkingData;
 import org.uniroma2.sdcc.Model.TrafficData;
-import org.uniroma2.sdcc.Utils.Config.ControlConfig;
-import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
-import java.io.IOException;
 import java.util.Map;
 
 
@@ -27,8 +23,6 @@ import java.util.Map;
  * WEATHER_LESS, WEATHER_MORE, LIGHT_INTENSITY_ANOMALY_LESS, LIGHT_INTENSITY_ANOMALY_MORE
  * (if any) and on traffic level measured in the street where lamp is placed and
  * on parking availability measured in the cell where lamp is placed.
- * If incoming tuple register the lamp anomalies NOT_RESPONDING or DAMAGE_BULB, they are
- * rejected because describe malfunctioning lamp that cannot be adapted anyway.
  */
 public class PlanBolt extends BaseRichBolt {
 
@@ -36,11 +30,6 @@ public class PlanBolt extends BaseRichBolt {
     private Gson gson;
 
     private Float adapted_intensity; // final computed intensity to resolve anomalies
-
-    private Float TRAFFIC_TOLERANCE_DEFAULT = 20f;
-    private Float PARKING_TOLERANCE_DEFAULT = 20f;
-    private Float traffic_tolerance; // only above this value traffic level affect intensity adaptation
-    private Float parking_tolerance; // only above this value parking occupation affect intensity adaptation
 
     /**
      * Bolt initialization
@@ -53,32 +42,8 @@ public class PlanBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.gson = new Gson();
-        config();
     }
 
-    /**
-     * Configuration.
-     */
-    private void config() {
-
-        Config config = new Config();
-        config.setDebug(true);
-        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
-
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
-
-        try {
-            ControlConfig controlConfig = yamlConfigRunner.getConfiguration()
-                    .getControlConfig();
-
-            this.traffic_tolerance = controlConfig.getTraffic_tolerance();
-            this.parking_tolerance = controlConfig.getParking_tolerance();
-
-        } catch (IOException e) {
-            this.traffic_tolerance = TRAFFIC_TOLERANCE_DEFAULT;
-            this.parking_tolerance = PARKING_TOLERANCE_DEFAULT;
-        }
-    }
 
     /**
      * PlanBolt operation on incoming tuple.
@@ -160,12 +125,11 @@ public class PlanBolt extends BaseRichBolt {
 
             adapted_intensity = current_intensity;
 
-            // traffic level relevant just above a threshold
-            if ((traffic - 0f) > traffic_tolerance) {
+            if (!traffic.equals(0f)) {
                 // to increase intensity of traffic level percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + traffic * (100 - adapted_intensity)/100;
             }
-            if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
+            if (!parking.equals(0f)) {
                 // to increase intensity of parking occupation percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + parking * (100 - adapted_intensity)/100;
             } else {
@@ -177,11 +141,11 @@ public class PlanBolt extends BaseRichBolt {
 
             adapted_intensity = current_intensity + toIncreaseGap;
             // traffic level relevant just above a threshold
-            if ((traffic - 0f) > traffic_tolerance) {
+            if (!traffic.equals(0f)) {
                 // to increase intensity of traffic level percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + traffic * (100 - adapted_intensity)/100;
             }
-            if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
+            if (!parking.equals(0f)) { // parking availability relevant just above a threshold
                 // to increase intensity of parking occupation percentage of current adapted intensity
                 adapted_intensity = adapted_intensity + parking * (100 - adapted_intensity)/100;
             }

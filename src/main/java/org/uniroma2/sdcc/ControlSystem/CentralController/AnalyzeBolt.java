@@ -3,6 +3,7 @@ package org.uniroma2.sdcc.ControlSystem.CentralController;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import net.spy.memcached.MemcachedClient;
+import org.apache.storm.Config;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -12,6 +13,8 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.Config.ControlConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -28,6 +31,11 @@ import java.util.Map;
  * in the cell where the lamp is placed.
  * Traffic level by streets and parking occupation are information obtained
  * from periodical request at a Traffic REST API and a Parking REST API.
+ * If incoming tuple register the lamp anomalies NOT_RESPONDING or DAMAGE_BULB, they are
+ * rejected because describe malfunctioning lamp that cannot be adapted anyway.
+ * If both no anomalies have been noticed and no significant traffic level or cell
+ * parking occupation percentage have been measured, tuple is rejected because no
+ * adaptation is needed.
  */
 public class AnalyzeBolt extends BaseRichBolt {
 
@@ -40,6 +48,11 @@ public class AnalyzeBolt extends BaseRichBolt {
     private final static int MEMCACHED_PORT = 11211;
     private Float toIncreaseGap = 0f;           // positive max value to resolve the defecting anomalies
     private Float toDecreaseGap = 0f;           // negative min value to resolve the excess anomalies
+
+    private Float TRAFFIC_TOLERANCE_DEFAULT = 20f;
+    private Float PARKING_TOLERANCE_DEFAULT = 20f;
+    private Float traffic_tolerance; // only above this value traffic level affect intensity adaptation
+    private Float parking_tolerance; // only above this value parking occupation affect intensity adaptation
 
 
     /**
@@ -63,6 +76,31 @@ public class AnalyzeBolt extends BaseRichBolt {
                     MEMCACHED_PORT));
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        config();
+    }
+
+    /**
+     * Configuration.
+     */
+    private void config() {
+
+        Config config = new Config();
+        config.setDebug(true);
+        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
+
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+
+        try {
+            ControlConfig controlConfig = yamlConfigRunner.getConfiguration()
+                    .getControlConfig();
+
+            this.traffic_tolerance = controlConfig.getTraffic_tolerance();
+            this.parking_tolerance = controlConfig.getParking_tolerance();
+
+        } catch (IOException e) {
+            this.traffic_tolerance = TRAFFIC_TOLERANCE_DEFAULT;
+            this.parking_tolerance = PARKING_TOLERANCE_DEFAULT;
         }
     }
 
@@ -166,26 +204,43 @@ public class AnalyzeBolt extends BaseRichBolt {
                 (HashMap<MalfunctionType,Float>) tuple.getValueByField(Constants.MALFUNCTIONS_TYPE);
 
 
-        /*
-         * Control on other anomalies cannot be resolved
-         * (e.i. DAMAGE_BULB, NOT RESPONDING)
-         */
+//      Control on other anomalies cannot be resolved
+//      (e.i. DAMAGE_BULB, NOT RESPONDING)
+//      Change is not required if no anomalous lamp and no significant
+//      traffic level or cell parking occupation percentage have been measured
         if (!lampDamaged(anomalies)) {
 
             computeGapToSolve(anomalies);
 
-            Values values = new Values();
-            values.add(id);
-            values.add(intensity);
-            values.add(toIncreaseGap);
-            values.add(toDecreaseGap);
-            String json_trafficData = gson.toJson(trafficData);
-            values.add(json_trafficData);
-            String json_parkingData = gson.toJson(parkingData);
-            values.add(json_parkingData);
+            if (changeRequired(trafficData, parkingData)) {
 
-            collector.emit(tuple, values);
+                Values values = new Values();
+                values.add(id);
+                values.add(intensity);
+                values.add(toIncreaseGap);
+                values.add(toDecreaseGap);
+                String json_trafficData = gson.toJson(trafficData);
+                values.add(json_trafficData);
+                String json_parkingData = gson.toJson(parkingData);
+                values.add(json_parkingData);
+
+                collector.emit(tuple, values);
+            }
         }
+    }
+
+    /**
+     * Check if data observed require an adapting operation.
+     *
+     * @param trafficData traffic level
+     * @param parkingData cell occupation
+     * @return true if lamp has to be adapted
+     */
+    private boolean changeRequired(TrafficData trafficData, ParkingData parkingData) {
+        return !toIncreaseGap.equals(0f)
+                || !toDecreaseGap.equals(0f)
+                || trafficData.getCongestionPercentage() > traffic_tolerance
+                || parkingData.getOccupationPercentage() > parking_tolerance;
     }
 
     /**

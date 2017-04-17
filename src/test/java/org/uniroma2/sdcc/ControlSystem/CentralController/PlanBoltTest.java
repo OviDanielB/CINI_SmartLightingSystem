@@ -11,9 +11,6 @@ import static org.junit.Assert.*;
  */
 public class PlanBoltTest {
 
-    private Float traffic_tolerance = 20f;
-    private Float parking_tolerance = 20f;
-
     @Before
     public void setUp() throws Exception {
         System.out.println("[CINI] [TEST] Beginning PlanBolt Test");
@@ -65,26 +62,6 @@ public class PlanBoltTest {
     }
 
     /**
-     * Test if without relevant traffic and parking percentage intensity is decreased.
-    */
-    @Test
-    public void Test3_toDecreaseWithoutTrafficAndParking() throws Exception {
-
-        Float intensity = 50f;
-        Float toIncreaseGap = 0f;
-        Float toDecreaseGap = -10f;
-        Float traffic = 10f;
-        Float parking = 5f;
-
-        Float expected_adapted_intensity = intensity + toDecreaseGap;
-
-        Float adapted_intensity = adaptByTrafficLevelAndAnomalies(toIncreaseGap,toDecreaseGap,intensity,traffic, parking);
-
-        assertEquals(expected_adapted_intensity,adapted_intensity);
-
-    }
-
-    /**
      * Test if without relevant traffic and parking percentage increasing gap has higher
      * priority that the decreasing one.
      */
@@ -97,7 +74,8 @@ public class PlanBoltTest {
         Float traffic = 10f;
         Float parking = 5f;
 
-        Float expected_adapted_intensity = intensity + toIncreaseGap;
+        Float expected_adapted_intensity = ((intensity+toIncreaseGap) + traffic*(100 - (intensity + toIncreaseGap))/100)
+                + parking*(100 - ((intensity + toIncreaseGap) + traffic*(100 - (intensity+toIncreaseGap))/100))/100;
 
         Float adapted_intensity = adaptByTrafficLevelAndAnomalies(toIncreaseGap,toDecreaseGap,intensity,traffic, parking);
 
@@ -115,6 +93,7 @@ public class PlanBoltTest {
                                                  Float parking) {
 
         Float adapted_intensity;
+
         /*
          *  If there are both positive and negative luminosity gaps
          *  of distance from correct value, the positive one is preferred
@@ -123,14 +102,13 @@ public class PlanBoltTest {
 
             adapted_intensity = current_intensity;
 
-            // traffic level relevant just above a threshold
-            if ((traffic - 0f) > traffic_tolerance) {
+            if (!traffic.equals(0f)) {
                 // to increase intensity of traffic level percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + traffic*(100 - adapted_intensity)/100;
+                adapted_intensity = adapted_intensity + traffic * (100 - adapted_intensity)/100;
             }
-            if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
+            if (!parking.equals(0f)) {
                 // to increase intensity of parking occupation percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + parking*(100 - adapted_intensity)/100;
+                adapted_intensity = adapted_intensity + parking * (100 - adapted_intensity)/100;
             } else {
                 // if no positive gap measured and no relevant traffic or parking percentages
                 // the negative gap is considered
@@ -139,18 +117,16 @@ public class PlanBoltTest {
         } else {
 
             adapted_intensity = current_intensity + toIncreaseGap;
-
             // traffic level relevant just above a threshold
-            if ((traffic - 0f) > traffic_tolerance) {
+            if (!traffic.equals(0f)) {
                 // to increase intensity of traffic level percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + traffic*(100 - adapted_intensity)/100;
+                adapted_intensity = adapted_intensity + traffic * (100 - adapted_intensity)/100;
             }
-            if ((parking - 0f) > parking_tolerance) { // parking availability relevant just above a threshold
+            if (!parking.equals(0f)) { // parking availability relevant just above a threshold
                 // to increase intensity of parking occupation percentage of current adapted intensity
-                adapted_intensity = adapted_intensity + parking*(100 - adapted_intensity)/100;
+                adapted_intensity = adapted_intensity + parking * (100 - adapted_intensity)/100;
             }
         }
         return adapted_intensity;
     }
-
 }
