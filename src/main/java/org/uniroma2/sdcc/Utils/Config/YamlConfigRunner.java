@@ -1,4 +1,4 @@
-package org.uniroma2.sdcc.Utils;
+package org.uniroma2.sdcc.Utils.Config;
 
 /**
  * @author emanuele
@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import org.uniroma2.sdcc.Utils.Config.Configuration;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
