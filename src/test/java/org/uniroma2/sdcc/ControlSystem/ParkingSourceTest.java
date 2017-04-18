@@ -76,12 +76,10 @@ public class ParkingSourceTest {
             List<ParkingData> actualResponse = gson.fromJson(response, listType);
 
             assertEquals(testResponse.get(0).getCellID(), actualResponse.get(0).getCellID());
-            assertEquals(testResponse.get(0).getStreet(), actualResponse.get(0).getStreet());
             assertEquals(testResponse.get(0).getOccupationPercentage(), actualResponse.get(0).getOccupationPercentage());
             assertEquals(testResponse.get(0).getTimestamp(), actualResponse.get(0).getTimestamp(),60);
 
             assertEquals(testResponse.get(1).getCellID(), actualResponse.get(1).getCellID());
-            assertEquals(testResponse.get(1).getStreet(), actualResponse.get(1).getStreet());
             assertEquals(testResponse.get(1).getOccupationPercentage(), actualResponse.get(1).getOccupationPercentage());
             assertEquals(testResponse.get(1).getTimestamp(), actualResponse.get(1).getTimestamp(),60);
 

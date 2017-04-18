@@ -3,7 +3,7 @@
 var http = require('http');
 var fs = require('fs');
 
-var streets = ["Via Cambridge", "Via Politecnico", "Via Lombardi"];
+var street;
 
 var server = http.createServer( function(req, res) {
 
@@ -11,14 +11,15 @@ var server = http.createServer( function(req, res) {
 
     if (req.method == 'GET') {
 
-        var n = 20; // number of (cellId, percentage) data
+        var n = 15000; // number of (cellId, percentage) data
+
+        var cellID = randomInt(1000, 16000);
 
         var cell_list = '[';
 
         for (var i=0; i<n; i++) {
-            cell_list += '{ "cellID": ' + Math.round(Math.random()*1000)
-                    + ', "street": ' + '"'+streets[(Math.round(Math.random()*10))%(streets.length-1)]+'"'
-                    + ', "occupationPercentage": ' + Math.round(Math.random()*10000)/100
+            cell_list += '{ "cellID": ' + cellID
+                    + ', "occupationPercentage": ' + Math.round(Math.random()*1000)/10
                     + ', "timestamp": ' + new Date().getTime()
                 + '}';
             if (i < n-1) {
@@ -40,3 +41,7 @@ port = 3000;
 host = '127.0.0.1';
 server.listen(port, host);
 console.log('Listening at http://' + host + ':' + port);
+
+function randomInt(low, high) {
+    return Math.floor(Math.random() * (high - low) + low);
+}
