@@ -122,7 +122,7 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         outputFieldsDeclarer.declare(new Fields("id", "street", "consumption",
-                "timestamp", "window length"));
+                "timestamp", "window_length"));
     }
 
     protected boolean isValid(LocalDateTime timestamp) {

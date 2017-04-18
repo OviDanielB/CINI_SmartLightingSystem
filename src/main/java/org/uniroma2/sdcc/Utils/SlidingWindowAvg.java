@@ -48,7 +48,15 @@ public class SlidingWindowAvg<T> implements Serializable {
             throw new IllegalArgumentException("Window length in slots must be at least two (you requested "
                     + windowLengthInSlots + ")");
         }
-        this.windowLengthInSlots = windowLengthInSlots + 1;     //plus one to keep incoming data
+
+        /*
+         * Add one to window length to keep data with timestamp
+         * from last slide instant and current instant.
+         * When we compute statistics we don't consider the head slot.
+         * In this way when we compute average value we don't exclude
+         * the time interval with length (slot duration - now )
+         */
+        this.windowLengthInSlots = windowLengthInSlots + 1;
         this.slotDurationInSeconds = slotDurationInSeconds;
 
         this.headSlot = 0;
@@ -93,6 +101,15 @@ public class SlidingWindowAvg<T> implements Serializable {
 
     }
 
+    /**
+     * Create a new AvgCalculator in the index specified by slot with a new key.
+     * Then it adds consumption value
+     *
+     * @param key         The new key
+     * @param slot        slot index
+     * @param consumption value to add
+     * @see AvgCalculator
+     */
     public void updateSlot(T key, int slot, Float consumption) {
         AvgCalculator[] calculators = slottedAvgs.computeIfAbsent(key, k -> new AvgCalculator[windowLengthInSlots]);
 
@@ -106,7 +123,7 @@ public class SlidingWindowAvg<T> implements Serializable {
      * Obtain statistics for all key and it slides the window considering a new slot.
      *
      * @return statistics in the actual window of time
-     * @see this#getAVgsSinceLastSlide() ()
+     * @see this#getAVgsSinceLastSlide()
      */
     public Map<T, Float> getAvgThenAdvanceWindow() {
         Map<T, Float> result = getAVgsSinceLastSlide();
@@ -114,6 +131,11 @@ public class SlidingWindowAvg<T> implements Serializable {
         return result;
     }
 
+    /**
+     * Compute final statistics considering all slot
+     *
+     * @return average value over the data structure
+     */
     public Float getTotalAvg() {
 
         AvgCalculator avgCalculator = new AvgCalculator();
@@ -140,6 +162,12 @@ public class SlidingWindowAvg<T> implements Serializable {
         return result;
     }
 
+    /**
+     * Compute average value on all slot except the head.
+     *
+     * @param obj key
+     * @return avg
+     */
     public Float computeTotalAvgExcludingCurrentSlot(T obj) {
 
         AvgCalculator[] curr = slottedAvgs.get(obj);
@@ -159,12 +187,21 @@ public class SlidingWindowAvg<T> implements Serializable {
         return avgCalculator.getAvg();
     }
 
+    /**
+     * Slide window wiping the tail slot.
+     * Update pointer to the window
+     */
     private void advanceWindow() {
         wipeSlot(tailSlot);
         advanceHead();
         lastSlide = LocalDateTime.now().truncatedTo(truncation);
     }
 
+    /**
+     * Wipe the specified slot
+     *
+     * @param slot slot index
+     */
     public void wipeSlot(int slot) {
         for (T obj : slottedAvgs.keySet())
             resetSlotAvgToZero(obj, slot);

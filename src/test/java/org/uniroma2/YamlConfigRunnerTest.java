@@ -1,9 +1,9 @@
 package org.uniroma2;
 
 import org.junit.Test;
-import org.uniroma2.sdcc.Utils.Configuration;
-import org.uniroma2.sdcc.Utils.ServiceConfig;
-import org.uniroma2.sdcc.Utils.YamlConfigRunner;
+import org.uniroma2.sdcc.Utils.Config.Configuration;
+import org.uniroma2.sdcc.Utils.Config.ServiceConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
 import static org.junit.Assert.assertTrue;
