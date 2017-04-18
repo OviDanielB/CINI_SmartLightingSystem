@@ -3,20 +3,19 @@ const deviceModule = require('aws-iot-device-sdk');
 const cmdLineProcess = require('./lib/cmdline');
 const momentRandom = require('moment-random');
 const AWS = require('aws-sdk');
-const async = require("async");
 const fs = require("fs");
 
 module.exports = cmdLineProcess;
 
 var iot = new AWS.Iot({region: 'eu-west-1', apiVersion: '2015-05-28'});
 
-var lifetimeDate = momentRandom();              // streetLamp lifetime random generated
-var delay = 10000;                              // publish data every delay time
-var thingName;                                  // device name
-var thingID;                                    // thing id
-var intensity = (Math.random() * 100) / 100;    // light intensity in percentage
+var lifetimeDate = momentRandom();                          // streetLamp lifetime random generated
+var delay = 10000;                                          // publish data every delay time
+var thingName;                                              // device name
+var thingID;                                                // thing id
+var intensity = (Math.round(Math.random()) * 100) / 100;    // light intensity in percentage
 var street;
-var cellId = randomInt(0, 10000);
+var cellId = randomInt(1000, 16000);
 var clientTokenUpdate;
 
 /*
@@ -185,7 +184,7 @@ function device_work(args) {
                 }
             },
             "timestamp": new Date().getTime(),
-            "naturalLightLevel": randomInt(0, 1)
+            "naturalLightLevel": (Math.round(Math.random()) * 100) / 100
         }
     }
 

@@ -85,9 +85,7 @@ public class ExecuteBolt extends BaseRichBolt{
      * Connect to SNS to publish data of adapted lamp values.
      */
     private void initializeSNSPublisher() {
-
         this.sns = AmazonSNSClient.builder().withRegion(Regions.EU_WEST_1).build();
-        sns.createTopic(new CreateTopicRequest(TOPIC));
     }
 
     /**
