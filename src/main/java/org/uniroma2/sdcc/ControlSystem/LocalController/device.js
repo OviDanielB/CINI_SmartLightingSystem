@@ -15,7 +15,14 @@ var thingName;                                              // device name
 var thingID;                                                // thing id
 var intensity = (Math.round(Math.random()) * 100) / 100;    // light intensity in percentage
 var street;
-var cellId = randomInt(1000, 16000);
+var cellID;
+
+var num = randomInt(1000, 31000);
+if (num <= 16000)
+    cellID = num;
+else
+    cellID = -1;
+
 var clientTokenUpdate;
 
 /*
