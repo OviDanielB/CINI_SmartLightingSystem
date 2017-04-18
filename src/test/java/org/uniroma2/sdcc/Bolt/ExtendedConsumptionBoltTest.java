@@ -1,11 +1,10 @@
-package org.uniroma2;
+package org.uniroma2.sdcc.Bolt;
 
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.tuple.Tuple;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt.ExtendendIndividualConsumptionBolt;
 import tools.MockTupleHelpers;
@@ -60,12 +59,15 @@ public class ExtendedConsumptionBoltTest {
         String iso8601 = "2016-02-14T18:32:00.150Z";
         ZonedDateTime zdt = ZonedDateTime.parse(iso8601);
         LocalDateTime ldt = zdt.toLocalDateTime();
+        ldt = ldt.truncatedTo(ChronoUnit.SECONDS);
 
+        ExtendendIndividualConsumptionBolt bolt = new ExtendendIndividualConsumptionBolt(WINDOW_LENGTH,
+                EMIT_FREQUENCY*2, EMIT_FREQUENCY);
         Method method = null;
         try {
-            method = ExtendendIndividualConsumptionBolt.class.getDeclaredMethod("isValid");
+            method = ExtendendIndividualConsumptionBolt.class.getDeclaredMethod("isValid", LocalDateTime.class);
             method.setAccessible(true);
-            assertTrue(method.invoke(ldt, ldt).equals(true));
+            assertTrue(method.invoke(bolt, ldt).equals(true));
 
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
@@ -80,10 +82,14 @@ public class ExtendedConsumptionBoltTest {
         LocalDateTime ldt = zdt.toLocalDateTime();
 
         Method method = null;
+
+        ExtendendIndividualConsumptionBolt bolt = new ExtendendIndividualConsumptionBolt(WINDOW_LENGTH,
+                EMIT_FREQUENCY*2, EMIT_FREQUENCY);
+
         try {
-            method = ExtendendIndividualConsumptionBolt.class.getDeclaredMethod("isValid");
+            method = ExtendendIndividualConsumptionBolt.class.getDeclaredMethod("isValid", LocalDateTime.class);
             method.setAccessible(true);
-            assertTrue(method.invoke(ldt, ldt).equals(false));
+            assertTrue(method.invoke(bolt, ldt).equals(false));
 
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();

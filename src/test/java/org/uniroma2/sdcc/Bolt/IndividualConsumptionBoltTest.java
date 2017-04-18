@@ -1,4 +1,4 @@
-package org.uniroma2;
+package org.uniroma2.sdcc.Bolt;
 
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;

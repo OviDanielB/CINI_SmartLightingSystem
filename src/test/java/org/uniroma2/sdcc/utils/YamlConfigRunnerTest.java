@@ -1,4 +1,4 @@
-package org.uniroma2;
+package org.uniroma2.sdcc.utils;
 
 import org.junit.Test;
 import org.uniroma2.sdcc.Utils.Config.Configuration;
