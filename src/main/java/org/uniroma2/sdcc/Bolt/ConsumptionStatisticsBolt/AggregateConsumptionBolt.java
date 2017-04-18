@@ -1,5 +1,6 @@
 package org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt;
 
+import org.apache.storm.Config;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
@@ -113,6 +114,14 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
 
     protected boolean isValid(LocalDateTime timestamp) {
         return true;
+    }
+
+    @Override
+    public Map<String, Object> getComponentConfiguration() {
+        // configure how often a tick tuple will be sent to our bolt
+        Config conf = new Config();
+        conf.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, tickFrequencyInSeconds);
+        return conf;
     }
 
     public Integer getTickCount() {

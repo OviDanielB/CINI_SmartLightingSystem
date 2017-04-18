@@ -47,7 +47,6 @@ public class ConsumptionStatisticsTopology {
 
         Config config = new Config();
 
-
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
 
         try {
@@ -66,13 +65,9 @@ public class ConsumptionStatisticsTopology {
             daily_emit_frequency = DAILY_EMIT_FREQUENCY;
         }
 
-
-        config.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, tickfrequency);
-        config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
-
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("rabbitSpout", new RabbitMQSpout(),2);
+        builder.setSpout("rabbitSpout", new RabbitMQSpout(), 2);
 
         builder.setBolt("filterBolt", new FilteringBolt(), 1).shuffleGrouping("rabbitSpout");
 
