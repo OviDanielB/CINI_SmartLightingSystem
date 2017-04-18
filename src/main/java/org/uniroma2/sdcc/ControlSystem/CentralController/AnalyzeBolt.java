@@ -93,7 +93,7 @@ public class AnalyzeBolt extends BaseRichBolt {
 
         try {
             ControlConfig controlConfig = yamlConfigRunner.getConfiguration()
-                    .getControlConfig();
+                    .getControlThresholds();
 
             this.traffic_tolerance = controlConfig.getTraffic_tolerance();
             this.parking_tolerance = controlConfig.getParking_tolerance();
