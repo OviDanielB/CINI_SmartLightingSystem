@@ -11,6 +11,8 @@ import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
+import org.uniroma2.sdcc.Utils.Config.RabbitConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 
 import java.io.IOException;
@@ -33,15 +35,15 @@ public class RabbitMQSpout extends BaseRichSpout {
     private Consumer consumer;
 
     /* measure requests/second */
-    private MetricRegistry metrics ;
+    private MetricRegistry metrics;
     private Meter requests;
 
     // TODO Remove
     private List<String> messageQueue;
 
-    private static String QUEUE_NAME = "storm";
-
-
+    private final static String QUEUE_NAME = "storm";
+    private String queueName = QUEUE_NAME;
+    private String hostname = "localhost";
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
@@ -84,18 +86,26 @@ public class RabbitMQSpout extends BaseRichSpout {
         *  rabbitmq:3.6.6-management'
         */
 
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
         ConnectionFactory connectionFactory = new ConnectionFactory();
-        connectionFactory.setHost("localhost");
+        try {
+            RabbitConfig rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_in();
+            hostname = rabbitConfig.getHostname();
+            queueName = rabbitConfig.getQueue_name();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
+        connectionFactory.setHost(hostname);
 
         try {
             connection = connectionFactory.newConnection();
             channel = connection.createChannel();
 
             /* GET QUEUE MESSAGE COUNT with declareOk.getMessageCount() -> int */
-            AMQP.Queue.DeclareOk declareOk = channel.queueDeclare(QUEUE_NAME,false,false,false,null);
+            AMQP.Queue.DeclareOk declareOk = channel.queueDeclare(QUEUE_NAME, false, false, false, null);
 
-             System.out.println("[CINI] RabbitMQSpout waiting for messages. To exit press CTRL+C");
+            System.out.println("[CINI] RabbitMQSpout waiting for messages. To exit press CTRL+C");
 
             consumer = new DefaultConsumer(channel) {
                 @Override
@@ -118,8 +128,7 @@ public class RabbitMQSpout extends BaseRichSpout {
 
             try {
                 // autoAck = false => send automatic ack
-                channel.basicConsume(QUEUE_NAME, false, consumer);
-
+                channel.basicConsume(queueName, false, consumer);
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -134,13 +143,12 @@ public class RabbitMQSpout extends BaseRichSpout {
         }
 
 
-
     }
 
 
     @Override
     public void nextTuple() {
-        if(messageQueue.size() == 0){
+        if (messageQueue.size() == 0) {
             return;
         }
 

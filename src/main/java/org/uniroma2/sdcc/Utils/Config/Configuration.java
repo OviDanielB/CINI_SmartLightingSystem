@@ -8,6 +8,7 @@ public class Configuration {
     private List<String> group_members;
     private ServiceConfig statisticsTopologyParams;
     private RabbitConfig queue_out;
+    private RabbitConfig queue_in;
     private RankingConfig rankingTopologyParams;
     private ControlConfig controlThresholds;
 
@@ -75,6 +76,14 @@ public class Configuration {
 
     public void setControlThresholds(ControlConfig controlConfig) {
         this.controlThresholds = controlConfig;
+    }
+
+    public RabbitConfig getQueue_in() {
+        return queue_in;
+    }
+
+    public void setQueue_in(RabbitConfig queue_in) {
+        this.queue_in = queue_in;
     }
 }
 

@@ -16,7 +16,7 @@ var thingName;                                  // device name
 var thingID;                                    // thing id
 var intensity = (Math.random() * 100) / 100;    // light intensity in percentage
 var street;
-
+var cellId = randomInt(0, 10000);
 var clientTokenUpdate;
 
 /*
@@ -171,6 +171,7 @@ function device_work(args) {
                 "number": randomInt(1, 100),
                 "numberType": "CIVIC"
             },
+            "cellID": cellId,
             "lightIntensity": intensity,
             "consumption": consumption,
 
