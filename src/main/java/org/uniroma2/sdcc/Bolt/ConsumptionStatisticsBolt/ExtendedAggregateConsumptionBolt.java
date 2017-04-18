@@ -27,7 +27,8 @@ public class ExtendedAggregateConsumptionBolt extends AggregateConsumptionBolt {
     @Override
     protected boolean isValid(LocalDateTime timestamp) {
         LocalDateTime validTime = timestamp.truncatedTo(ChronoUnit.MINUTES);
-        return timestamp.isEqual(validTime);
+        LocalDateTime ts = timestamp.truncatedTo(ChronoUnit.SECONDS);
+        return ts.isEqual(validTime);
     }
 
 }

@@ -59,7 +59,6 @@ public class ExtendedConsumptionBoltTest {
         String iso8601 = "2016-02-14T18:32:00.150Z";
         ZonedDateTime zdt = ZonedDateTime.parse(iso8601);
         LocalDateTime ldt = zdt.toLocalDateTime();
-        ldt = ldt.truncatedTo(ChronoUnit.SECONDS);
 
         ExtendendIndividualConsumptionBolt bolt = new ExtendendIndividualConsumptionBolt(WINDOW_LENGTH,
                 EMIT_FREQUENCY*2, EMIT_FREQUENCY);
