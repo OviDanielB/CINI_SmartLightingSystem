@@ -13,7 +13,7 @@ var lifetimeDate = momentRandom();                          // streetLamp lifeti
 var delay = 10000;                                          // publish data every delay time
 var thingName;                                              // device name
 var thingID;                                                // thing id
-var intensity = (Math.round(Math.random()) * 100) / 100;    // light intensity in percentage
+var intensity = (Math.round(Math.random() * 1000)) / 10;    // light intensity in percentage
 var street;
 var cellID;
 
@@ -167,7 +167,7 @@ function device_work(args) {
 
     // generate json data
     function generateState() {
-        var consumption = Math.round(Math.random(0, 1) * 100) / 100;
+        var consumption = Math.round(Math.random(0, 1) * 100 / 100);
         return {
             "ID": thingID,
             "state": 1,
@@ -191,7 +191,7 @@ function device_work(args) {
                 }
             },
             "timestamp": new Date().getTime(),
-            "naturalLightLevel": (Math.round(Math.random()) * 100) / 100
+            "naturalLightLevel": (Math.round(Math.random() * 1000)) / 10
         }
     }
 
