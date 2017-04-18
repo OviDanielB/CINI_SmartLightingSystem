@@ -108,7 +108,7 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields("street", "consumption", "timestamp", "window length"));
+        outputFieldsDeclarer.declare(new Fields("street", "consumption", "timestamp", "window_length"));
     }
 
     protected boolean isValid(LocalDateTime timestamp) {

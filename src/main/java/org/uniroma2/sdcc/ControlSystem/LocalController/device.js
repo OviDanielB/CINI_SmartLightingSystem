@@ -139,7 +139,7 @@ function device_work(args) {
     const device = deviceModule.thingShadow({
         privateKey: prvtKey,
         clientCert: cltCert,
-        region: 'eu-west-1',
+        region: args.region,
         caPath: './certs/root-CA.crt',
         clientId: args.clientId,
         baseReconnectTimeMs: args.baseReconnectTimeMs,
@@ -149,7 +149,7 @@ function device_work(args) {
 
 
     // subscrive topic intensity to receive value to set
-    device.subscribe('control');
+    // device.subscribe('control');
 
     // callback every delay seconds
     timeout = setInterval(function () {

@@ -61,7 +61,7 @@ module.exports = function (description, args, processFunction, argumentHelp) {
             '  -d, --delay-ms=VALUE             delay in milliseconds before publishing\n' +
             '  -D, --debug                      print additional debugging information\n\n' +
             ' Default values\n\n' +
-            '  aws-region                       us-east-1\n' +
+            '  aws-region                       eu-west-1\n' +
             '  client-id                        $USER<random-integer>\n' +
             '  protocol                         mqtts\n' +
             '  private-key                      private.pem.key\n' +
@@ -103,7 +103,7 @@ module.exports = function (description, args, processFunction, argumentHelp) {
             help: 'h'
         },
         default: {
-            region: 'us-east-1',
+            region: 'eu-west-1',
             protocol: 'mqtts',
             clientId: clientIdDefault,
             privateKey: 'private.pem.key',
