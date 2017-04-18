@@ -129,4 +129,11 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
         return true;
     }
 
+    public Integer getTickCount() {
+        return tickCount;
+    }
+
+    public void setTickCount(Integer tickCount) {
+        this.tickCount = tickCount;
+    }
 }
