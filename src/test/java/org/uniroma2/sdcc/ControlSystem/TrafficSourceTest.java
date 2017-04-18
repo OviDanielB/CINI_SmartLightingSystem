@@ -44,11 +44,10 @@ public class TrafficSourceTest {
 
         String testResponse =
                 "[{'street': 'Via Cambridge', " +
-                        "'congestionPercentage': 0.6, " +
+                        "'congestionPercentage': 60, " +
                         "'timestamp': "+ System.currentTimeMillis() + "}," +
                         "{'street': 'Via Politecnico', " +
-                        "street: 'Via Cambridge', " +
-                        "'congestionPercentage': 0.8, " +
+                        "'congestionPercentage': 80, " +
                         "'timestamp': "+ System.currentTimeMillis() + "}]";
 
         memcachedClient.set("traffic_test",3600,testResponse);
