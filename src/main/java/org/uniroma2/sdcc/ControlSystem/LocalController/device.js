@@ -177,7 +177,7 @@ function device_work(args) {
                 "number": randomInt(1, 100),
                 "numberType": "CIVIC"
             },
-            "cellID": cellId,
+            "cellID": cellID,
             "lightIntensity": intensity,
             "consumption": consumption,
 
