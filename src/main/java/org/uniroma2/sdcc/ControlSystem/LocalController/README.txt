@@ -23,3 +23,16 @@ If not specified the default value are used. For the region
 The default AWS region is 'eu-west-1'.
 The default communication protocol is MQTTS.
 
+You can start more device.js process in the same terminal using the start.sh script:
+
+>> chmod +777 start.sh
+>> ./start.sh
+
+You must have pm2 tool installed on your machine. Install it using npm:
+
+>> npm install pm2 -g
+
+To stop the node.js process:
+
+>> pm2 stop device
+

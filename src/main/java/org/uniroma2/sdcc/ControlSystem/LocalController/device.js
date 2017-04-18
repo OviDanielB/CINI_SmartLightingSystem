@@ -303,7 +303,7 @@ function randomInt(low, high) {
     return Math.floor(Math.random() * (high - low) + low);
 }
 
-get_line('./address_list.txt', randomInt(0, 6), function (err, line) {
+get_line('./address_list.txt', randomInt(0, 99), function (err, line) {
     street = line;
 });
 generate();
