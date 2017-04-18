@@ -109,11 +109,6 @@
             <version>1.11.119</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.whalin</groupId>
-            <artifactId>Memcached-Java-Client</artifactId>
-            <version>3.0.2</version>
-        </dependency>
 
         <dependency>
             <groupId>org.apache.storm</groupId>

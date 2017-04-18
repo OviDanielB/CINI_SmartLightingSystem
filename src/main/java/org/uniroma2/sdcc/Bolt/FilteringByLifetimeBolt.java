@@ -12,6 +12,7 @@ import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
 import org.uniroma2.sdcc.Utils.Config.ControlConfig;
+import org.uniroma2.sdcc.Utils.Config.RankingConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
@@ -71,10 +72,10 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
 
         try {
-            ControlConfig controlConfig = yamlConfigRunner.getConfiguration()
-                    .getControlConfig();
+            RankingConfig rankingConfig = yamlConfigRunner.getConfiguration()
+                    .getRankingTopologyParams();
 
-            this.lifetime_threshold = controlConfig.getLifetime_threshold();
+            this.lifetime_threshold = rankingConfig.getLifetime_minimum();
 
         } catch (IOException e) {
             this.lifetime_threshold = LIFETIME_THRESHOLD_DEFAULT;

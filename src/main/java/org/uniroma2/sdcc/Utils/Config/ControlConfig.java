@@ -11,7 +11,6 @@ public class ControlConfig implements Serializable {
 
     private Float traffic_tolerance;
     private Float parking_tolerance;
-    private Integer lifetime_threshold;
 
     public Float getTraffic_tolerance() {
         return traffic_tolerance;
@@ -29,11 +28,4 @@ public class ControlConfig implements Serializable {
         this.parking_tolerance = parking_tolerance;
     }
 
-    public Integer getLifetime_threshold() {
-        return lifetime_threshold;
-    }
-
-    public void setLifetime_threshold(Integer lifetime_threshold) {
-        this.lifetime_threshold = lifetime_threshold;
-    }
 }

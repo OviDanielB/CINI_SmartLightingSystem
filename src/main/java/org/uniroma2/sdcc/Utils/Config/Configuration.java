@@ -9,7 +9,7 @@ public class Configuration {
     private ServiceConfig statisticsTopologyParams;
     private RabbitConfig queue_out;
     private RankingConfig rankingTopologyParams;
-    private ControlConfig controlConfig;
+    private ControlConfig controlThresholds;
 
     public Configuration() {
     }
@@ -69,12 +69,12 @@ public class Configuration {
         this.rankingTopologyParams = rankingTopologyParams;
     }
 
-    public ControlConfig getControlConfig() {
-        return controlConfig;
+    public ControlConfig getControlThresholds() {
+        return controlThresholds;
     }
 
-    public void setControlConfig(ControlConfig controlConfig) {
-        this.controlConfig = controlConfig;
+    public void setControlThresholds(ControlConfig controlConfig) {
+        this.controlThresholds = controlConfig;
     }
 }
 

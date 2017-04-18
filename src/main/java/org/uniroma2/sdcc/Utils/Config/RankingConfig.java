@@ -8,27 +8,26 @@ import java.time.LocalDateTime;
  */
 public class RankingConfig implements Serializable {
 
-    private static final long serialVersionUID = 42L;
+    private static final long serialVersionUID = 43L;
 
     private Integer rank_size;
-    private LocalDateTime lifetime_minimum;
+    private Integer lifetime_minimum;
 
     public RankingConfig() {
     }
 
-    public Integer getRankSize() {
+    public Integer getRank_size() {
         return rank_size;
     }
 
-    public void setRankSize(Integer rank_size) {
+    public void setRank_size(Integer rank_size) {
         this.rank_size = rank_size;
     }
-
-    public LocalDateTime getLifetime_minimum() {
+    public Integer getLifetime_minimum() {
         return lifetime_minimum;
     }
 
-    public void setLifetime_minimum(LocalDateTime lifetime_minimum) {
+    public void setLifetime_minimum(Integer lifetime_minimum) {
         this.lifetime_minimum = lifetime_minimum;
     }
 }

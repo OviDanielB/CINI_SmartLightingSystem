@@ -45,7 +45,7 @@ public class RankingOldestLampsTopology {
             RankingConfig rankingConfig = yamlConfigRunner.getConfiguration()
                     .getRankingTopologyParams();
 
-            rank_size = rankingConfig.getRankSize();
+            rank_size = rankingConfig.getRank_size();
 
         } catch (IOException e) {
             rank_size = RANK_SIZE_DEFAULT;
