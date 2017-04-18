@@ -91,7 +91,7 @@ public class Topologies {
 
         /* Filtering from lamps which have been replace within LIFETIME_THRESHOLD days from now */
         builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt())
-                .shuffleGrouping(FILTER_BOLT);
+                .allGrouping(FILTER_BOLT);
 
         /* Data grouped by "lifetime" field and partially sorted by it   */
         builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(rank_size))
@@ -104,7 +104,7 @@ public class Topologies {
         /*
             CONSUMPTION BOLT BOLTS
          */
-        builder.setBolt("parser", new ParserBolt(), 1).shuffleGrouping(FILTER_BOLT);
+        builder.setBolt("parser", new ParserBolt()).allGrouping(FILTER_BOLT);
 
         builder.setBolt("HourlyBolt", new IndividualConsumptionBolt(daily_window,
                 tickfrequency), 1).shuffleGrouping("parser");
@@ -142,6 +142,7 @@ public class Topologies {
          */
 
         builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt())
+                .allGrouping(FILTER_BOLT)
                 .fieldsGrouping(FILTER_BOLT, new Fields(Constants.ADDRESS));
 
         builder.setBolt(NOT_RESPONDING_LAMP_BOLT, new NotRespondingLampBolt())
