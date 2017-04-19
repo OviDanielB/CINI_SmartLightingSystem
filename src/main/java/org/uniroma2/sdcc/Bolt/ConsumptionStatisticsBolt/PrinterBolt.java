@@ -22,19 +22,19 @@ import java.util.concurrent.TimeoutException;
  */
 public class PrinterBolt extends BaseRichBolt {
 
-    private final static String CONFIG_FILE = "./config/config.yml";
     private RabbitConfig rabbitConfig;
 
     /* rabbitMQ connection */
-    private  final String  EXCHANGE_NAME = "dashboard_exchange";
+    private final static String EXCHANGE_NAME = "dashboard_exchange";
     /* topic based pub/sub */
-    private  final String EXCHANGE_TYPE = "topic";
-    private  final String ROUTING_KEY = "dashboard.statistics.";
-    private Connection connection;
+    private final static String EXCHANGE_TYPE = "topic";
+    private final static String ROUTING_KEY = "dashboard.statistics.";
     private Channel channel;
 
+    private OutputCollector collector;
+
     public PrinterBolt() throws IOException {
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner(CONFIG_FILE);
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
         rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_out();
     }
 
@@ -42,7 +42,7 @@ public class PrinterBolt extends BaseRichBolt {
     /**
      * Bolt initialization
      *
-     * @param map map
+     * @param map             map
      * @param topologyContext context
      * @param outputCollector collector
      */
@@ -50,6 +50,7 @@ public class PrinterBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         /* connect to rabbit */
         establishRabbitConnection();
+        this.collector = outputCollector;
     }
 
     @Override
@@ -63,10 +64,9 @@ public class PrinterBolt extends BaseRichBolt {
 
             try {
 
-                // TODO improve message distinction
-                if(toEmit.contains("id")) {
+                if (toEmit.contains("id")) {
                     channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "lamps", null, toEmit.getBytes());
-                } else if(toEmit.contains("*")){
+                } else if (toEmit.contains("*")) {
                     channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "global", null, toEmit.getBytes());
                 } else {
                     channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "streets", null, toEmit.getBytes());
@@ -78,6 +78,8 @@ public class PrinterBolt extends BaseRichBolt {
             }
 
         }
+
+        collector.ack(tuple);
 
     }
 
@@ -96,9 +98,9 @@ public class PrinterBolt extends BaseRichBolt {
         factory.setPort(rabbitConfig.getPort());
 
         try {
-            connection = factory.newConnection();
+            Connection connection = factory.newConnection();
             channel = connection.createChannel();
-            channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
+            channel.exchangeDeclare(EXCHANGE_NAME, EXCHANGE_TYPE);
 
         } catch (IOException | TimeoutException e) {
             e.printStackTrace();

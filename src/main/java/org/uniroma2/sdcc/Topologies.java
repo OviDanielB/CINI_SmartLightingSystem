@@ -53,7 +53,7 @@ public class Topologies {
         config.setDebug(true);
         //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
         try {
             RankingConfig rankingConfig = yamlConfigRunner.getConfiguration()

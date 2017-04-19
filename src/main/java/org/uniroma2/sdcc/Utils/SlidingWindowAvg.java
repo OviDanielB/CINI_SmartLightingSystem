@@ -2,6 +2,8 @@ package org.uniroma2.sdcc.Utils;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,7 +63,9 @@ public class SlidingWindowAvg<T> implements Serializable {
 
         this.headSlot = 0;
         this.tailSlot = slotAfter(headSlot);
-        this.lastSlide = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
+        this.lastSlide = currentDate.toLocalDateTime().truncatedTo(ChronoUnit.SECONDS);
     }
 
     /**
@@ -76,7 +80,8 @@ public class SlidingWindowAvg<T> implements Serializable {
 
         Integer slot, i;
 
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
+        LocalDateTime now = currentDate.toLocalDateTime();
         if (ts.isAfter(now))
             throw new IllegalArgumentException("The specified timestamp has a value in the future");
 
@@ -194,7 +199,8 @@ public class SlidingWindowAvg<T> implements Serializable {
     private void advanceWindow() {
         wipeSlot(tailSlot);
         advanceHead();
-        lastSlide = LocalDateTime.now().truncatedTo(truncation);
+        ZonedDateTime currentDate = ZonedDateTime.now( ZoneOffset.UTC );
+        lastSlide = currentDate.toLocalDateTime().truncatedTo(truncation);
     }
 
     /**

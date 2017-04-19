@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc;
 
-import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.topology.TopologyBuilder;
@@ -11,7 +10,6 @@ import org.uniroma2.sdcc.Bolt.NotRespondingLampBolt;
 import org.uniroma2.sdcc.ControlSystem.CentralController.AnalyzeBolt;
 import org.uniroma2.sdcc.ControlSystem.CentralController.ExecuteBolt;
 import org.uniroma2.sdcc.ControlSystem.CentralController.PlanBolt;
-import org.uniroma2.sdcc.Model.StreetLampMessage;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
 
 /**

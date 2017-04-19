@@ -86,7 +86,7 @@ public class RabbitMQSpout extends BaseRichSpout {
         *  rabbitmq:3.6.6-management'
         */
 
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
         ConnectionFactory connectionFactory = new ConnectionFactory();
         try {
             RabbitConfig rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_in();

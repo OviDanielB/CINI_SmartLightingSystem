@@ -17,10 +17,8 @@ import tools.MockTupleHelpers;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.TimeZone;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static java.time.ZoneOffset.UTC;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
@@ -80,8 +78,7 @@ public class IndividualConsumptionBoltTest {
         when(normalTuple.getValueByField("street")).thenReturn(address);
 
         Long timestamp = System.currentTimeMillis() - (EMIT_FREQUENCY / 2);
-        LocalDateTime ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), TimeZone
-                .getDefault().toZoneId());
+        LocalDateTime ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), UTC);
         when(normalTuple.getValueByField("timestamp")).thenReturn(ts);
 
 

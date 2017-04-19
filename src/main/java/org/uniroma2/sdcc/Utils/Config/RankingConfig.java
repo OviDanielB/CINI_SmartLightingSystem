@@ -1,7 +1,6 @@
 package org.uniroma2.sdcc.Utils.Config;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * Configuration for ranking lamps parameters.

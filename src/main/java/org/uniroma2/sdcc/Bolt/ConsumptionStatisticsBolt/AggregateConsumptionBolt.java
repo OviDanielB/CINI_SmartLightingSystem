@@ -63,6 +63,8 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
                 window.updatedConsumptionAvg(key, hourAvg, timestamp);
 
         }
+
+        collector.ack(tuple);
     }
 
     /**
