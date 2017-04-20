@@ -76,9 +76,11 @@ public class SlidingWindowAvg<T> implements Serializable {
 
         Integer slot, i;
 
+        /*
         LocalDateTime now = LocalDateTime.now();
         if (ts.isAfter(now))
             throw new IllegalArgumentException("The specified timestamp has a value in the future");
+            */
 
         LocalDateTime endHeadSlot = lastSlide.plus(slotDurationInSeconds, ChronoUnit.SECONDS);
         while (ts.isAfter(endHeadSlot) || ts.isEqual(endHeadSlot))

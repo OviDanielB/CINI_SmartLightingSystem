@@ -39,11 +39,21 @@ public class RabbitMQSpout extends BaseRichSpout {
     private Meter requests;
 
     // TODO Remove
-    private List<String> messageQueue;
+    private volatile List<String> messageQueue;
 
     private final static String QUEUE_NAME = "storm";
     private String queueName = QUEUE_NAME;
-    private String hostname = "localhost";
+    private String hostname = "rabbit";
+
+
+    private String cloudHostname = "rabbit";
+
+    public RabbitMQSpout() {
+    }
+
+    public RabbitMQSpout(String cloudHostname) {
+        this.cloudHostname = cloudHostname;
+    }
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
@@ -86,17 +96,21 @@ public class RabbitMQSpout extends BaseRichSpout {
         *  rabbitmq:3.6.6-management'
         */
 
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
         ConnectionFactory connectionFactory = new ConnectionFactory();
+        /*
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+
         try {
             RabbitConfig rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_in();
             hostname = rabbitConfig.getHostname();
             queueName = rabbitConfig.getQueue_name();
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        } */
 
-        connectionFactory.setHost(hostname);
+        // TODO hostname
+        connectionFactory.setHost(cloudHostname);
+        connectionFactory.setPort(5672);
 
         try {
             connection = connectionFactory.newConnection();
@@ -121,7 +135,7 @@ public class RabbitMQSpout extends BaseRichSpout {
                     channel.basicAck(envelope.getDeliveryTag(), false);
 //                    System.out.println("[CINI] QUEUE MESSAGGE COUNT : " + declareOk.getMessageCount());
 
-                    //System.out.println("[CINI] Rabbit : " + message);
+                    System.out.println("[CINI] Rabbit : " + message);
 
                 }
             };
@@ -155,6 +169,9 @@ public class RabbitMQSpout extends BaseRichSpout {
 //        System.out.println("[CINI] MessaggeQueue size = " + messageQueue.size() + "\n");
 
         String mess = messageQueue.get(0);
+        if(mess == null){
+            return;
+        }
         messageQueue.remove(0);
         outputCollector.emit(new Values(mess), mess.hashCode());
 

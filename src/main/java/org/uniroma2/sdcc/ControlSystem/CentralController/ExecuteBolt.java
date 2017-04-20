@@ -3,18 +3,23 @@ package org.uniroma2.sdcc.ControlSystem.CentralController;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSClient;
-import com.amazonaws.services.sns.model.CreateTopicRequest;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Constants;
+import org.uniroma2.sdcc.Utils.HeliosLog;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
 
 /**
  * This Bolt is the last component of the Control System's MAPE architecture.
@@ -27,10 +32,21 @@ public class ExecuteBolt extends BaseRichBolt{
     private OutputCollector collector;
     private Gson gson;
     private AmazonSNS sns;
-    private static final String LOG_TAG = "[CINI] [ExecuteBolt] ";
+    private static final String LOG_TAG = "[ExecuteBolt]";
     /* Amazon SNS connection */
     private final static String SNS_TOPIC_ARN = "arn:aws:sns:eu-west-1:369927171895:control";
     private final static String TOPIC = "control";
+
+
+    /* consumer producer queue */
+    private ArrayBlockingQueue<String> queue;
+    /* if queue capacity maximum => producer blocks on put operation,
+      similarly capacity 0 => consumer blocks on take */
+    private static final Integer QUEUE_CAPACITY = 100;
+
+    private ExecutorService executorService;
+    private static final Integer THREAD_NUMBER = 4;
+    
 
 
     /**
@@ -44,8 +60,25 @@ public class ExecuteBolt extends BaseRichBolt{
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.gson = new Gson();
+        this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
 
-        initializeSNSPublisher();
+        startSNSWritingThreadPool();
+
+    }
+
+    /**
+     * create fixed thread pool of consumer threads waiting
+     * on the queue for messages to send to SNS
+     */
+    private void startSNSWritingThreadPool() {
+
+        executorService = Executors.newFixedThreadPool(THREAD_NUMBER);
+
+        IntStream.range(0,THREAD_NUMBER).forEach(e -> {
+            executorService.submit(new SNSWriter(queue));
+        });
+
+
     }
 
     /**
@@ -56,6 +89,35 @@ public class ExecuteBolt extends BaseRichBolt{
     @Override
     public void execute(Tuple tuple) {
 
+        /* compose message to send by tuple values */
+        String message = composeMessage(tuple);
+
+        produceOnQueue(message);
+
+        collector.ack(tuple);
+    }
+
+    /**
+     * insert on queue message to be sent
+     * block if capacity full
+     * @param message to be sent
+     */
+    private void produceOnQueue(String message) {
+        try {
+            queue.put(message);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            HeliosLog.logFail(LOG_TAG,"Can't insert into queue");
+        }
+    }
+
+    /**
+     * compose final message to send to each particular device
+     * @param tuple collection of values from incoming stream
+     * @return message composed; empty string if json parsing failed
+     */
+    private String composeMessage(Tuple tuple) {
+
         // retrieve data from incoming tuple
         Integer id =                (Integer) tuple.getValueByField(Constants.ID);
         Float adapted_intensity =   (Float) tuple.getValueByField(Constants.ADAPTED_INTENSITY);
@@ -65,27 +127,15 @@ public class ExecuteBolt extends BaseRichBolt{
         adapted_lamp.put("id", id);
         adapted_lamp.put("intensity", Math.round(adapted_intensity));
 
-        String json_adapted_lamp = gson.toJson(adapted_lamp);
+        String json_adapted_lamp;
 
-        //publish to SNS topic
         try {
-
-            sns.publish(new PublishRequest(SNS_TOPIC_ARN, json_adapted_lamp));
-
-            System.out.println(LOG_TAG + "Sent to SNS topic: " + json_adapted_lamp);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+            json_adapted_lamp = gson.toJson(adapted_lamp);
+        } catch (JsonParseException e ){
+            return "";
         }
 
-        collector.ack(tuple);
-    }
-
-    /**
-     * Connect to SNS to publish data of adapted lamp values.
-     */
-    private void initializeSNSPublisher() {
-        this.sns = AmazonSNSClient.builder().withRegion(Regions.EU_WEST_1).build();
+        return json_adapted_lamp;
     }
 
     /**
@@ -96,5 +146,43 @@ public class ExecuteBolt extends BaseRichBolt{
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         // no output fields to declare
+    }
+
+
+    /**
+     * Runnable task which waits on a queue for messages
+     * to be inserted and sends them on an sns connection
+     */
+    private class SNSWriter implements Runnable{
+
+        private ArrayBlockingQueue<String> queue;
+
+        private AmazonSNS sns;
+        /* sns topic Amazon Resource Name to identify topic */
+        private final static String SNS_TOPIC_ARN = "arn:aws:sns:eu-west-1:369927171895:control";
+
+        public SNSWriter(ArrayBlockingQueue<String> queue) {
+            this.queue = queue;
+            snsConnect();
+        }
+
+        /**
+         * connect to Amazon Web Services SNS service
+         * in Ireland (EU_WEST_1)
+         */
+        private void snsConnect() {
+            this.sns = AmazonSNSClient.builder().withRegion(Regions.EU_WEST_1).build();
+        }
+
+        @Override
+        public void run() {
+            try {
+                String message = queue.take();
+                sns.publish(new PublishRequest(SNS_TOPIC_ARN,message));
+                System.out.println("Thread ID " + Thread.currentThread().getId() + " published on SNS");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

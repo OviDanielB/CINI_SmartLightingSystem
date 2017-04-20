@@ -46,7 +46,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private Type listType;
 
     /* rabbitMQ connection */
-    private final static String RABBIT_HOST = "localhost";
+    private final static String RABBIT_HOST = "rabbit_dashboard";
     private final static Integer RABBIT_PORT = 5673;
     private  final String  EXCHANGE_NAME = "dashboard_exchange";
     /* topic based pub/sub */
@@ -60,9 +60,12 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private final static Integer MEMCAC_PORT = 11211;
     private MemcachedClient memcachedClient;
 
+    private String host = "localhost";
 
-    public GlobalRankBolt(int K) {
+
+    public GlobalRankBolt(int K,String host) {
         this.K = K;
+        this.host = host;
     }
 
     /**

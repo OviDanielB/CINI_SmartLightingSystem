@@ -61,7 +61,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         initialization();
         periodicWeatherUpdate();
-        periodicGlobalAvg();
+       // periodicGlobalAvg();
 
     }
 

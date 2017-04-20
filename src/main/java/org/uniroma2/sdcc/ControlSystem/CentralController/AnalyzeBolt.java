@@ -19,10 +19,7 @@ import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * This Bolt is the second component of the Control System's MAPE architecture.
@@ -54,6 +51,11 @@ public class AnalyzeBolt extends BaseRichBolt {
     private Float traffic_tolerance; // only above this value traffic level affect intensity adaptation
     private Float parking_tolerance; // only above this value parking occupation affect intensity adaptation
 
+    private volatile List<TrafficData> trafficDataList;
+    private volatile List<ParkingData> parkingDataList;
+
+    private static final Integer UPDATE_PERIOD = 60000; // 60 seconds
+
 
     /**
      * Bolt initialization
@@ -66,6 +68,8 @@ public class AnalyzeBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.gson = new Gson();
+        this.trafficDataList = new ArrayList<>();
+        this.parkingDataList = new ArrayList<>();
         this.listTypeTraffic = new TypeToken<ArrayList<TrafficData>>() {
         }.getType();
         this.listTypeParking = new TypeToken<ArrayList<ParkingData>>() {
@@ -78,6 +82,25 @@ public class AnalyzeBolt extends BaseRichBolt {
             e.printStackTrace();
         }
         config();
+        startTrafficAndParkingPeriodicUpdate();
+    }
+
+    /**
+     * periodically update traffic and parking data
+     * from memcached
+     */
+    private void startTrafficAndParkingPeriodicUpdate() {
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                // get traffic data from memory (if available)
+                trafficDataList = getTrafficDataInMemory();
+                // get parking data from memory (if available)
+                parkingDataList = getParkingDataInMemory();
+
+            }
+        }, 5000,UPDATE_PERIOD);
     }
 
     /**
@@ -128,10 +151,6 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        // get traffic data from memory (if available)
-        List<TrafficData> trafficDataList = getTrafficDataInMemory();
-        // get parking data from memory (if available)
-        List<ParkingData> parkingDataList = getParkingDataInMemory();
 
         // emit
         emitAnalyzedDataTuple(tuple, trafficDataList, parkingDataList);

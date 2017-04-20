@@ -33,10 +33,20 @@ public class PrinterBolt extends BaseRichBolt {
     private Connection connection;
     private Channel channel;
 
-    public PrinterBolt() throws IOException {
+    private String host = "localhost";
+
+    private OutputCollector collector;
+
+    public PrinterBolt(String host) throws IOException {
+        this.host = host;
+        /*
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner(CONFIG_FILE);
         rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_out();
+
+        */
     }
+
+
 
 
     /**
@@ -48,6 +58,7 @@ public class PrinterBolt extends BaseRichBolt {
      */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
+        this.collector = outputCollector;
         /* connect to rabbit */
         establishRabbitConnection();
     }
@@ -61,8 +72,7 @@ public class PrinterBolt extends BaseRichBolt {
 
             System.out.println("[CINI] [Printer] " + toEmit);
 
-            try {
-
+                /*
                 // TODO improve message distinction
                 if(toEmit.contains("id")) {
                     channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "lamps", null, toEmit.getBytes());
@@ -71,11 +81,10 @@ public class PrinterBolt extends BaseRichBolt {
                 } else {
                     channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "streets", null, toEmit.getBytes());
 
-                }
-                System.out.println("[CINI][PrintBolt] Sent : " + toEmit);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+                } */
+                //System.out.println("[CINI][PrintBolt] Sent : " + toEmit);
+
+                collector.ack(tuple);
 
         }
 
@@ -92,8 +101,8 @@ public class PrinterBolt extends BaseRichBolt {
     private void establishRabbitConnection() {
 
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(rabbitConfig.getHostname());
-        factory.setPort(rabbitConfig.getPort());
+        factory.setHost(this.host);
+        factory.setPort(5673);
 
         try {
             connection = factory.newConnection();

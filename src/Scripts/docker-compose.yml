@@ -2,15 +2,26 @@
 version: "3"
 services:
 
-  rabbit:
-    image: rabbitmq:alpine
-    hostname: rabbit1
-    ports:
-      - "5672:5672"
-      - "1883:1883"
-      - "8883:8883"
-      - "15672:15672" #rabbit UI
-    restart: always
+#  rabbit:
+#    image: rabbitmq:alpine
+#    hostname: rabbit1
+ #   ports:
+#      - "5672:5672"
+#      - "1883:1883"
+#      - "8883:8883"
+#      - "15672:15672" #rabbit UI
+#    restart: always
+
+#  rabbit_dashboard:
+#    image: rabbitmq:alpine
+#    hostname: rabbit2
+#    ports:
+#      - "5673:5672"
+#      - "1884:1883"
+#      - "8884:8883"
+#      - "15673:15672" #rabbit UI
+#    restart: always
+
 
   zookeeper:
     image: zookeeper:3.4
@@ -24,6 +35,14 @@ services:
       - "zookeeper:zookeeper"
 
   storm-supervisor:
+    image: storm:1.0.3
+    command: bash -c "storm supervisor"
+    restart: always
+    links:
+      - "zookeeper:zookeeper"
+      - "storm-nimbus:nimbus"
+
+  storm-supervisor1:
     image: storm:1.0.3
     command: bash -c "storm supervisor"
     restart: always

@@ -8,6 +8,7 @@ import org.uniroma2.sdcc.Traffic.StreetTrafficREST;
 import java.io.*;
 import java.net.*;
 import java.util.List;
+import java.util.TimerTask;
 
 import static java.lang.Thread.sleep;
 
@@ -15,7 +16,7 @@ import static java.lang.Thread.sleep;
  * This component request every 10 seconds through Traffic REST API
  * values of percentage of current traffic level along a street.
  */
-public class TrafficSource {
+public class TrafficSource extends TimerTask {
 
     private static String MEMCACHED_SERVER = "localhost";
     private static int MEMCACHED_PORT = 11211;
@@ -24,10 +25,20 @@ public class TrafficSource {
     private static Gson gson;
     private static StreetTrafficREST streetTrafficREST;
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public TrafficSource() {
+    }
+
+    @Override
+    public void run() {
 
         initialization();
+        String json_street_list = getTrafficData();
 
+        saveCurrentData(json_street_list);
+    }
+
+    /*
+    public static void main(String[] args) throws IOException, InterruptedException {
         while (true) {
 
             String json_street_list = getTrafficData();
@@ -37,14 +48,14 @@ public class TrafficSource {
             // requesting for data every 10 seconds
             sleep(10000);
         }
-    }
+    } */
 
     /**
      * Save current traffic level information in memory.
      *
      * @param json_street_list body of response to GET request
      */
-    private static void saveCurrentData(String json_street_list) {
+    private void saveCurrentData(String json_street_list) {
 
         if (json_street_list != null) {
             // save in memory
@@ -59,7 +70,7 @@ public class TrafficSource {
      *
      * @return JSON list traffic data fro all streets
      */
-    private static String getTrafficData() {
+    private String getTrafficData() {
 
         List<TrafficData> street_list = streetTrafficREST.getAllCityStreetsTraffic();
 
@@ -72,7 +83,7 @@ public class TrafficSource {
     /**
      * Initialize data
      */
-    private static void initialization() {
+    private void initialization() {
 
         try {
             memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER, MEMCACHED_PORT));
@@ -82,4 +93,6 @@ public class TrafficSource {
         gson = new Gson();
         streetTrafficREST = new StreetTrafficREST();
     }
+
+
 }

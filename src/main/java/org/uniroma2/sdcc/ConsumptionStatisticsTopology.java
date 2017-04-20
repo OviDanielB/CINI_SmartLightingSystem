@@ -47,7 +47,8 @@ public class ConsumptionStatisticsTopology {
 
         Config config = new Config();
 
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+        /*
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("/Users/ovidiudanielbarba/IdeaProjects/CINI_SmartLightingSystem/config/config.yml");
 
         try {
             ServiceConfig serviceConfig = yamlConfigRunner.getConfiguration()
@@ -63,7 +64,12 @@ public class ConsumptionStatisticsTopology {
             hourly_window = HOURLY_WINDOWSLEN;
             daily_window = DAILY_WINDOWLEN;
             daily_emit_frequency = DAILY_EMIT_FREQUENCY;
-        }
+        } */
+
+        tickfrequency = TICKTIME_DEFAULT;
+        hourly_window = HOURLY_WINDOWSLEN;
+        daily_window = DAILY_WINDOWLEN;
+        daily_emit_frequency = DAILY_EMIT_FREQUENCY;
 
         TopologyBuilder builder = new TopologyBuilder();
 
@@ -95,7 +101,7 @@ public class ConsumptionStatisticsTopology {
                 WEEKLY_EMIT_FREQUENCY, tickfrequency), 3)
                 .fieldsGrouping("AggregateDaily", new Fields("street"));
 
-        builder.setBolt("printer", new PrinterBolt(), 1)
+        builder.setBolt("printer", new PrinterBolt(args[1]), 1)
                 .shuffleGrouping("HourlyBolt")
                 .shuffleGrouping("AggregateHourly")
                 .shuffleGrouping("AggregateDaily")

@@ -2,6 +2,7 @@ package org.uniroma2.sdcc;
 
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
+import org.apache.storm.StormSubmitter;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.*;
@@ -50,7 +51,8 @@ public class Topologies {
         int daily_emit_frequency = DAILY_EMIT_FREQUENCY;
 
         Config config = new Config();
-        config.setDebug(true);
+        config.setNumWorkers(3);
+        //config.setDebug(true);
         //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
@@ -78,10 +80,11 @@ public class Topologies {
          */
 
         /* Lamps' data source  */
-        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout());
+        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(args[0]),3);
 
         /* Check of format correctness of received tuples   */
-        builder.setBolt(FILTER_BOLT, new FilteringBolt())
+        builder.setBolt(FILTER_BOLT, new FilteringBolt(),3)
+                .setNumTasks(6)
                 .shuffleGrouping(RABBIT_SPOUT);
 
 
@@ -98,7 +101,7 @@ public class Topologies {
                 .shuffleGrouping(FILTER_BY_LIFETIME_BOLT);
 
         /* Global ranking f the first K lamps with greater "lifetime" */
-        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size))
+        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size,args[1]))
                 .allGrouping(PARTIAL_RANK_BOLT);
 
         /*
@@ -128,7 +131,7 @@ public class Topologies {
                 WEEKLY_EMIT_FREQUENCY, tickfrequency), 3)
                 .fieldsGrouping("AggregateDaily", new Fields("street"));
 
-        builder.setBolt("printer", new PrinterBolt(), 1)
+        builder.setBolt("printer", new PrinterBolt(args[1]), 1)
                 .shuffleGrouping("HourlyBolt")
                 .shuffleGrouping("AggregateHourly")
                 .shuffleGrouping("AggregateDaily")
@@ -145,16 +148,20 @@ public class Topologies {
                 .allGrouping(FILTER_BOLT)
                 .fieldsGrouping(FILTER_BOLT, new Fields(Constants.ADDRESS));
 
-        builder.setBolt(NOT_RESPONDING_LAMP_BOLT, new NotRespondingLampBolt())
+        builder.setBolt(NOT_RESPONDING_LAMP_BOLT, new NotRespondingLampBolt(args[1]),3)
+                .setNumTasks(5)
                 .fieldsGrouping(MALFUNCTION_CHECK_BOLT, new Fields(Constants.ID));
 
-        builder.setBolt(ANALYZE_CONTROL_BOLT, new AnalyzeBolt())
+        builder.setBolt(ANALYZE_CONTROL_BOLT, new AnalyzeBolt(), 5)
+                .setNumTasks(10)
                 .fieldsGrouping(NOT_RESPONDING_LAMP_BOLT, new Fields(Constants.ADDRESS));
 
-        builder.setBolt(PLAN_CONTROL_BOLT, new PlanBolt())
+        builder.setBolt(PLAN_CONTROL_BOLT, new PlanBolt(),3)
+                .setNumTasks(6)
                 .fieldsGrouping(ANALYZE_CONTROL_BOLT, new Fields(Constants.ID));
 
-        builder.setBolt(EXECUTE_CONTROL_BOLT, new ExecuteBolt())
+        builder.setBolt(EXECUTE_CONTROL_BOLT, new ExecuteBolt(),10)
+                .setNumTasks(20)
                 .fieldsGrouping(PLAN_CONTROL_BOLT, new Fields(Constants.ID));
 
 
@@ -162,15 +169,16 @@ public class Topologies {
             DECLARE CLUSTER AND SUBMIT TOPOLOGY
          */
 
+        /*
         LocalCluster cluster = new LocalCluster();
         cluster.submitTopology("Monitoring", config, builder.createTopology());
 
         Thread.sleep(3600 * 1000);
 
         cluster.killTopology("Monitoring");
-        cluster.shutdown();
+        cluster.shutdown(); */
 
-//        StormSubmitter.submitTopology("Monitoring", config, builder.createTopology());
+        StormSubmitter.submitTopology("Monitoring", config, builder.createTopology());
     }
 
 }

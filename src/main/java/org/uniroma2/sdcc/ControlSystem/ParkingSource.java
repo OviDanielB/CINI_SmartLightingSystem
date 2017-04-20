@@ -7,6 +7,7 @@ import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.TimerTask;
 
 import static java.lang.Thread.sleep;
 
@@ -14,7 +15,7 @@ import static java.lang.Thread.sleep;
  * This component request every 10 seconds through Parking REST API
  * values of percentage of current parking occupation of all car parks' cells.
  */
-public class ParkingSource {
+public class ParkingSource extends TimerTask{
 
     private static String REST_SERVER = "localhost";
     private static int REST_PORT = 3000;
@@ -25,27 +26,29 @@ public class ParkingSource {
     private static int MEMCACHED_PORT = 11211;
     private static MemcachedClient memcachedClient;
 
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-
+    @Override
+    public void run() {
         initializeMem();
+        String responseBody = getParkingOccupation();
+        saveCurrentData(responseBody);
+    }
 
+    /*
+    public static void main(String[] args) throws IOException, InterruptedException {
+        initializeMem();
         // asking forever (every 10 seconds) parking information
         while (true) {
-
             String responseBody = getParkingOccupation();
-
             saveCurrentData(responseBody);
-
             // requesting for data every 10 seconds
             sleep(10000);
         }
-    }
+    } */
 
     /**
      * Initialize memory client.
      */
-    private static void initializeMem() {
+    private  void initializeMem() {
 
         try {
             memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER, MEMCACHED_PORT));
@@ -59,7 +62,7 @@ public class ParkingSource {
      *
      * @param responseBody body of response to GET request
      */
-    private static void saveCurrentData(String responseBody) {
+    private void saveCurrentData(String responseBody) {
 
         if ((responseBody = getParkingOccupation()) != null) {
             // save in memory
@@ -74,7 +77,7 @@ public class ParkingSource {
      *
      * @return response body to GET request
      */
-    private static String getParkingOccupation() {
+    private String getParkingOccupation() {
 
         org.apache.http.client.HttpClient httpClient = HttpClientBuilder.create().build();
         HttpGet httpGet = new HttpGet(REST_URL);
@@ -88,6 +91,8 @@ public class ParkingSource {
             return null;
         }
     }
+
+
 }
 
 

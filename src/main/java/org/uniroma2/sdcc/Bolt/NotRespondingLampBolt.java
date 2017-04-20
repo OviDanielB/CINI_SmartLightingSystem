@@ -40,6 +40,11 @@ public class NotRespondingLampBolt implements IRichBolt {
 
     private static final String LOG_TAG = "[CINI] [NotRespondingLampBolt] ";
 
+    private String host = "localhost";
+    public NotRespondingLampBolt(String host) {
+        this.host = host;
+    }
+
     /**
      * Bolt initialization
      *
@@ -55,7 +60,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         notRespondingCount = new ConcurrentHashMap<>();
         noResponseLampsToRabbit = new ConcurrentLinkedQueue<>();
 
-        startPeriodicResponseChecker();
+        startPeriodicResponseChecker(host);
     }
 
     /**
@@ -129,7 +134,7 @@ public class NotRespondingLampBolt implements IRichBolt {
      * periodically parses notRespondingCount hash map to determine those street lamps that haven't
      * sent messages for NO_RESPONSE_INTERVAL time
      */
-    private void startPeriodicResponseChecker() {
+    private void startPeriodicResponseChecker(String host) {
 
         /* start periodic producer on queue */
         Timer timer = new Timer();
@@ -139,7 +144,7 @@ public class NotRespondingLampBolt implements IRichBolt {
 
         /* start consumer thread on queue */
         Timer consumerTimer = new Timer();
-        QueueConsumerToRabbit consumerToRabbit = new QueueConsumerToRabbit(noResponseLampsToRabbit);
+        QueueConsumerToRabbit consumerToRabbit = new QueueConsumerToRabbit(noResponseLampsToRabbit,host);
         consumerTimer.schedule(consumerToRabbit,6000, 1000 * RESPONSE_CHECKER_PERIOD);
 
 
@@ -266,15 +271,18 @@ public class NotRespondingLampBolt implements IRichBolt {
         /* message -> json -> rabbit*/
         private Gson gson;
 
-        private  final String HOST = "localhost";
+        private  final String HOST = "rabbit_dashboard";
         private  final Integer PORT =  5673;
         private  final String  EXCHANGE_NAME = "dashboard_exchange";
         /* topic based pub/sub */
         private  final String EXCHANGE_TYPE = "topic";
         private  final String ROUTING_KEY = "dashboard.anomalies";
 
+        private String host = "localhost";
+
         /* constructor */
-        public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue) {
+        public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue,String host) {
+            this.host = host;
             this.queue = queue;
             gson = new Gson();
             rabbitConnection();
@@ -283,7 +291,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         /* set connection attributes */
         private void rabbitConnection() {
             factory = new ConnectionFactory();
-            factory.setHost(HOST);
+            factory.setHost(host);
             factory.setPort(PORT);
 
             tryConnection();

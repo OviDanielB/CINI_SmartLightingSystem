@@ -69,7 +69,7 @@ public class RankingOldestLampsTopology {
                 .shuffleGrouping(FILTER_BY_LIFETIME_BOLT);
 
         /* Global ranking f the first K lamps with greater "lifetime" */
-        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size))
+        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size,args[1]))
                 .allGrouping(PARTIAL_RANK_BOLT);
 
 
