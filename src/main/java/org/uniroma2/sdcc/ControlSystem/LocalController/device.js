@@ -1,4 +1,5 @@
 
+
 const deviceModule = require('aws-iot-device-sdk');
 const cmdLineProcess = require('./lib/cmdline');
 const momentRandom = require('moment-random');
@@ -17,14 +18,15 @@ var intensity = (Math.round(Math.random() * 1000)) / 10;    // light intensity i
 var street;
 var cellID;
 // cellID -1 with probability 0.5
-var num = randomInt(1000, 31000);
-if (num <= (1000 + (30000*0.5)))
-    cellID = num;
+var n1 = randomInt(1000, 31000);
+if (n1 <= (1000 + (30000*0.5)))
+    cellID = n1;
 else
     cellID = -1;
 
 // state ON (true) with probability 0.8
-var state = (num <= (1000 + (30000*0.8)));
+var n2 = randomInt(0,1);
+var state = (n2 <= 0.8);
 
 var street_number;
 var number_type;
