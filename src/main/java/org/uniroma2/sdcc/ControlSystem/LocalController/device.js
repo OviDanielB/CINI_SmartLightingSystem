@@ -1,4 +1,4 @@
-//app deps
+
 const deviceModule = require('aws-iot-device-sdk');
 const cmdLineProcess = require('./lib/cmdline');
 const momentRandom = require('moment-random');
@@ -16,50 +16,35 @@ var thingID;                                                // thing id
 var intensity = (Math.round(Math.random() * 1000)) / 10;    // light intensity in percentage
 var street;
 var cellID;
-
+// cellID -1 with probability 0.5
 var num = randomInt(1000, 31000);
-if (num <= 16000)
+if (num <= (1000 + (30000*0.5)))
     cellID = num;
 else
     cellID = -1;
 
+// state ON (true) with probability 0.8
+var state = (num <= (1000 + (30000*0.8)));
+
+var street_number;
+var number_type;
+var n = randomInt(1, 25000);
+street_number = n;
+// civic street number if random value smaller than 300, else km street number
+if (n <= 300)
+    number_type = "CIVIC";
+else
+    number_type = "KM";
+
 var clientTokenUpdate;
 
-/*
- Generate Id for device thing.
- If id does'n exist yet it is used to attach certificate.
- */
-var found = false;
-function generate() {
-    var id = randomInt(0, 1000);
-    var params = {
-        attributeName: 'id',
-        attributeValue: id.toString(),
-        maxResults: 1
-    };
 
-    list(params);
-}
 
-/*
- List all device with attribute id generate to test if already exists or not.
- */
-function list(params) {
 
-    iot.listThings(params, function (err, data) {
-        if (err) console.log(err, err.stack); // an error occurred
-        if (data.things.length == 0 && found == false) {
-            found = true;
-            thingID = params.attributeValue;
-            createThing(params.attributeValue);
-        } else if (data.things.length != 0 && found == false) {
-            generate();
-        }
-    });
-}
-
-/*
- Create thing with generated id
+/**
+ * Create an IoT Thing.
+ *
+ * @param thingID generated id.
  */
 function createThing(thingID) {
 
@@ -75,14 +60,52 @@ function createThing(thingID) {
         thingTypeName: 'streetlamp'
     };
     iot.createThing(params, function (err, data) {
-        if (err) console.log(err, err.stack); // an error occurred
+        if (err) console.log(err, err.stack);               // an error occurred
         else {
-            console.log('\ndevice thing created\n');           // successful response
+            console.log('\ndevice thing created\n');        // successful response
             createCertificate();
         }
     });
 }
 
+/**
+ * Generate Id for device thing.
+ * If id does'n exist yet it is used to attach certificate.
+ */
+var found = false;
+function generate() {
+    var id = randomInt(0, 1000);
+    var params = {
+        attributeName: 'id',
+        attributeValue: id.toString(),
+        maxResults: 1
+    };
+
+    list(params);
+}
+
+/**
+ * List all device with attribute specified to test if already exists or not.
+ *
+ * @param params id to search by
+ */
+function list(params) {
+
+    iot.listThings(params, function (err, data) {
+        if (err) console.log(err, err.stack); // an error occurred
+        if (data.things.length == 0 && found == false) {
+            found = true;
+            thingID = params.attributeValue;
+            createThing(params.attributeValue);
+        } else if (data.things.length != 0 && found == false) {
+            generate();
+        }
+    });
+}
+
+/**
+ * Create a certificate for the Thing created.
+ */
 function createCertificate() {
 // create certificate
     params = {
@@ -95,8 +118,8 @@ function createCertificate() {
     });
 }
 
-/*
- Called when creation of certificate and keys returns
+/**
+ * Called when creation of certificate and keys returns
  */
 var credential;
 function handleData(KeyandCert) {
@@ -126,9 +149,9 @@ function handleData(KeyandCert) {
 
 }
 
-/*
- The device subscribe and publish on topic.
- Communication takes place via mqtts.
+/**
+ * Device subscribe to topic "control" and publish on topic "data".
+ * Communication takes place via MQTTS protocol.
  */
 function device_work(args) {
 
@@ -154,8 +177,8 @@ function device_work(args) {
     });
 
 
-    // subscrive topic intensity to receive value to set
-    // device.subscribe('control');
+    // subscribe topic intensity to receive value to set
+    //device.subscribe('control');
 
     // callback every delay seconds
     timeout = setInterval(function () {
@@ -164,30 +187,34 @@ function device_work(args) {
         ));
     }, delay);
 
-
     // generate json data
     function generateState() {
         var consumption = Math.round(Math.random(0, 1) * 100 / 100);
         return {
-            "ID": thingID,
-            "state": 1,
-            "lampModel": "LED",
-            "address": {
-                "name": street,
-                "number": randomInt(1, 100),
-                "numberType": "CIVIC"
-            },
-            "cellID": cellID,
-            "lightIntensity": intensity,
-            "consumption": consumption,
+            "streetLamp" : {
+                "ID": thingID,
+                "on": state,
+                "lampModel": "LED",
+                "address": {
+                    "name": street,
+                    "number": street_number,
+                    "numberType": number_type
+                },
+                "cellID": cellID,
+                "lightIntensity": intensity,
+                "consumption": consumption,
 
-            "lifetime": {
-                "date": {"year": lifetimeDate.year(), "month": lifetimeDate.month(), "day": lifetimeDate.day()},
-                "time": {
-                    "hour": lifetimeDate.hour(),
-                    "minute": lifetimeDate.minute(),
-                    "second": lifetimeDate.second(),
-                    "nano": 0
+                "lifetime": {
+                    "date": {
+                        "year": lifetimeDate.year(),
+                        "month": lifetimeDate.month(),
+                        "day": lifetimeDate.day()},
+                    "time": {
+                        "hour": lifetimeDate.hour(),
+                        "minute": lifetimeDate.minute(),
+                        "second": lifetimeDate.second(),
+                        "nano": 0
+                    }
                 }
             },
             "timestamp": new Date().getTime(),
@@ -278,9 +305,11 @@ function device_work(args) {
         if (json.id == thingID)
             intensity = json.intensity;
     });
-
 }
 
+/**
+ * Connect to IoT Service.
+ */
 function iot_connection() {
     if (require.main === module) {
         cmdLineProcess('connect to the AWS IoT service and publish/subscribe to topics using MQTT',
@@ -288,6 +317,13 @@ function iot_connection() {
     }
 }
 
+/**
+ * Read a specific line of a file.
+ *
+ * @param filename path to file
+ * @param line_no number of line to read
+ * @param callback
+ */
 function get_line(filename, line_no, callback) {
     var data = fs.readFileSync(filename, 'utf8');
     var lines = data.split("\n");
@@ -299,11 +335,19 @@ function get_line(filename, line_no, callback) {
     callback(null, lines[+line_no]);
 }
 
+/**
+ *  Generate random int between two edges.
+ *
+ *  @param low minimum value
+ *  @param high maximum value
+ */
 function randomInt(low, high) {
     return Math.floor(Math.random() * (high - low) + low);
 }
 
+// Read streets from file
 get_line('./address_list.txt', randomInt(0, 99), function (err, line) {
-    street = line;
+    street = line.toUpperCase();
 });
+// Send data
 generate();
