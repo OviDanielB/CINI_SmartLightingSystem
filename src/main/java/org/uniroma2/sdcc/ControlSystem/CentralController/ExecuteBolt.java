@@ -1,9 +1,11 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
+import clojure.lang.IFn;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSClient;
 import com.amazonaws.services.sns.model.PublishRequest;
+import com.amazonaws.services.sns.model.PublishResult;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import org.apache.storm.task.OutputCollector;
@@ -17,6 +19,7 @@ import org.uniroma2.sdcc.Utils.HeliosLog;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
@@ -46,6 +49,8 @@ public class ExecuteBolt extends BaseRichBolt{
 
     private ExecutorService executorService;
     private static final Integer THREAD_NUMBER = 4;
+
+    protected static volatile Integer count = 0;
     
 
 
@@ -70,7 +75,7 @@ public class ExecuteBolt extends BaseRichBolt{
      * create fixed thread pool of consumer threads waiting
      * on the queue for messages to send to SNS
      */
-    private void startSNSWritingThreadPool() {
+    protected void startSNSWritingThreadPool() {
 
         executorService = Executors.newFixedThreadPool(THREAD_NUMBER);
 
@@ -102,7 +107,7 @@ public class ExecuteBolt extends BaseRichBolt{
      * block if capacity full
      * @param message to be sent
      */
-    private void produceOnQueue(String message) {
+    protected void produceOnQueue(String message) {
         try {
             queue.put(message);
         } catch (InterruptedException e) {
@@ -116,7 +121,7 @@ public class ExecuteBolt extends BaseRichBolt{
      * @param tuple collection of values from incoming stream
      * @return message composed; empty string if json parsing failed
      */
-    private String composeMessage(Tuple tuple) {
+    protected String composeMessage(Tuple tuple) {
 
         // retrieve data from incoming tuple
         Integer id =                (Integer) tuple.getValueByField(Constants.ID);
@@ -153,13 +158,15 @@ public class ExecuteBolt extends BaseRichBolt{
      * Runnable task which waits on a queue for messages
      * to be inserted and sends them on an sns connection
      */
-    private class SNSWriter implements Runnable{
+    protected static class SNSWriter implements Runnable{
 
         private ArrayBlockingQueue<String> queue;
 
         private AmazonSNS sns;
         /* sns topic Amazon Resource Name to identify topic */
         private final static String SNS_TOPIC_ARN = "arn:aws:sns:eu-west-1:369927171895:control";
+
+        private PublishResult lastResult;
 
         public SNSWriter(ArrayBlockingQueue<String> queue) {
             this.queue = queue;
@@ -170,19 +177,49 @@ public class ExecuteBolt extends BaseRichBolt{
          * connect to Amazon Web Services SNS service
          * in Ireland (EU_WEST_1)
          */
-        private void snsConnect() {
+        protected void snsConnect() {
+            ExecuteBolt.count++;
             this.sns = AmazonSNSClient.builder().withRegion(Regions.EU_WEST_1).build();
+            if(isConnected()){
+                HeliosLog.logOK(LOG_TAG,"SNS CONNECTED " + count);
+            }
         }
 
         @Override
         public void run() {
             try {
                 String message = queue.take();
-                sns.publish(new PublishRequest(SNS_TOPIC_ARN,message));
-                System.out.println("Thread ID " + Thread.currentThread().getId() + " published on SNS");
-            } catch (InterruptedException e) {
+                if(isConnected()){
+                    lastResult = sns.publish(new PublishRequest(SNS_TOPIC_ARN,message));
+
+                    HeliosLog.logOK(LOG_TAG,"Thread " + Thread.currentThread().getId() + " wrote on SNS " + message);
+                } else {
+                    HeliosLog.logFail(LOG_TAG, "SNS connection not available");
+                }
+            } catch (Exception e) {
                 e.printStackTrace();
+                HeliosLog.logFail(LOG_TAG, "Message not sent on SNS.");
             }
+        }
+
+        /**
+         * check if sns connection is available
+         * @return true if connection present, false otherwise
+         */
+        public boolean isConnected(){
+            return sns != null;
+        }
+
+        /**
+         * check if last message on queue
+         * was sent correctly
+         * @return
+         */
+        public boolean lastMessageSent(){
+            if(lastResult != null){
+                return lastResult.getMessageId() != null;
+            }
+            return false;
         }
     }
 }
