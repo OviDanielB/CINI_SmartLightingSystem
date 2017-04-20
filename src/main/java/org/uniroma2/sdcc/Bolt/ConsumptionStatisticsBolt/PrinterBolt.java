@@ -10,6 +10,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Utils.Config.RabbitConfig;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
@@ -67,8 +68,8 @@ public class PrinterBolt extends BaseRichBolt {
     public void execute(Tuple tuple) {
 
         if (!TupleHelpers.isTickTuple(tuple)) {
-            Gson gson = new Gson();
-            String toEmit = gson.toJson(tuple);
+
+            String toEmit = JSONConverter.fromTuple();
 
             System.out.println("[CINI] [Printer] " + toEmit);
 

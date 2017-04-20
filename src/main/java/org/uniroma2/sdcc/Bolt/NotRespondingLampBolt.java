@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import com.google.gson.Gson;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -13,6 +12,7 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -269,7 +269,6 @@ public class NotRespondingLampBolt implements IRichBolt {
         private ConnectionFactory factory;
 
         /* message -> json -> rabbit*/
-        private Gson gson;
 
         private  final String HOST = "rabbit_dashboard";
         private  final Integer PORT =  5673;
@@ -284,7 +283,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue,String host) {
             this.host = host;
             this.queue = queue;
-            gson = new Gson();
+
             rabbitConnection();
         }
 
@@ -340,7 +339,7 @@ public class NotRespondingLampBolt implements IRichBolt {
             while( (message = queue.poll()) != null){
 
                 /* convert to json */
-                jsonMsg = gson.toJson(message);
+                jsonMsg = JSONConverter.fromAnomalyStreetLampMessage(message);
                 System.out.println(LOG_TAG + " sending " + jsonMsg);
                 try {
 

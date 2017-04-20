@@ -11,6 +11,7 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 
 import java.time.LocalDateTime;
@@ -65,18 +66,8 @@ public class FilteringBolt extends BaseRichBolt {
 
             String json = (String) tuple.getValueByField(Constants.JSON_STRING);
 
-            StreetLampMessage streetLampMessage;
-            try {
-                Gson gson = new Gson();
-            /* JSON to Java object, read it from a Json String. */
-                streetLampMessage = gson.fromJson(json, StreetLampMessage.class);
-                if (streetLampMessage == null) {
-                    collector.ack(tuple);
-                    return;
-                }
-            } catch (JsonParseException e) {
-            /* wrong json format */
-                e.printStackTrace();
+            StreetLampMessage streetLampMessage = JSONConverter.toStreetLampMessage(json);
+            if (streetLampMessage == null) {
                 collector.ack(tuple);
                 return;
             }

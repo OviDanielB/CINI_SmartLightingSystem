@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import net.spy.memcached.MemcachedClient;
 import org.uniroma2.sdcc.Model.TrafficData;
 import org.uniroma2.sdcc.Traffic.StreetTrafficREST;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.io.*;
 import java.net.*;
@@ -22,7 +23,6 @@ public class TrafficSource extends TimerTask {
     private static int MEMCACHED_PORT = 11211;
     private static MemcachedClient memcachedClient;
 
-    private static Gson gson;
     private static StreetTrafficREST streetTrafficREST;
 
     public TrafficSource() {
@@ -75,7 +75,7 @@ public class TrafficSource extends TimerTask {
         List<TrafficData> street_list = streetTrafficREST.getAllCityStreetsTraffic();
 
         if (street_list != null) {
-            return gson.toJson(street_list);
+            return JSONConverter.fromTrafficDataList(street_list);
         }
         return null;
     }
@@ -90,7 +90,6 @@ public class TrafficSource extends TimerTask {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        gson = new Gson();
         streetTrafficREST = new StreetTrafficREST();
     }
 

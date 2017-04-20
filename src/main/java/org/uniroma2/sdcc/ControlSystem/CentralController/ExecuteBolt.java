@@ -3,6 +3,8 @@ package org.uniroma2.sdcc.ControlSystem.CentralController;
 import clojure.lang.IFn;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.AmazonSNSAsync;
+import com.amazonaws.services.sns.AmazonSNSAsyncClient;
 import com.amazonaws.services.sns.AmazonSNSClient;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
@@ -15,6 +17,7 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Utils.HeliosLog;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +36,6 @@ import java.util.stream.IntStream;
 public class ExecuteBolt extends BaseRichBolt{
 
     private OutputCollector collector;
-    private Gson gson;
     private AmazonSNS sns;
     private static final String LOG_TAG = "[ExecuteBolt]";
     /* Amazon SNS connection */
@@ -64,7 +66,6 @@ public class ExecuteBolt extends BaseRichBolt{
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
-        this.gson = new Gson();
         this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
 
         startSNSWritingThreadPool();
@@ -134,11 +135,7 @@ public class ExecuteBolt extends BaseRichBolt{
 
         String json_adapted_lamp;
 
-        try {
-            json_adapted_lamp = gson.toJson(adapted_lamp);
-        } catch (JsonParseException e ){
-            return "";
-        }
+        json_adapted_lamp = JSONConverter.fromAdaptedLamp(adapted_lamp);
 
         return json_adapted_lamp;
     }

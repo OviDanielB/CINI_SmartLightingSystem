@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
-import com.google.gson.Gson;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -11,6 +10,7 @@ import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.ParkingData;
 import org.uniroma2.sdcc.Model.TrafficData;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.util.Map;
 
@@ -27,7 +27,6 @@ import java.util.Map;
 public class PlanBolt extends BaseRichBolt {
 
     private OutputCollector collector;
-    private Gson gson;
 
     private Float adapted_intensity; // final computed intensity to resolve anomalies
 
@@ -41,7 +40,6 @@ public class PlanBolt extends BaseRichBolt {
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
-        this.gson = new Gson();
     }
 
 
@@ -58,10 +56,8 @@ public class PlanBolt extends BaseRichBolt {
         Float intensity = tuple.getFloatByField(Constants.INTENSITY);
         Float toIncreaseGap = tuple.getFloatByField(Constants.GAP_TO_INCREASE);
         Float toDecreaseGap = tuple.getFloatByField(Constants.GAP_TO_DECREASE);
-        TrafficData traffic = gson.fromJson(tuple.getStringByField(Constants.TRAFFIC_BY_ADDRESS),
-                TrafficData.class);
-        ParkingData parking = gson.fromJson(tuple.getStringByField(Constants.PARKING_BY_CELLID),
-                ParkingData.class);
+        TrafficData traffic = JSONConverter.toTrafficData(tuple.getStringByField(Constants.TRAFFIC_BY_ADDRESS));
+        ParkingData parking = JSONConverter.toParkingData(tuple.getStringByField(Constants.PARKING_BY_CELLID));
 
         adaptByTrafficLevelAndAnomalies(toIncreaseGap, toDecreaseGap, intensity, traffic, parking);
 

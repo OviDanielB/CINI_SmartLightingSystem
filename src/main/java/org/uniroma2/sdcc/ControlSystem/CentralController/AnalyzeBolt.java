@@ -15,6 +15,7 @@ import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
 import org.uniroma2.sdcc.Utils.Config.ControlConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -37,9 +38,6 @@ import java.util.*;
 public class AnalyzeBolt extends BaseRichBolt {
 
     private OutputCollector collector;
-    private Gson gson;
-    private Type listTypeTraffic;
-    private Type listTypeParking;
     private MemcachedClient memcachedClient;
     private final static String MEMCACHED_SERVER = "localhost";
     private final static int MEMCACHED_PORT = 11211;
@@ -67,13 +65,8 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
-        this.gson = new Gson();
         this.trafficDataList = new ArrayList<>();
         this.parkingDataList = new ArrayList<>();
-        this.listTypeTraffic = new TypeToken<ArrayList<TrafficData>>() {
-        }.getType();
-        this.listTypeParking = new TypeToken<ArrayList<ParkingData>>() {
-        }.getType();
 
         try {
             memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER,
@@ -168,7 +161,7 @@ public class AnalyzeBolt extends BaseRichBolt {
         String json_parkingDataList;
         try {
             json_parkingDataList = (String) memcachedClient.get("parking_list");
-            return gson.fromJson(json_parkingDataList, listTypeParking);
+            return JSONConverter.toParkingDataListData(json_parkingDataList);
         } catch (Exception e) {
             return new ArrayList<>();
         }
@@ -184,7 +177,7 @@ public class AnalyzeBolt extends BaseRichBolt {
         String json_trafficDataList;
         try {
             json_trafficDataList = (String) memcachedClient.get("traffic_list");
-            return gson.fromJson(json_trafficDataList, listTypeTraffic);
+            return JSONConverter.toTrafficDataListData(json_trafficDataList);
         } catch (Exception e) {
             return new ArrayList<>();
         }
@@ -238,9 +231,9 @@ public class AnalyzeBolt extends BaseRichBolt {
                 values.add(intensity);
                 values.add(toIncreaseGap);
                 values.add(toDecreaseGap);
-                String json_trafficData = gson.toJson(trafficData);
+                String json_trafficData = JSONConverter.fromTrafficData(trafficData);
                 values.add(json_trafficData);
-                String json_parkingData = gson.toJson(parkingData);
+                String json_parkingData = JSONConverter.fromParkingData(parkingData);
                 values.add(json_parkingData);
 
                 collector.emit(tuple, values);

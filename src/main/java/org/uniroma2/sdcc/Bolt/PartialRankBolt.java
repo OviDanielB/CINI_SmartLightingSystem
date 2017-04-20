@@ -10,6 +10,7 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.Address;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
 import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
 
@@ -29,7 +30,6 @@ public class PartialRankBolt extends BaseRichBolt {
 
     private OutputCollector collector;
     private OldestKRanking ranking;
-    private Gson gson;
     private int k;
 
 
@@ -49,7 +49,6 @@ public class PartialRankBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.ranking = new OldestKRanking(k);
-        this.gson = new Gson();
     }
 
     /**
@@ -74,7 +73,7 @@ public class PartialRankBolt extends BaseRichBolt {
         if (updated) {
             List<RankLamp> oldestK = ranking.getOldestK();
 
-            String serializedRanking = gson.toJson(oldestK);
+            String serializedRanking = JSONConverter.fromRankLampList(oldestK);
 
             Values values = new Values();
             values.add(serializedRanking);

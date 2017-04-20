@@ -15,6 +15,7 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Model.AddressNumberType;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
 import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
 import org.uniroma2.sdcc.Utils.Ranking.RankingResults;
@@ -42,8 +43,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private OutputCollector collector;
     private OldestKRanking ranking;
     private int K;
-    private Gson gson;
-    private Type listType;
 
     /* rabbitMQ connection */
     private final static String RABBIT_HOST = "rabbit_dashboard";
@@ -79,8 +78,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.ranking = new OldestKRanking(K);
-        this.gson = new Gson();
-        this.listType = new TypeToken<ArrayList<RankLamp>>(){}.getType();
 
         try {
             memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCAC_HOST, MEMCAC_PORT));
@@ -154,13 +151,16 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
                 if (json_ranking != null) {
 
                     RankingResults results = new RankingResults(
-                            gson.fromJson(json_ranking,listType), oldIds.size());
+                            JSONConverter.toRankLampListData(json_ranking), oldIds.size());
 
-                    json_results = gson.toJson(results);
+                    json_results = JSONConverter.fromRankingResults(results);
 
-                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, json_results.getBytes());
+                    if (json_results != null) {
 
-                    System.out.println(LOG_TAG + "Sent : " + json_results);
+                        channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, json_results.getBytes());
+
+                        System.out.println(LOG_TAG + "Sent : " + json_results);
+                    }
                 }
 
             } catch (IOException e) {
@@ -183,12 +183,12 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         List<RankLamp> sent_ranking;
         try{
             json_sent_ranking = memcachedClient.get("sent_global_ranking").toString();
-            sent_ranking = gson.fromJson(json_sent_ranking, listType);
+            sent_ranking = JSONConverter.toRankLampListData(json_sent_ranking);
 
         } catch (Exception e) {
             sent_ranking = new ArrayList<>();
         }
-        List<RankLamp> current_ranking = gson.fromJson(json_ranking, listType);
+        List<RankLamp> current_ranking = JSONConverter.toRankLampListData(json_ranking);
         for (int i=0; i<current_ranking.size(); i++) {
             if (sent_ranking.size()==0
                     || current_ranking.get(i).getId() != sent_ranking.get(i).getId()) {
@@ -212,7 +212,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
         String serializedRanking = tuple.getStringByField(PartialRankBolt.RANKING);
 
-        List<RankLamp> partialRanking = gson.fromJson(serializedRanking, listType);
+        List<RankLamp> partialRanking = JSONConverter.toRankLampListData(serializedRanking);
 
 		/* Update global rank */
         boolean updated = false;
@@ -225,7 +225,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
             List<RankLamp> globalOldestK = ranking.getOldestK();
 
-            String json_ranking = gson.toJson(globalOldestK);
+            String json_ranking = JSONConverter.fromRankLampList(globalOldestK);
 
             memcachedClient.set("current_global_rank",0, json_ranking);
         }
