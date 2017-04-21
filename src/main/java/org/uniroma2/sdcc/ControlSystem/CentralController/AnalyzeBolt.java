@@ -138,7 +138,7 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        emitAnalyzedDataTuple(tuple, trafficDataList, parkingDataList);
+        emitAnalyzedDataTuple(tuple);
 
         collector.ack(tuple);
     }
@@ -176,67 +176,84 @@ public class AnalyzeBolt extends BaseRichBolt {
      * because they are broken and they cannot be contacted to adaptation.
      *
      * @param tuple                    received from spout tuple
-     * @param totalTrafficData         list of all streets with their traffic level percentage
-     * @param totalParkingData         list of all cellIDs with their parking occupation percentage
      */
-    private void emitAnalyzedDataTuple(Tuple tuple, List<TrafficData> totalTrafficData, List<ParkingData> totalParkingData) {
+    protected void emitAnalyzedDataTuple(Tuple tuple) {
 
-        Integer id = (Integer) tuple.getValueByField(Constants.ID);
-        Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
-        Integer cellID = (Integer) tuple.getValueByField(Constants.CELL);
-        Float intensity = (Float) tuple.getValueByField(Constants.INTENSITY);
+        Values values;
+        if ( (values = changeRequired(tuple)) != null)
+            collector.emit(values);
+
+    }
+
+    /**
+     * If there are anomalies that cannot be resolved (e.i. DAMAGE_BULB, NOT RESPONDING)
+     * or both no anomalous lamp and no significant traffic level or cell parking occupation
+     * percentages have been measured, change is not required.
+     * @param tuple received
+     * @return values to emit; null if tuple to reject
+     */
+    protected Values changeRequired(Tuple tuple) {
+
+        Integer id =        tuple.getIntegerByField(Constants.ID);
+        Address address =   (Address) tuple.getValueByField(Constants.ADDRESS);
+        Integer cellID =    tuple.getIntegerByField(Constants.CELL);
+        Float intensity =   tuple.getFloatByField(Constants.INTENSITY);
 
         TrafficData trafficData;
         /* check traffic availability */
-        if ((trafficData = getTrafficByStreet(totalTrafficData, address.getName())) == null)
+        if ((trafficData = getTrafficByStreet(trafficDataList, address.getName())) == null)
             trafficData = new TrafficData(address.getName(), 0f);
 
         ParkingData parkingData;
         /* check parking availability */
-        if ((parkingData = getParkingByCellID(totalParkingData, cellID)) == null)
+        if ((parkingData = getParkingByCellID(parkingDataList, cellID)) == null)
             parkingData = new ParkingData(cellID, address.getName(), 0f);
 
         HashMap<MalfunctionType, Float> anomalies =
                 (HashMap<MalfunctionType,Float>) tuple.getValueByField(Constants.MALFUNCTIONS_TYPE);
 
-
-        /* Control on other anomalies cannot be resolved
-           (e.i. DAMAGE_BULB, NOT RESPONDING)
-           Change is not required if no anomalous lamp and no significant
-           traffic level or cell parking occupation percentage have been measured */
         if (!lampDamaged(anomalies)) {
 
             computeGapToSolve(anomalies);
 
-            if (changeRequired(trafficData, parkingData)) {
-
-                Values values = new Values();
-                values.add(id);
-                values.add(intensity);
-                values.add(toIncreaseGap);
-                values.add(toDecreaseGap);
-                String json_trafficData = JSONConverter.fromTrafficData(trafficData);
-                values.add(json_trafficData);
-                String json_parkingData = JSONConverter.fromParkingData(parkingData);
-                values.add(json_parkingData);
-
-                collector.emit(tuple, values);
-            }
+            return changesNecessary(id, intensity, trafficData, parkingData);
         }
+        return null;
     }
 
     /**
-     * Check if data observed require an adapting operation.
+     * Data observed require to plan an adapting operation only if:
+     * - gap to increase is not null
+     * - gap to decrease is not null
+     * - traffic percentage is greater than a defined threshold
+     * - parking percentage is greater than a defined threshold
      *
+     * @param id lamp id
+     * @param intensity lamp current intensity
      * @param trafficData traffic level
      * @param parkingData cell occupation
-     * @return true if lamp has to be adapted
+     * @return values to emit; null if tuple to reject
      */
-    private boolean changeRequired(TrafficData trafficData, ParkingData parkingData) {
-        return !toIncreaseGap.equals(0f)
+    private Values changesNecessary(Integer id, Float intensity, TrafficData trafficData, ParkingData parkingData) {
+
+        if ( !toIncreaseGap.equals(0f)
                 || !toDecreaseGap.equals(0f)
                 || trafficData.getCongestionPercentage() > traffic_tolerance
-                || parkingData.getOccupationPercentage() > parking_tolerance;
+                || parkingData.getOccupationPercentage() > parking_tolerance ) {
+
+            Values values = new Values();
+            values.add(id);
+            values.add(intensity);
+            values.add(toIncreaseGap);
+            values.add(toDecreaseGap);
+            String json_trafficData = JSONConverter.fromTrafficData(trafficData);
+            values.add(json_trafficData);
+            String json_parkingData = JSONConverter.fromParkingData(parkingData);
+            values.add(json_parkingData);
+
+            return values;
+        }
+        return null;
     }
 
     /**
@@ -267,7 +284,7 @@ public class AnalyzeBolt extends BaseRichBolt {
      * @param anomalies map between malfunction type and difference gap from correct value
      * @return true is lamp damaged
      */
-    private boolean lampDamaged(HashMap<MalfunctionType, Float> anomalies) {
+    protected boolean lampDamaged(HashMap<MalfunctionType, Float> anomalies) {
 
         return anomalies.get(MalfunctionType.NOT_RESPONDING) != null
                 || anomalies.get(MalfunctionType.DAMAGED_BULB) != null;

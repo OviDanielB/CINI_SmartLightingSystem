@@ -1,204 +1,248 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
-import org.junit.After;
+import com.google.gson.Gson;
+import org.apache.storm.Config;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.tuple.Tuple;
+import org.apache.storm.tuple.Values;
 import org.junit.Before;
 import org.junit.Test;
-import org.uniroma2.sdcc.Model.MalfunctionType;
-import org.uniroma2.sdcc.Model.ParkingData;
-import org.uniroma2.sdcc.Model.TrafficData;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.uniroma2.sdcc.Constants;
+import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.Cache.CacheManager;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * Test AnalyzeBolt operation.
  */
 public class AnalyzeBoltTest {
 
-    private Float traffic_tolerance = 20f;
-    private Float parking_tolerance = 20f;
+    private AnalyzeBolt bolt;
+    private Gson gson;
 
+    @Mock
+    private TopologyContext topologyContext;
+
+    @Mock
+    private OutputCollector outputCollector;
 
     @Before
-    public void setUp() throws Exception {
-        System.out.println("[CINI] [TEST] Beginning AnalyzeBolt Test");
+    public void setUp(){
+        MockitoAnnotations.initMocks(this);
+
+        gson = new Gson();
+
+        bolt = new AnalyzeBolt();
+        bolt.prepare(new Config(),topologyContext,outputCollector);
     }
 
     /**
-     * Test if without anomalies no gap to adapt is computed.
+     * Check value saved in memory is equal to that read from memory
+     * and prepare value to adapt operation.
      */
     @Test
-    public void Test1_noAnomalies() throws Exception {
+    public void checkMemoryWrite() {
 
-        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
-        anomalies.put(MalfunctionType.NONE,1f);
+        String trafficList ="[{\"street\":\"VIA CAMBRIDGE\"," +
+                "\"congestionPercentage\":40.0,"+
+                "\"timestamp\":1492785909974}," +
+                "{\"street\":\"VIA POLITECNICO\",\" +\n" +
+                "               \"congestionPercentage\":50.0,"+
+                "               \"timestamp\":1492785909974}]";
 
-        TrafficData trafficData = new TrafficData("Via Cambridge", 0f);
-        ParkingData parkingData = new ParkingData(1111, "Via Cambridge", 0f);
+        String parkingList ="[{\"cellID\":1111," +
+                "\"occupationPercentage\":50.0,"+
+                "\"timestamp\":1492785909974}," +
+                "{\"cellID\":\"VIA POLITECNICO\",\" +\n" +
+                "               \"occupationPercentage\":50.0,"+
+                "               \"timestamp\":1492785909974}]";
 
-        Float expected_toIncrease = 0f;
-        Float expected_toDecrease = 0f;
+        /* methods tested elsewhere  */
+        CacheManager cache = new MemcachedManager("localhost",11211);
 
-        List<Float> gap = computeAdaptationGaps(anomalies, trafficData, parkingData);
+        cache.put(MemcachedManager.TRAFFIC_LIST_KEY, trafficList);
+        cache.put(MemcachedManager.PARKING_LIST_KEY, parkingList);
 
-        assertEquals(gap.get(0), expected_toIncrease);
-        assertEquals(gap.get(1), expected_toDecrease);
+        assertEquals(trafficList, cache.get(MemcachedManager.TRAFFIC_LIST_KEY));
+        assertEquals(parkingList, cache.get(MemcachedManager.PARKING_LIST_KEY));
     }
 
     /**
-     * Test if lamp damaged no gap to adapt is computed, even if
+     * Test if a lamp is considered as damaged when NOT_RESPONDING type
+     * of anomaly is noticed.
+     */
+    @Test
+    public void lampDamaged() {
+        HashMap<MalfunctionType,Float> anomalies = new HashMap<>();
+        anomalies.put(MalfunctionType.NOT_RESPONDING, 1f);
+
+        assertTrue(bolt.lampDamaged(anomalies));
+    }
+
+    /**
+     * Test if a lamp is not considered as damaged when NOT_RESPONDING
+     * or DAMAGED_BULB anomaly types are not noticed.
+     */
+    @Test
+    public void lampNotDamaged() {
+        HashMap<MalfunctionType,Float> anomalies = new HashMap<>();
+        anomalies.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE, 10f);
+        anomalies.put(MalfunctionType.WEATHER_LESS, -10f);
+
+        assertFalse(bolt.lampDamaged(anomalies));
+    }
+
+    /**
+     * Test the main execute method;
+     * functionalities tested elsewhere
+     * @throws Exception
+     */
+    @Test
+    public void execute() throws Exception {
+
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.getIntegerByField(Constants.ID)).thenReturn(1111);
+        when(tuple.getValueByField(Constants.ADDRESS)).thenReturn(new Address("VIA CAMBRIDGE", 12, AddressNumberType.CIVIC));
+        when(tuple.getIntegerByField(Constants.CELL)).thenReturn(2222);
+        when(tuple.getFloatByField(Constants.INTENSITY)).thenReturn(40f);
+        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
+        anomalies.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, -20f);
+        anomalies.put(MalfunctionType.DAMAGED_BULB,1f);
+        when(tuple.getValueByField(Constants.MALFUNCTIONS_TYPE)).thenReturn(anomalies);
+
+        bolt.execute(tuple);
+    }
+
+    /**
+     * Verify if correct values to adapt are computed.
+     */
+    @Test
+    public void changeRequired() {
+
+        TrafficData trafficData = mock(TrafficData.class, withSettings().serializable());
+        when(trafficData.getStreet()).thenReturn("VIA CAMBRIDGE");
+        when(trafficData.getCongestionPercentage()).thenReturn(0f);
+        when(trafficData.getTimestamp()).thenReturn(System.currentTimeMillis());
+        String traffic ="{\"street\":\""+trafficData.getStreet()+"\"," +
+                "\"congestionPercentage\":"+ trafficData.getCongestionPercentage()+"," +
+                "\"timestamp\":1492785909974}";
+
+        ParkingData parkingData = mock(ParkingData.class, withSettings().serializable());
+        when(parkingData.getCellID()).thenReturn(2222);
+        when(parkingData.getOccupationPercentage()).thenReturn(0f);
+        when(parkingData.getTimestamp()).thenReturn(System.currentTimeMillis());
+        String parking ="{\"cellID\":"+parkingData.getCellID()+"," +
+                "\"occupationPercentage\":"+ parkingData.getOccupationPercentage()+"," +
+                "\"timestamp\":1492785909974}";
+
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.getIntegerByField(Constants.ID)).thenReturn(1111);
+        when(tuple.getValueByField(Constants.ADDRESS)).thenReturn(new Address("VIA CAMBRIDGE", 12, AddressNumberType.CIVIC));
+        when(tuple.getIntegerByField(Constants.CELL)).thenReturn(2222);
+        when(tuple.getFloatByField(Constants.INTENSITY)).thenReturn(40f);
+        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
+        anomalies.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS, -20f);
+        anomalies.put(MalfunctionType.WEATHER_MORE, 5f);
+        when(tuple.getValueByField(Constants.MALFUNCTIONS_TYPE)).thenReturn(anomalies);
+
+        Values expected_values = new Values();
+        expected_values.add(tuple.getIntegerByField(Constants.ID));
+        expected_values.add(tuple.getFloatByField(Constants.INTENSITY));
+        expected_values.add(20f);
+        expected_values.add(-5f);
+        expected_values.add(traffic);
+        expected_values.add(parking);
+
+        Values test_values = bolt.changeRequired(tuple);
+
+        for (int i=0; i<expected_values.size()-2;i++) {
+            assertEquals(expected_values.get(i), test_values.get(i));
+        }
+
+        assertEquals(gson.fromJson(traffic, TrafficData.class).getStreet(),
+                gson.fromJson(test_values.get(4).toString(), TrafficData.class).getStreet());
+        assertEquals(gson.fromJson(traffic, TrafficData.class).getCongestionPercentage(),
+                gson.fromJson(test_values.get(4).toString(), TrafficData.class).getCongestionPercentage());
+        assertEquals(gson.fromJson(traffic, TrafficData.class).getStreet(),
+                gson.fromJson(test_values.get(4).toString(), TrafficData.class).getStreet());
+        assertEquals(gson.fromJson(traffic, TrafficData.class).getCongestionPercentage(),
+                gson.fromJson(test_values.get(4).toString(), TrafficData.class).getCongestionPercentage());
+
+        assertEquals(gson.fromJson(parking, ParkingData.class).getCellID(),
+                gson.fromJson(test_values.get(5).toString(), ParkingData.class).getCellID());
+        assertEquals(gson.fromJson(parking, ParkingData.class).getOccupationPercentage(),
+                gson.fromJson(test_values.get(5).toString(), ParkingData.class).getOccupationPercentage());
+        assertEquals(gson.fromJson(parking, ParkingData.class).getCellID(),
+                gson.fromJson(test_values.get(5).toString(), ParkingData.class).getCellID());
+        assertEquals(gson.fromJson(parking, ParkingData.class).getOccupationPercentage(),
+                gson.fromJson(test_values.get(5).toString(), ParkingData.class).getOccupationPercentage());
+    }
+
+    /**
+     * Test if lamp damaged no values to adapt are computed, even if
      * can have some anomalies.
      */
     @Test
-    public void Test2_lampDamaged() throws Exception {
+    public void changeNotRequired() {
 
+        TrafficData trafficData = mock(TrafficData.class, withSettings().serializable());
+        when(trafficData.getStreet()).thenReturn("VIA CAMBRIDGE");
+        when(trafficData.getCongestionPercentage()).thenReturn(0f);
+        when(trafficData.getTimestamp()).thenReturn(System.currentTimeMillis());
+        String traffic ="{\"street\":\""+trafficData.getStreet()+"\"," +
+                "\"congestionPercentage\":"+ trafficData.getCongestionPercentage()+"," +
+                "\"timestamp\":1492785909974}";
+
+        ParkingData parkingData = mock(ParkingData.class, withSettings().serializable());
+        when(parkingData.getCellID()).thenReturn(2222);
+        when(parkingData.getOccupationPercentage()).thenReturn(0f);
+        when(parkingData.getTimestamp()).thenReturn(System.currentTimeMillis());
+        String parking ="{\"cellID\":"+parkingData.getCellID()+"," +
+                "\"occupationPercentage\":"+ parkingData.getOccupationPercentage()+"," +
+                "\"timestamp\":1492785909974}";
+
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.getIntegerByField(Constants.ID)).thenReturn(1111);
+        when(tuple.getValueByField(Constants.ADDRESS)).thenReturn(new Address("VIA CAMBRIDGE", 12, AddressNumberType.CIVIC));
+        when(tuple.getIntegerByField(Constants.CELL)).thenReturn(2222);
+        when(tuple.getFloatByField(Constants.INTENSITY)).thenReturn(40f);
         HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
-        anomalies.put(MalfunctionType.DAMAGED_BULB,1f);
-        anomalies.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE,10f);
+        anomalies.put(MalfunctionType.DAMAGED_BULB, 1f);
+        anomalies.put(MalfunctionType.WEATHER_MORE, 5f);
+        when(tuple.getValueByField(Constants.MALFUNCTIONS_TYPE)).thenReturn(anomalies);
 
-        TrafficData trafficData = new TrafficData("Via Cambridge", 0f);
-        ParkingData parkingData = new ParkingData(1111, "Via Cambridge", 0f);
-
-        Float expected_toIncrease = 0f;
-        Float expected_toDecrease = 0f;
-
-        List<Float> gap = computeAdaptationGaps(anomalies, trafficData, parkingData);
-
-        assertEquals(gap.get(0), expected_toIncrease);
-        assertEquals(gap.get(1), expected_toDecrease);
+        assertEquals(null, bolt.changeRequired(tuple));
     }
 
+
     /**
-     * Test if no change is required if no gap to adapt is computed and no
+     * Test if no change is required if no values to adapt are computed and no
      * relevant traffic congestion and parking occupation is measured.
      */
     @Test
-    public void Test3_noChangeRequired() throws Exception {
+    public void changeNotRequiredWithoutAnomaliesOrParkingOrTraffic() {
 
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.getIntegerByField(Constants.ID)).thenReturn(1111);
+        when(tuple.getValueByField(Constants.ADDRESS)).thenReturn(new Address("VIA CAMBRIDGE", 12, AddressNumberType.CIVIC));
+        when(tuple.getIntegerByField(Constants.CELL)).thenReturn(2222);
+        when(tuple.getFloatByField(Constants.INTENSITY)).thenReturn(40f);
         HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
-        anomalies.put(MalfunctionType.NONE,1f);
+        anomalies.put(MalfunctionType.NONE, 1f);
+        when(tuple.getValueByField(Constants.MALFUNCTIONS_TYPE)).thenReturn(anomalies);
 
-        TrafficData trafficData = new TrafficData("Via Cambridge", 10f);
-        ParkingData parkingData = new ParkingData(1111, "Via Cambridge", 10f);
-
-        Float expected_toIncrease = 0f;
-        Float expected_toDecrease = 0f;
-
-        List<Float> gap = computeAdaptationGaps(anomalies, trafficData, parkingData);
-
-        assertEquals(gap.get(0), expected_toIncrease);
-        assertEquals(gap.get(1), expected_toDecrease);
+        assertEquals(null, bolt.changeRequired(tuple));
     }
-
-    /**
-     * Test if change is required if no gap to adapt is computed but
-     * relevant traffic congestion and parking occupation are measured.
-     */
-    @Test
-    public void Test3_changeRequired() throws Exception {
-
-        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
-        anomalies.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS,-10f);
-
-        TrafficData trafficData = new TrafficData(
-                "Via Cambridge", 30f);
-        ParkingData parkingData = new ParkingData(
-                1111, "Via Cambridge", 30f);
-
-        Float expected_toIncrease = 10f;
-        Float expected_toDecrease = 0f;
-
-        List<Float> gap = computeAdaptationGaps(anomalies, trafficData, parkingData);
-
-        assertEquals(gap.get(0), expected_toIncrease);
-        assertEquals(gap.get(1), expected_toDecrease);
-    }
-
-    /**
-     * Test if with excess anomalies gap to decrease is computed.
-     */
-    @Test
-    public void Test3_gapWithAnomaliesAndParkingAndTraffic() throws Exception {
-
-        HashMap<MalfunctionType, Float> anomalies = new HashMap<>();
-        anomalies.put(MalfunctionType.WEATHER_MORE,15f);
-        anomalies.put(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS,-5f);
-
-        TrafficData trafficData = new TrafficData("Via Cambridge", 0f);
-        ParkingData parkingData = new ParkingData(1111, "Via Cambridge", 0f);
-
-        Float expected_toIncrease = 5f;
-        Float expected_toDecrease = -15f;
-
-        List<Float> gap = computeAdaptationGaps(anomalies, trafficData, parkingData);
-
-        assertEquals(gap.get(0), expected_toIncrease);
-        assertEquals(gap.get(1), expected_toDecrease);
-    }
-
-    private List<Float> computeAdaptationGaps(HashMap<MalfunctionType, Float> anomalies,
-                                              TrafficData trafficData, ParkingData parkingData) {
-
-        Float anomalyGap;
-        Float toIncreaseGap = 0f;
-        Float toDecreaseGap = 0f;
-
-        if (!lampDamaged(anomalies)) {
-
-            if ((anomalyGap = anomalies.get(MalfunctionType.WEATHER_LESS)) != null)
-                toIncreaseGap = Math.max(toIncreaseGap, -anomalyGap);   // MalfunctionType.WEATHER_LESS
-
-            if ((anomalyGap = anomalies.get(MalfunctionType.WEATHER_MORE)) != null)
-                toDecreaseGap = Math.min(toDecreaseGap, -anomalyGap);    // MalfunctionType.WEATHER_MORE
-
-            if ((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_LESS)) != null)
-                toIncreaseGap = Math.max(toIncreaseGap, -anomalyGap);   // MalfunctionType.LIGHT_INTENSITY_LESS
-
-            if ((anomalyGap = anomalies.get(MalfunctionType.LIGHT_INTENSITY_ANOMALY_MORE)) != null)
-                toDecreaseGap = Math.min(toDecreaseGap, -anomalyGap);    // MalfunctionType.LIGHT_INTENSITY_MORE
-
-            if (!changeRequired(toIncreaseGap, toDecreaseGap, trafficData, parkingData)) {
-                List<Float> gap = new ArrayList<>(2);
-                gap.add(0f);
-                gap.add(0f);
-                return gap;
-            }
-        }
-        List<Float> gap = new ArrayList<>(2);
-        gap.add(0,toIncreaseGap);
-        gap.add(1,toDecreaseGap);
-        return gap;
-    }
-
-    /**
-     * Check if the lamp has DAMAGED_BULB or NOT_RESPONDING type of anomaly.
-     *
-     * @param anomalies map between malfunction type and difference gap from correct value
-     * @return true is lamp damaged
-     */
-    private boolean lampDamaged(HashMap<MalfunctionType, Float> anomalies) {
-
-        return anomalies.get(MalfunctionType.NOT_RESPONDING) != null
-                || anomalies.get(MalfunctionType.DAMAGED_BULB) != null;
-    }
-
-    /**
-     * Check if data observed require an adapting operation.
-     */
-    private boolean changeRequired(Float toIncreaseGap, Float toDecreaseGap,
-                                   TrafficData trafficData, ParkingData parkingData) {
-        return !toIncreaseGap.equals(0f)
-                || !toDecreaseGap.equals(0f)
-                || trafficData.getCongestionPercentage() > traffic_tolerance
-                || parkingData.getOccupationPercentage() > parking_tolerance;
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        System.out.println("[CINI] [TEST] Ended AnalyzeBolt Test");
-    }
-
 }
