@@ -69,7 +69,7 @@ public class PrinterBolt extends BaseRichBolt {
 
         if (!TupleHelpers.isTickTuple(tuple)) {
 
-            String toEmit = JSONConverter.fromTuple();
+            String toEmit = JSONConverter.fromTuple(tuple);
 
             System.out.println("[CINI] [Printer] " + toEmit);
 

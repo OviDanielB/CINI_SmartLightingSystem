@@ -77,6 +77,9 @@ public class JSONConverter {
      * @return List<TrafficData> object
      */
     public static List<TrafficData> toTrafficDataListData(String json) {
+        if(json == null){
+            return null;
+        }
         try {
             return gson.fromJson(json, listTrafficDataType);
         } catch (JsonParseException e) {
@@ -134,6 +137,9 @@ public class JSONConverter {
      * @return List<ParkingData> object
      */
     public static List<ParkingData> toParkingDataListData(String json) {
+        if(json == null){
+            return null;
+        }
         try {
             return gson.fromJson(json, listParkingDataType);
         } catch (JsonParseException e) {

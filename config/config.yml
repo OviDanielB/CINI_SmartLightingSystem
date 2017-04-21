@@ -19,12 +19,12 @@ statisticsTopologyParams:
 
 queue_in:
   queue_name: 'storm'
-  hostname: 'rabbit'
+  hostname: 'localhost'
   port: 5672
 
 queue_out:
   queue_name: 'my-cookye'
-  hostname: 'rabbit_dashboard'
+  hostname: 'localhost'
   port: 5673
 
 rankingTopologyParams:

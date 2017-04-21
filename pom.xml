@@ -115,7 +115,7 @@
             <artifactId>storm-core</artifactId>
             <version>1.0.3</version>
             <!--> compile for LOCAL MODE, provided for real CLUSTER mode </!-->
-            <scope>provided</scope>
+            <scope>compile</scope>
         </dependency>
 
         <dependency>

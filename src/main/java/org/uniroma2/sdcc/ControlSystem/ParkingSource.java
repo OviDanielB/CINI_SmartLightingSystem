@@ -5,6 +5,9 @@ import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.uniroma2.sdcc.Utils.Cache.CacheManager;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.TimerTask;
@@ -15,46 +18,27 @@ import static java.lang.Thread.sleep;
  * This component request every 10 seconds through Parking REST API
  * values of percentage of current parking occupation of all car parks' cells.
  */
-public class ParkingSource extends TimerTask{
+public class ParkingSource extends TimerTask {
 
     private static String REST_SERVER = "localhost";
     private static int REST_PORT = 3000;
     private static String REST_URL =
             "http://" + REST_SERVER + ":" + REST_PORT + "/parking";
+    org.apache.http.client.HttpClient httpClient;
 
-    private static String MEMCACHED_SERVER = "localhost";
+    private static String MEMCACHED_HOST = "localhost";
     private static int MEMCACHED_PORT = 11211;
-    private static MemcachedClient memcachedClient;
+    private CacheManager cache;
+
+    public ParkingSource() {
+        cache = new MemcachedManager(MEMCACHED_HOST,MEMCACHED_PORT);
+        httpClient = HttpClientBuilder.create().build();
+    }
 
     @Override
     public void run() {
-        initializeMem();
         String responseBody = getParkingOccupation();
         saveCurrentData(responseBody);
-    }
-
-    /*
-    public static void main(String[] args) throws IOException, InterruptedException {
-        initializeMem();
-        // asking forever (every 10 seconds) parking information
-        while (true) {
-            String responseBody = getParkingOccupation();
-            saveCurrentData(responseBody);
-            // requesting for data every 10 seconds
-            sleep(10000);
-        }
-    } */
-
-    /**
-     * Initialize memory client.
-     */
-    private  void initializeMem() {
-
-        try {
-            memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER, MEMCACHED_PORT));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     /**
@@ -64,11 +48,8 @@ public class ParkingSource extends TimerTask{
      */
     private void saveCurrentData(String responseBody) {
 
-        if ((responseBody = getParkingOccupation()) != null) {
-            // save in memory
-            memcachedClient.set("parking_list", 0, responseBody);
-
-            System.out.println(" [ParkingSource] Received: " + responseBody + "\n");
+        if (responseBody != null) {
+            cache.put(MemcachedManager.PARKING_LIST_KEY,responseBody);
         }
     }
 
@@ -78,8 +59,6 @@ public class ParkingSource extends TimerTask{
      * @return response body to GET request
      */
     private String getParkingOccupation() {
-
-        org.apache.http.client.HttpClient httpClient = HttpClientBuilder.create().build();
         HttpGet httpGet = new HttpGet(REST_URL);
 
         // Execute HTTP GET Request to ParkingServer

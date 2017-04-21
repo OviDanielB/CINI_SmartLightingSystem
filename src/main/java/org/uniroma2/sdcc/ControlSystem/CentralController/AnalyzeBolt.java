@@ -1,8 +1,5 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import net.spy.memcached.MemcachedClient;
 import org.apache.storm.Config;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -13,13 +10,13 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.Cache.CacheManager;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
 import org.uniroma2.sdcc.Utils.Config.ControlConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
-import java.net.InetSocketAddress;
 import java.util.*;
 
 /**
@@ -38,8 +35,8 @@ import java.util.*;
 public class AnalyzeBolt extends BaseRichBolt {
 
     private OutputCollector collector;
-    private MemcachedClient memcachedClient;
-    private final static String MEMCACHED_SERVER = "localhost";
+    private CacheManager cache;
+    private final static String MEMCACHED_HOST = "localhost";
     private final static int MEMCACHED_PORT = 11211;
     private Float toIncreaseGap = 0f;           // positive max value to resolve the defecting anomalies
     private Float toDecreaseGap = 0f;           // negative min value to resolve the excess anomalies
@@ -68,12 +65,9 @@ public class AnalyzeBolt extends BaseRichBolt {
         this.trafficDataList = new ArrayList<>();
         this.parkingDataList = new ArrayList<>();
 
-        try {
-            memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCACHED_SERVER,
-                    MEMCACHED_PORT));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        /* create Memcached connection to cache traffic and parking data */
+        cache = new MemcachedManager(MEMCACHED_HOST,MEMCACHED_PORT);
+
         config();
         startTrafficAndParkingPeriodicUpdate();
     }
@@ -144,8 +138,6 @@ public class AnalyzeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-
-        // emit
         emitAnalyzedDataTuple(tuple, trafficDataList, parkingDataList);
 
         collector.ack(tuple);
@@ -158,13 +150,9 @@ public class AnalyzeBolt extends BaseRichBolt {
      */
     private List<ParkingData> getParkingDataInMemory() {
 
-        String json_parkingDataList;
-        try {
-            json_parkingDataList = (String) memcachedClient.get("parking_list");
-            return JSONConverter.toParkingDataListData(json_parkingDataList);
-        } catch (Exception e) {
-            return new ArrayList<>();
-        }
+        String json_parkingDataList = cache.get(MemcachedManager.PARKING_LIST_KEY);
+        return JSONConverter.toParkingDataListData(json_parkingDataList);
+
     }
 
     /**
@@ -174,13 +162,9 @@ public class AnalyzeBolt extends BaseRichBolt {
      */
     private List<TrafficData> getTrafficDataInMemory() {
 
-        String json_trafficDataList;
-        try {
-            json_trafficDataList = (String) memcachedClient.get("traffic_list");
-            return JSONConverter.toTrafficDataListData(json_trafficDataList);
-        } catch (Exception e) {
-            return new ArrayList<>();
-        }
+        String json_trafficDataList = cache.get(MemcachedManager.TRAFFIC_LIST_KEY);
+        return JSONConverter.toTrafficDataListData(json_trafficDataList);
+
     }
 
 
@@ -203,12 +187,12 @@ public class AnalyzeBolt extends BaseRichBolt {
         Float intensity = (Float) tuple.getValueByField(Constants.INTENSITY);
 
         TrafficData trafficData;
-        // check traffic availability
+        /* check traffic availability */
         if ((trafficData = getTrafficByStreet(totalTrafficData, address.getName())) == null)
             trafficData = new TrafficData(address.getName(), 0f);
 
         ParkingData parkingData;
-        // check parking availability
+        /* check parking availability */
         if ((parkingData = getParkingByCellID(totalParkingData, cellID)) == null)
             parkingData = new ParkingData(cellID, address.getName(), 0f);
 
@@ -216,10 +200,10 @@ public class AnalyzeBolt extends BaseRichBolt {
                 (HashMap<MalfunctionType,Float>) tuple.getValueByField(Constants.MALFUNCTIONS_TYPE);
 
 
-//      Control on other anomalies cannot be resolved
-//      (e.i. DAMAGE_BULB, NOT RESPONDING)
-//      Change is not required if no anomalous lamp and no significant
-//      traffic level or cell parking occupation percentage have been measured
+        /* Control on other anomalies cannot be resolved
+           (e.i. DAMAGE_BULB, NOT RESPONDING)
+           Change is not required if no anomalous lamp and no significant
+           traffic level or cell parking occupation percentage have been measured */
         if (!lampDamaged(anomalies)) {
 
             computeGapToSolve(anomalies);

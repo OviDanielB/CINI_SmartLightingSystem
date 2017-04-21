@@ -41,6 +41,10 @@ public class NotRespondingLampBolt implements IRichBolt {
     private static final String LOG_TAG = "[CINI] [NotRespondingLampBolt] ";
 
     private String host = "localhost";
+
+    public NotRespondingLampBolt() {
+    }
+
     public NotRespondingLampBolt(String host) {
         this.host = host;
     }

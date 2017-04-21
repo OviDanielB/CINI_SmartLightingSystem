@@ -53,34 +53,34 @@ public class AnomaliesDetectionTopology {
 
     public static void main(String[] args) throws Exception {
         Config config = new Config();
-        config.setNumWorkers(4);
+        //config.setNumWorkers(4);
         //config.setDebug(true);
         //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         TopologyBuilder builder = new TopologyBuilder();
-        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(),2);
+        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout());
 
-        builder.setBolt(FILTER_BOLT, new FilteringBolt(),4)
+        builder.setBolt(FILTER_BOLT, new FilteringBolt())
                 .setNumTasks(10)
                 .shuffleGrouping(RABBIT_SPOUT);
 
-        builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt(),3)
+        builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt())
                 .setNumTasks(8)
                 .fieldsGrouping(FILTER_BOLT,new Fields(Constants.ADDRESS));
 
-        builder.setBolt(NOT_RESPONDING_LAMP_BOLT,new NotRespondingLampBolt(args[1]),2)
+        builder.setBolt(NOT_RESPONDING_LAMP_BOLT,new NotRespondingLampBolt())
                 .setNumTasks(5)
                 .fieldsGrouping(MALFUNCTION_CHECK_BOLT,new Fields(Constants.ID));
 
-        builder.setBolt(ANALYZE_CONTROL_BOLT,new AnalyzeBolt(),8)
+        builder.setBolt(ANALYZE_CONTROL_BOLT,new AnalyzeBolt())
                 .setNumTasks(16)
                 .fieldsGrouping(NOT_RESPONDING_LAMP_BOLT,new Fields(Constants.ADDRESS));
 
-        builder.setBolt(PLAN_CONTROL_BOLT,new PlanBolt(),2)
+        builder.setBolt(PLAN_CONTROL_BOLT,new PlanBolt())
                 .setNumTasks(5)
                 .fieldsGrouping(ANALYZE_CONTROL_BOLT,new Fields(Constants.ID));
 
-        builder.setBolt(EXECUTE_CONTROL_BOLT,new ExecuteBolt(),2)
+        builder.setBolt(EXECUTE_CONTROL_BOLT,new ExecuteBolt())
                 .setNumTasks(5)
                 .fieldsGrouping(PLAN_CONTROL_BOLT,new Fields(Constants.ID));
 
@@ -89,19 +89,19 @@ public class AnomaliesDetectionTopology {
 
         /* LOCAL MODE */
 
-        /*
+
         LocalCluster cluster = new LocalCluster();
         cluster.submitTopology(QUERY_1_TOPOLOGY, config, builder.createTopology());
 
         Thread.sleep(600000);
 
         cluster.killTopology(QUERY_1_TOPOLOGY);
-        cluster.shutdown(); */
+        cluster.shutdown();
 
 
 
 
-        StormSubmitter.submitTopology(QUERY_1_TOPOLOGY,config,builder.createTopology());
+        //StormSubmitter.submitTopology(QUERY_1_TOPOLOGY,config,builder.createTopology());
 
     }
 
