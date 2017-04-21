@@ -28,8 +28,6 @@ public class PlanBolt extends BaseRichBolt {
 
     private OutputCollector collector;
 
-    private Float adapted_intensity; // final computed intensity to resolve anomalies
-
     /**
      * Bolt initialization
      *
@@ -51,27 +49,37 @@ public class PlanBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        // retrieve data from incoming tuple
+        Float adapted_intensity =
+                adaptByTrafficLevelAndAnomalies(tuple);
+
+        // send tuple to Execute adaptation of intensity
+        emitPlannedIntensity(tuple, adapted_intensity);
+
+        // if no adaptation needed rejected tuple
+        collector.ack(tuple);
+    }
+
+    /**
+     * If intensity calculated using data about anomalies, traffic and parking
+     * percentages is not equal to the current one, Analyze emit tuple with
+     * adaptation values to ExecuteBolt.
+     *
+     * @param tuple received
+     * @param adapted_intensity necessary
+     */
+    private void emitPlannedIntensity(Tuple tuple, Float adapted_intensity) {
+
         Integer id = tuple.getIntegerByField(Constants.ID);
         Float intensity = tuple.getFloatByField(Constants.INTENSITY);
-        Float toIncreaseGap = tuple.getFloatByField(Constants.GAP_TO_INCREASE);
-        Float toDecreaseGap = tuple.getFloatByField(Constants.GAP_TO_DECREASE);
-        TrafficData traffic = JSONConverter.toTrafficData(tuple.getStringByField(Constants.TRAFFIC_BY_ADDRESS));
-        ParkingData parking = JSONConverter.toParkingData(tuple.getStringByField(Constants.PARKING_BY_CELLID));
 
-        adaptByTrafficLevelAndAnomalies(toIncreaseGap, toDecreaseGap, intensity, traffic, parking);
-
-        // if needed adaptation, send tuple to Execute adaptation of intensity
-        if ( !adapted_intensity.equals(intensity) ) {
+        if (!intensity.equals(adapted_intensity)) {
 
             Values values = new Values();
             values.add(id);
             values.add(adapted_intensity);
 
-            collector.emit(tuple, values);
+            collector.emit(values);
         }
-        // if no adaptation needed rejected tuple
-        collector.ack(tuple);
     }
 
     /**
@@ -100,19 +108,27 @@ public class PlanBolt extends BaseRichBolt {
      * than TRAFFIC_THRESHOLD) and cell parking availability percentage (if greater than
      * PARKING_THRESHOLD).
      *
-     * @param toIncreaseGap amount of gap to add to current lamp intensity
-     * @param toDecreaseGap amount of gap to subtract to current lamp intensity
-     * @param current_intensity current lamp luminosity
-     * @param trafficData traffic data by street where the lamp is placed
-     * @param parkingData parking data by cellID where the lamp is placed
+     * @param tuple received
+     * @return computed adepted intensity value
      */
-    private void adaptByTrafficLevelAndAnomalies(Float toIncreaseGap, Float toDecreaseGap,
-                                                 Float current_intensity, TrafficData trafficData,
-                                                 ParkingData parkingData) {
+    protected Float adaptByTrafficLevelAndAnomalies(Tuple tuple) {
 
-        Float traffic = trafficData.getCongestionPercentage(); // traffic level percentage
-        Float parking = parkingData.getOccupationPercentage(); // parking occupation percentage
+        // retrieve data from incoming tuple
+        Float current_intensity = tuple.getFloatByField(Constants.INTENSITY);
+        Float toIncreaseGap = tuple.getFloatByField(Constants.GAP_TO_INCREASE);
+        Float toDecreaseGap = tuple.getFloatByField(Constants.GAP_TO_DECREASE);
+        TrafficData trafficData = JSONConverter.toTrafficData(tuple.getStringByField(Constants.TRAFFIC_BY_ADDRESS));
+        ParkingData parkingData = JSONConverter.toParkingData(tuple.getStringByField(Constants.PARKING_BY_CELLID));
 
+        Float traffic = 0f;
+        if (trafficData != null)
+            traffic = trafficData.getCongestionPercentage(); // traffic level percentage
+
+        Float parking = 0f;
+        if (parkingData != null)
+            parking = parkingData.getOccupationPercentage(); // parking occupation percentage
+
+        Float adapted_intensity;
         /*
          *  If there are both positive and negative luminosity gaps
          *  of distance from correct value, the positive one is preferred
@@ -146,5 +162,6 @@ public class PlanBolt extends BaseRichBolt {
                 adapted_intensity = adapted_intensity + parking * (100 - adapted_intensity)/100;
             }
         }
+        return adapted_intensity;
     }
 }
