@@ -80,10 +80,10 @@ public class Topologies {
          */
 
         /* Lamps' data source  */
-        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(args[0]),3);
+        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(args[0]), 3);
 
         /* Check of format correctness of received tuples   */
-        builder.setBolt(FILTER_BOLT, new FilteringBolt(),3)
+        builder.setBolt(FILTER_BOLT, new FilteringBolt(), 3)
                 .setNumTasks(6)
                 .shuffleGrouping(RABBIT_SPOUT);
 
@@ -101,7 +101,7 @@ public class Topologies {
                 .shuffleGrouping(FILTER_BY_LIFETIME_BOLT);
 
         /* Global ranking f the first K lamps with greater "lifetime" */
-        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size,args[1]))
+        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size, args[1]))
                 .allGrouping(PARTIAL_RANK_BOLT);
 
         /*
@@ -131,7 +131,7 @@ public class Topologies {
                 WEEKLY_EMIT_FREQUENCY, tickfrequency), 3)
                 .fieldsGrouping("AggregateDaily", new Fields("street"));
 
-        builder.setBolt("printer", new PrinterBolt(args[1]), 1)
+        builder.setBolt("printer", new PrinterBolt(), 1)
                 .shuffleGrouping("HourlyBolt")
                 .shuffleGrouping("AggregateHourly")
                 .shuffleGrouping("AggregateDaily")
@@ -148,7 +148,7 @@ public class Topologies {
                 .allGrouping(FILTER_BOLT)
                 .fieldsGrouping(FILTER_BOLT, new Fields(Constants.ADDRESS));
 
-        builder.setBolt(NOT_RESPONDING_LAMP_BOLT, new NotRespondingLampBolt(args[1]),3)
+        builder.setBolt(NOT_RESPONDING_LAMP_BOLT, new NotRespondingLampBolt(args[1]), 3)
                 .setNumTasks(5)
                 .fieldsGrouping(MALFUNCTION_CHECK_BOLT, new Fields(Constants.ID));
 
@@ -156,11 +156,11 @@ public class Topologies {
                 .setNumTasks(10)
                 .fieldsGrouping(NOT_RESPONDING_LAMP_BOLT, new Fields(Constants.ADDRESS));
 
-        builder.setBolt(PLAN_CONTROL_BOLT, new PlanBolt(),3)
+        builder.setBolt(PLAN_CONTROL_BOLT, new PlanBolt(), 3)
                 .setNumTasks(6)
                 .fieldsGrouping(ANALYZE_CONTROL_BOLT, new Fields(Constants.ID));
 
-        builder.setBolt(EXECUTE_CONTROL_BOLT, new ExecuteBolt(),10)
+        builder.setBolt(EXECUTE_CONTROL_BOLT, new ExecuteBolt(), 10)
                 .setNumTasks(20)
                 .fieldsGrouping(PLAN_CONTROL_BOLT, new Fields(Constants.ID));
 
