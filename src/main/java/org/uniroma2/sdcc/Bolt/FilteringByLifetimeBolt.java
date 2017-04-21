@@ -11,13 +11,14 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
-import org.uniroma2.sdcc.Utils.Config.ControlConfig;
 import org.uniroma2.sdcc.Utils.Config.RankingConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -34,7 +35,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     private int LIFETIME_THRESHOLD_DEFAULT = 7;
     private int lifetime_threshold;
     /*  number of old lamps  */
-    private HashMap<Integer,Integer> oldIds;
+    private HashMap<Integer, Integer> oldIds;
     private MemcachedClient memcachedClient;
 
     public FilteringByLifetimeBolt() {
@@ -43,7 +44,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     /**
      * Bolt initialization
      *
-     * @param map map
+     * @param map             map
      * @param topologyContext context
      * @param outputCollector collector
      */
@@ -69,7 +70,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         config.setDebug(true);
         //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
         try {
             RankingConfig rankingConfig = yamlConfigRunner.getConfiguration()
@@ -93,16 +94,16 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     public void execute(Tuple tuple) {
 
         try {
-            oldIds = (HashMap<Integer,Integer>)
+            oldIds = (HashMap<Integer, Integer>)
                     memcachedClient.get("old_counter");
         } catch (Exception e) {
             this.oldIds = new HashMap<>();
         }
 
-        int id =                    (int) tuple.getValueByField(Constants.ID);
-        Address address =           (Address) tuple.getValueByField(Constants.ADDRESS);
-        LocalDateTime lifetime =    (LocalDateTime) tuple.getValueByField(Constants.LIFETIME);
-        Long timestamp =            (Long) tuple.getValueByField(Constants.TIMESTAMP);
+        int id = (int) tuple.getValueByField(Constants.ID);
+        Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
+        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constants.LIFETIME);
+        Long timestamp = (Long) tuple.getValueByField(Constants.TIMESTAMP);
 
         emitClassifiableLampTuple(tuple, id, address, lifetime, timestamp);
 
@@ -113,17 +114,17 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      * Check and emit only tuple with value of lifetime > LIFETIME_THRESHOLD
      * and save id in memory if true.
      *
-     * @param tuple received from FilteringBolt
-     * @param id parsed from tuple
-     * @param address parsed from tuple
-     * @param lifetime parsed from tuple
+     * @param tuple     received from FilteringBolt
+     * @param id        parsed from tuple
+     * @param address   parsed from tuple
+     * @param lifetime  parsed from tuple
      * @param timestamp parsed from tuple
      */
     private void emitClassifiableLampTuple(
             Tuple tuple, int id, Address address, LocalDateTime lifetime, Long timestamp) {
 
         if (isOlderThan(lifetime)) {
-            oldIds.put(id,1);
+            oldIds.put(id, 1);
             memcachedClient.set("old_counter", 0, oldIds);
 
             collector.emit(tuple, new Values(id, address, lifetime, timestamp));
@@ -141,14 +142,14 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      * LIFETIME_THRESHOLD to be considered quite old.
      *
      * @param lifetime value of lamp to be considered
-     *
      * @return true if quite old, false otherwise
      */
     private boolean isOlderThan(LocalDateTime lifetime) {
 
-        LocalDateTime d2 = LocalDateTime.now();
+        ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
+        LocalDateTime d2 = currentDate.toLocalDateTime();
         /* difference between now and lifetime */
-        long diff = ChronoUnit.DAYS.between(lifetime,d2);
+        long diff = ChronoUnit.DAYS.between(lifetime, d2);
 
         return diff > lifetime_threshold;
     }

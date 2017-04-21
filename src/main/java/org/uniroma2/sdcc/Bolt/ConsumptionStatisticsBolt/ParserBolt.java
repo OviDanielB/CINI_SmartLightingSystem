@@ -14,7 +14,8 @@ import org.uniroma2.sdcc.Utils.TupleHelpers;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.TimeZone;
+
+import static java.time.ZoneOffset.UTC;
 
 /**
  * Bolt to adjust incoming tuple to be emit.
@@ -29,7 +30,7 @@ public class ParserBolt extends BaseRichBolt {
     /**
      * Bolt initialization
      *
-     * @param map map
+     * @param map             map
      * @param topologyContext context
      * @param outputCollector collector
      */
@@ -47,11 +48,12 @@ public class ParserBolt extends BaseRichBolt {
             Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
             Float consumption = tuple.getFloatByField(Constants.CONSUMPTION);
             Long timestamp = tuple.getLongByField(Constants.TIMESTAMP);
-            LocalDateTime ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), TimeZone
-                    .getDefault().toZoneId());
+            LocalDateTime ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), UTC);
 
             collector.emit(new Values(id, address.getName(), consumption, ts));
         }
+
+        collector.ack(tuple);
     }
 
     @Override

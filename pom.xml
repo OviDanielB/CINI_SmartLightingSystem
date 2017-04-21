@@ -84,13 +84,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>net.spy</groupId>
-            <artifactId>spymemcached</artifactId>
-            <version>2.12.2</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-opensdk</artifactId>
             <version>1.11.94</version>

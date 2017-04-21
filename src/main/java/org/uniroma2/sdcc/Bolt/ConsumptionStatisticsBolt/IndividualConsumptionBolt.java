@@ -74,6 +74,8 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
                 window.updatedConsumptionAvg(key, hourAvg, timestamp);
 
         }
+
+        collector.ack(tuple);
     }
 
     /**

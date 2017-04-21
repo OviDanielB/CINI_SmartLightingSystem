@@ -118,7 +118,7 @@ public class RabbitMQSpout extends BaseRichSpout {
      */
     protected void configureRabbit() {
 
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner("./config/config.yml");
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
         try {
             RabbitConfig rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_in();
