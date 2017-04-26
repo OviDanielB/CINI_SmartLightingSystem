@@ -4,14 +4,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.uniroma2.sdcc.Utils.Cache.CacheManager;
 import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
-import org.uniroma2.sdcc.Utils.HeliosLog;
-import sun.misc.Cache;
 
 import static org.junit.Assert.*;
 
 /**
  * Test for Memcached connection,
- * put and get operation
+ * put and getString operation
  *
  * YOU MUST HAVE AN ACTIVE MEMCACHED SERVER
  * ON localhost:11211 ELSE THE TEST PASSES
@@ -37,7 +35,7 @@ public class MemcachedManagerTest {
     public void putAndGet() throws Exception {
 
         if(cache.put(TEST_KEY,TEST_VALUE)){
-            String received  = cache.get(TEST_KEY);
+            String received  = cache.getString(TEST_KEY);
             if(received != null){
                 assertTrue(received.equals(TEST_VALUE));
             }

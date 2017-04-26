@@ -1,11 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import net.spy.memcached.MemcachedClient;
 import org.apache.storm.Config;
 import org.apache.storm.Constants;
 import org.apache.storm.task.OutputCollector;
@@ -13,22 +7,21 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
-import org.uniroma2.sdcc.Model.Address;
-import org.uniroma2.sdcc.Model.AddressNumberType;
+import org.uniroma2.sdcc.Utils.Cache.CacheManager;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
+import org.uniroma2.sdcc.Utils.HeliosLog;
 import org.uniroma2.sdcc.Utils.JSONConverter;
+import org.uniroma2.sdcc.Utils.MOM.PubSubManager;
+import org.uniroma2.sdcc.Utils.MOM.RabbitPubSubManager;
 import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
 import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
 import org.uniroma2.sdcc.Utils.Ranking.RankingResults;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Type;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 /**
  * This Bolt merges rankings arriving from PartialRankBolts
@@ -39,32 +32,25 @@ import java.util.concurrent.TimeoutException;
 public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private static final String LOG_TAG = "[CINI] [GlobalRankBolt] ";
+    private static final String LOG_TAG = "[GlobalRankBolt]";
     private OutputCollector collector;
     private OldestKRanking ranking;
     private int K;
 
-    /* rabbitMQ connection */
-    private final static String RABBIT_HOST = "rabbit_dashboard";
-    private final static Integer RABBIT_PORT = 5673;
-    private  final String  EXCHANGE_NAME = "dashboard_exchange";
-    /* topic based pub/sub */
-    private  final String EXCHANGE_TYPE = "topic";
-    private  final String ROUTING_KEY = "dashboard.rank";
-    private Connection connection;
-    private Channel channel;
 
+    /* topic based pub/sub on rabbitMQ */
+    private PubSubManager pubSubManager;
+    private final String ROUTING_KEY = "dashboard.rank";
 
+    /* cache connection attributes */
     private final static String MEMCAC_HOST = "localhost";
     private final static Integer MEMCAC_PORT = 11211;
-    private MemcachedClient memcachedClient;
-
-    private String host = "localhost";
+    private CacheManager cache;
 
 
-    public GlobalRankBolt(int K,String host) {
+
+    public GlobalRankBolt(int K) {
         this.K = K;
-        this.host = host;
     }
 
     /**
@@ -79,35 +65,10 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         this.collector = outputCollector;
         this.ranking = new OldestKRanking(K);
 
-        try {
-            memcachedClient = new MemcachedClient(new InetSocketAddress(MEMCAC_HOST, MEMCAC_PORT));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.cache = new MemcachedManager(MEMCAC_HOST,MEMCAC_PORT);
 
-        establishRabbitConnection();
-    }
-
-    /**
-     * Connect to RabbitMQ to send ranking info to
-     * dashboard.
-     */
-    private void establishRabbitConnection() {
-
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(RABBIT_HOST);
-        factory.setPort(RABBIT_PORT);
-
-        try {
-            connection = factory.newConnection();
-            channel = connection.createChannel();
-            channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
-            System.out.println(LOG_TAG + "Rabbit connection established on " + RABBIT_HOST + "/" + RABBIT_PORT);
-
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
-            System.out.println(LOG_TAG + "Rabbit Connection Failed.");
-        }
+        /* connect to rabbit with attributes taken from config file */
+        pubSubManager = new RabbitPubSubManager();
 
     }
 
@@ -137,36 +98,30 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     private void sendWindowRank() {
 
-        String json_ranking = memcachedClient.get("current_global_rank").toString();
-        HashMap<Integer,Integer> oldIds = (HashMap<Integer, Integer>)
-                memcachedClient.get("old_counter");
+        /* get values from cache */
+        String json_ranking = cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK);
+        HashMap<Integer,Integer> oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
 
         // send to dashboard only if ranking has been updated
         if (rankingUpdated(json_ranking)) {
 
             String json_results;
 
-            try {
-                /* send to queue with routing key */
-                if (json_ranking != null) {
+            /* send to queue with routing key */
+            if (json_ranking != null) {
 
-                    RankingResults results = new RankingResults(
-                            JSONConverter.toRankLampListData(json_ranking), oldIds.size());
+                RankingResults results = new RankingResults(
+                        JSONConverter.toRankLampListData(json_ranking), oldIds.size());
 
-                    json_results = JSONConverter.fromRankingResults(results);
+                json_results = JSONConverter.fromRankingResults(results);
 
-                    if (json_results != null) {
+                /* publish on queue */
+                pubSubManager.publish(ROUTING_KEY, json_results);
 
-                        channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, json_results.getBytes());
+                HeliosLog.logOK(LOG_TAG, "Sent : " + json_results);
 
-                        System.out.println(LOG_TAG + "Sent : " + json_results);
-                    }
-                }
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.out.println(LOG_TAG + "Failed sending mess to Rabbit.");
             }
+
         }
     }
 
@@ -179,26 +134,22 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     private boolean rankingUpdated(String json_ranking) {
 
-        String json_sent_ranking;
-        List<RankLamp> sent_ranking;
-        try{
-            json_sent_ranking = memcachedClient.get("sent_global_ranking").toString();
-            sent_ranking = JSONConverter.toRankLampListData(json_sent_ranking);
+        String json_sent_ranking = cache.getString(MemcachedManager.SENT_GLOBAL_RANKING);
 
-        } catch (Exception e) {
-            sent_ranking = new ArrayList<>();
-        }
+        /* convert to json */
+        List<RankLamp> sent_ranking = JSONConverter.toRankLampListData(json_sent_ranking);
         List<RankLamp> current_ranking = JSONConverter.toRankLampListData(json_ranking);
-        for (int i=0; i<current_ranking.size(); i++) {
-            if (sent_ranking.size()==0
-                    || current_ranking.get(i).getId() != sent_ranking.get(i).getId()) {
-                // updated last valid global ranking in memory
-                // if ranking list contains different lamp IDs or in a different order
-                // or no previous valid global ranking was sent
-                memcachedClient.set("sent_global_ranking",0, json_ranking);
-                return true;
-            }
+
+        /* if two lists are different, update cache */
+        if(current_ranking.stream().filter(e -> {
+            Integer index =  current_ranking.indexOf(e);
+            return  e.getId() != sent_ranking.get(index).getId();
+        }).count() > 0) {
+
+            cache.put(MemcachedManager.SENT_GLOBAL_RANKING, json_ranking);
+            return true;
         }
+
         return false;
     }
 
@@ -227,7 +178,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
             String json_ranking = JSONConverter.fromRankLampList(globalOldestK);
 
-            memcachedClient.set("current_global_rank",0, json_ranking);
+            cache.put(MemcachedManager.CURRENT_GLOBAL_RANK, json_ranking);
         }
     }
 

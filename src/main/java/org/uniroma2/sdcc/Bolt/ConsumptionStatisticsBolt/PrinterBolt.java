@@ -1,44 +1,31 @@
 package org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt;
 
-import com.google.gson.Gson;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
-import org.uniroma2.sdcc.Utils.Config.RabbitConfig;
+import org.uniroma2.sdcc.Utils.HeliosLog;
 import org.uniroma2.sdcc.Utils.JSONConverter;
+import org.uniroma2.sdcc.Utils.MOM.PubSubManager;
+import org.uniroma2.sdcc.Utils.MOM.RabbitPubSubManager;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
-import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
-import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 /**
  * @author emanuele
  */
 public class PrinterBolt extends BaseRichBolt {
 
-    private RabbitConfig rabbitConfig;
+    private static final String LOG_TAG = "[PrinterBolt]";
 
-    /* rabbitMQ connection */
-    private final static String EXCHANGE_NAME = "dashboard_exchange";
-    /* topic based pub/sub */
-    private final static String EXCHANGE_TYPE = "topic";
+    private PubSubManager pubSubManager;
+
+    /* topic based pub/sub routing key*/
     private final static String ROUTING_KEY = "dashboard.statistics.";
-    private Channel channel;
 
     private OutputCollector collector;
-
-    public PrinterBolt() throws IOException {
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
-        rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_out();
-    }
-
 
     /**
      * Bolt initialization
@@ -49,8 +36,10 @@ public class PrinterBolt extends BaseRichBolt {
      */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
-        /* connect to rabbit */
-        establishRabbitConnection();
+
+        /* connect to rabbit , takes connection attributes from config file */
+        this.pubSubManager = new RabbitPubSubManager();
+
         this.collector = outputCollector;
     }
 
@@ -61,52 +50,38 @@ public class PrinterBolt extends BaseRichBolt {
 
             String toEmit = JSONConverter.fromTuple(tuple);
 
-            System.out.println("[CINI] [Printer] " + toEmit);
+            HeliosLog.logOK(LOG_TAG,"Sent : " + toEmit);
 
-            try {
-
-                if (toEmit.contains("id")) {
-                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "lamps", null, toEmit.getBytes());
-                } else if(toEmit.contains("*")){
-                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "global", null, toEmit.getBytes());
-                } else {
-                    channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY + "streets", null, toEmit.getBytes());
-
-                }
-                System.out.println("[CINI][PrintBolt] Sent : " + toEmit);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
+            /* publish on rabbit queue with relative routing key */
+            pubSubManager.publish(composeRoutingKey(toEmit),toEmit);
         }
 
         collector.ack(tuple);
 
     }
 
-    @Override
-    public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
+    /**
+     * compose routing key based on received message
+     * to differentiate consumption statistics on final
+     * queue
+     * @param toEmit message to send
+     * @return relative routing key
+     */
+    private String composeRoutingKey(String toEmit) {
+        String routingKey = ROUTING_KEY;
+
+        if(toEmit.contains("id")){
+            return routingKey + "lamps";
+        } else if(toEmit.contains("*")){
+            return routingKey + "global";
+        } else {
+            return routingKey + "streets";
+        }
     }
 
-    /**
-     * connect to RabbitMQ to send statistics info to
-     * dashboard
-     */
-    private void establishRabbitConnection() {
-
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(rabbitConfig.getHostname());
-        factory.setPort(rabbitConfig.getPort());
-
-        try {
-            Connection connection = factory.newConnection();
-            channel = connection.createChannel();
-            channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
-
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
-        }
-
+    @Override
+    public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
+        /* nothing to declare, final bolt */
     }
 
 }

@@ -44,7 +44,7 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
          * if tick tuple then increment counter.
          * If counter is emitFrequencyInSeconds/tickFrequency then emit.
          *
-         * Otherwise get timestamp for incoming tuple. If it corresponds to
+         * Otherwise getString timestamp for incoming tuple. If it corresponds to
          * a fraction time (for example 10:00, 14:00 and not 10:04 or 14:26)
          * insert it in the sliding window.
          *

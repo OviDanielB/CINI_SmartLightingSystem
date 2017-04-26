@@ -75,8 +75,8 @@ public class AnalyzeBoltTest {
         cache.put(MemcachedManager.TRAFFIC_LIST_KEY, trafficList);
         cache.put(MemcachedManager.PARKING_LIST_KEY, parkingList);
 
-        assertEquals(trafficList, cache.get(MemcachedManager.TRAFFIC_LIST_KEY));
-        assertEquals(parkingList, cache.get(MemcachedManager.PARKING_LIST_KEY));
+        assertEquals(trafficList, cache.getString(MemcachedManager.TRAFFIC_LIST_KEY));
+        assertEquals(parkingList, cache.getString(MemcachedManager.PARKING_LIST_KEY));
     }
 
     /**

@@ -23,7 +23,7 @@ queue_in:
   port: 5672
 
 queue_out:
-  queue_name: 'my-cookye'
+  queue_name: 'dashboard_exchange'
   hostname: 'localhost'
   port: 5673
 

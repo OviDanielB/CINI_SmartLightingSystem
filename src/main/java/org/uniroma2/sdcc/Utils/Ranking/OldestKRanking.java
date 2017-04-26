@@ -72,7 +72,7 @@ public class OldestKRanking {
      */
     private int add(RankLamp rankLamp) {
 
-        /* get item position in sorted list */
+        /* getString item position in sorted list */
         int insertionPoint = Collections.binarySearch(ranking, rankLamp, comparator);
         /* (- insertionPoint) - 1 position where the key would be if not contained in the list */
         ranking.add((insertionPoint > -1) ? insertionPoint : (-insertionPoint) - 1, rankLamp);

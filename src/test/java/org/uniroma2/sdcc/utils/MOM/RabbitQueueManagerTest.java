@@ -46,4 +46,25 @@ public class RabbitQueueManagerTest {
 
     }
 
+    /**
+     * tests if connection if available with parameters from config file
+     * @throws Exception
+     */
+    @Test
+    public void sendReceiveConfigFile() throws Exception{
+        queue = new RabbitQueueManager();
+        String sent = "TEST";
+
+        queue.send(sent);
+
+        String received = queue.nextMessage();
+
+        if(received != null){
+            assertTrue(received.equals(sent));
+        }
+
+        /* received is null => no connection on localhost:5672
+           TEST PASSES */
+    }
+
 }

@@ -1,5 +1,6 @@
 package org.uniroma2.sdcc.Utils.MOM;
 
+import clojure.lang.IFn;
 import com.rabbitmq.client.*;
 import org.uniroma2.sdcc.Utils.HeliosLog;
 
@@ -14,7 +15,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class RabbitQueueManager extends AbstractRabbitMQManager implements QueueManger {
 
-    private String queueName;
     private Consumer consumer;
 
     private ConcurrentLinkedQueue<String> messages;
@@ -26,8 +26,19 @@ public class RabbitQueueManager extends AbstractRabbitMQManager implements Queue
      * @param queueName queue Name
      */
     public RabbitQueueManager(String host, Integer port,String queueName, QueueClientType type) {
-        super(host, port,type);
-        this.queueName = queueName;
+        super(host, port,queueName, type);
+
+        initialize();
+    }
+
+    public RabbitQueueManager() {
+        super(QUEUE_IN);
+
+        initialize();
+    }
+
+
+    private void initialize() {
         this.messages = new ConcurrentLinkedQueue<>();
 
         declareQueue(queueName);
@@ -36,7 +47,6 @@ public class RabbitQueueManager extends AbstractRabbitMQManager implements Queue
             consumer = createConsumer();
             startConsuming();
         }
-
     }
 
     /**
@@ -100,6 +110,11 @@ public class RabbitQueueManager extends AbstractRabbitMQManager implements Queue
      */
     @Override
     public boolean send(String message) {
+
+        if(message == null){
+            HeliosLog.logFail(LOG_TAG,"Trying to send null message");
+            return false;
+        }
 
         if(!isProducer()){
             HeliosLog.logFail(LOG_TAG,"Can't send. It's a consumer");

@@ -1,8 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
@@ -12,14 +9,19 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
+import org.uniroma2.sdcc.Utils.Config.RabbitConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
+import org.uniroma2.sdcc.Utils.HeliosLog;
 import org.uniroma2.sdcc.Utils.JSONConverter;
+import org.uniroma2.sdcc.Utils.MOM.PubSubManager;
+import org.uniroma2.sdcc.Utils.MOM.QueueClientType;
+import org.uniroma2.sdcc.Utils.MOM.RabbitPubSubManager;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Created by ovidiudanielbarba on 30/03/2017.
@@ -38,16 +40,8 @@ public class NotRespondingLampBolt implements IRichBolt {
     /* time after which a lamp not responding is considered malfunctioning  */
     private static final Long NO_RESPONSE_INTERVAL = 60L; /* seconds */
 
-    private static final String LOG_TAG = "[CINI] [NotRespondingLampBolt] ";
+    private static final String LOG_TAG = "[NotRespondingLampBolt]";
 
-    private String host = "localhost";
-
-    public NotRespondingLampBolt() {
-    }
-
-    public NotRespondingLampBolt(String host) {
-        this.host = host;
-    }
 
     /**
      * Bolt initialization
@@ -64,7 +58,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         notRespondingCount = new ConcurrentHashMap<>();
         noResponseLampsToRabbit = new ConcurrentLinkedQueue<>();
 
-        startPeriodicResponseChecker(host);
+        startPeriodicResponseChecker();
     }
 
     /**
@@ -138,7 +132,7 @@ public class NotRespondingLampBolt implements IRichBolt {
      * periodically parses notRespondingCount hash map to determine those street lamps that haven't
      * sent messages for NO_RESPONSE_INTERVAL time
      */
-    private void startPeriodicResponseChecker(String host) {
+    private void startPeriodicResponseChecker() {
 
         /* start periodic producer on queue */
         Timer timer = new Timer();
@@ -148,7 +142,7 @@ public class NotRespondingLampBolt implements IRichBolt {
 
         /* start consumer thread on queue */
         Timer consumerTimer = new Timer();
-        QueueConsumerToRabbit consumerToRabbit = new QueueConsumerToRabbit(noResponseLampsToRabbit,host);
+        QueueConsumerToRabbit consumerToRabbit = new QueueConsumerToRabbit(noResponseLampsToRabbit);
         consumerTimer.schedule(consumerToRabbit,6000, 1000 * RESPONSE_CHECKER_PERIOD);
 
 
@@ -267,65 +261,19 @@ public class NotRespondingLampBolt implements IRichBolt {
         /* queue where it consumes*/
         private ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue;
 
-        /* rabbitmq connection*/
-        private Connection connection;
-        private Channel channel;
-        private ConnectionFactory factory;
-
         /* message -> json -> rabbit*/
+        private PubSubManager pubSubManager;
 
-        private  final String HOST = "rabbit_dashboard";
-        private  final Integer PORT =  5673;
-        private  final String  EXCHANGE_NAME = "dashboard_exchange";
         /* topic based pub/sub */
-        private  final String EXCHANGE_TYPE = "topic";
         private  final String ROUTING_KEY = "dashboard.anomalies";
 
-        private String host = "localhost";
-
         /* constructor */
-        public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue,String host) {
-            this.host = host;
+        public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue) {
             this.queue = queue;
 
-            rabbitConnection();
-        }
+            /* connect to rabbit with pub/sub mode */
+            pubSubManager = new RabbitPubSubManager();
 
-        /* set connection attributes */
-        private void rabbitConnection() {
-            factory = new ConnectionFactory();
-            factory.setHost(host);
-            factory.setPort(PORT);
-
-            tryConnection();
-        }
-
-        /* try to connect to rabbitmq
-         * else sets connection and channel to null
-         * can be recalled later to retry connection
-         */
-        private void tryConnection(){
-
-            try {
-                connection = factory.newConnection();
-                channel = connection.createChannel();
-
-                /* declare exchange point, consumer must bind a queue to it */
-                channel.exchangeDeclare(EXCHANGE_NAME,EXCHANGE_TYPE);
-
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                System.out.println(LOG_TAG + "No rabbit connection available! ");
-                connection = null;
-                channel = null;
-            }
-
-        }
-
-
-        /* check if connection available */
-        public boolean rabbitConnectionAvailable(){
-            return ((connection != null) && (channel != null));
         }
 
         /**
@@ -344,20 +292,9 @@ public class NotRespondingLampBolt implements IRichBolt {
 
                 /* convert to json */
                 jsonMsg = JSONConverter.fromAnomalyStreetLampMessage(message);
-                System.out.println(LOG_TAG + " sending " + jsonMsg);
-                try {
 
-                    if(rabbitConnectionAvailable()) {
-                        /* write on queue */
-                        channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, jsonMsg.getBytes());
-                    } else {
-                        /* retry to connect */
-                        tryConnection();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    System.out.println(LOG_TAG + "Could not publish message on final rabbit queue! ");
-                }
+                /* publish with relative routing key */
+                pubSubManager.publish(ROUTING_KEY,jsonMsg);
             }
         }
     }

@@ -131,7 +131,7 @@ public class MalfunctionCheckBolt implements IRichBolt {
                 Double globalAvg = streetStatistics.entrySet().stream()
                         .mapToDouble(MalfunctionCheckBolt::getConsValue)
                         .reduce(0, (c, d) -> c + d)
-                        / streetsNum; /* divide by number of streets to get average value */
+                        / streetsNum; /* divide by number of streets to getString average value */
 
 
                 System.out.println(streetStatistics.toString());

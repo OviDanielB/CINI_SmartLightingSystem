@@ -81,9 +81,9 @@ public class AnalyzeBolt extends BaseRichBolt {
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
-                // get traffic data from memory (if available)
+                // getString traffic data from memory (if available)
                 trafficDataList = getTrafficDataInMemory();
-                // get parking data from memory (if available)
+                // getString parking data from memory (if available)
                 parkingDataList = getParkingDataInMemory();
 
             }
@@ -150,7 +150,7 @@ public class AnalyzeBolt extends BaseRichBolt {
      */
     private List<ParkingData> getParkingDataInMemory() {
 
-        String json_parkingDataList = cache.get(MemcachedManager.PARKING_LIST_KEY);
+        String json_parkingDataList = cache.getString(MemcachedManager.PARKING_LIST_KEY);
         return JSONConverter.toParkingDataListData(json_parkingDataList);
 
     }
@@ -162,7 +162,7 @@ public class AnalyzeBolt extends BaseRichBolt {
      */
     private List<TrafficData> getTrafficDataInMemory() {
 
-        String json_trafficDataList = cache.get(MemcachedManager.TRAFFIC_LIST_KEY);
+        String json_trafficDataList = cache.getString(MemcachedManager.TRAFFIC_LIST_KEY);
         return JSONConverter.toTrafficDataListData(json_trafficDataList);
 
     }

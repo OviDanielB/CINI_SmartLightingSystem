@@ -80,7 +80,7 @@ public class Topologies {
          */
 
         /* Lamps' data source  */
-        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(args[0]), 3);
+        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(), 3);
 
         /* Check of format correctness of received tuples   */
         builder.setBolt(FILTER_BOLT, new FilteringBolt(), 3)
@@ -148,7 +148,7 @@ public class Topologies {
                 .allGrouping(FILTER_BOLT)
                 .fieldsGrouping(FILTER_BOLT, new Fields(Constants.ADDRESS));
 
-        builder.setBolt(NOT_RESPONDING_LAMP_BOLT, new NotRespondingLampBolt(args[1]), 3)
+        builder.setBolt(NOT_RESPONDING_LAMP_BOLT, new NotRespondingLampBolt(), 3)
                 .setNumTasks(5)
                 .fieldsGrouping(MALFUNCTION_CHECK_BOLT, new Fields(Constants.ID));
 

@@ -37,26 +37,9 @@ public class RabbitMQSpout extends BaseRichSpout {
     /* measure requests/second */
     private MetricRegistry metrics;
     private Meter requests;
-
-    private final static String QUEUE_NAME = "storm";
-    private String queueName = QUEUE_NAME;
-
-
-    private static String rabbitHost;
-    private static Integer rabbitPort;
-    private static String rabbitQueueName;
+    
     private QueueManger queue;
 
-
-    private String cloudHostname = "rabbit";
-
-    public RabbitMQSpout() {
-    }
-
-    // TODO remove
-    public RabbitMQSpout(String cloudHostname) {
-        this.cloudHostname = cloudHostname;
-    }
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
@@ -106,32 +89,8 @@ public class RabbitMQSpout extends BaseRichSpout {
      */
     private void prepareRabbitConnection() {
 
-        configureRabbit();
-
         /* connect to rabbit */
-        queue = new RabbitQueueManager(rabbitHost,rabbitPort,rabbitQueueName, QueueClientType.CONSUMER);
+        queue = new RabbitQueueManager();
     }
 
-
-    /**
-     * configure rabbit connection parameters from config file
-     */
-    protected void configureRabbit() {
-
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
-
-        try {
-            RabbitConfig rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_in();
-            rabbitHost = rabbitConfig.getHostname();
-            rabbitPort = rabbitConfig.getPort();
-            rabbitQueueName = rabbitConfig.getQueue_name();
-        } catch (IOException e) {
-            e.printStackTrace();
-            /* set default values */
-            rabbitHost = "localhost";
-            rabbitPort = 5672;
-            rabbitQueueName = "storm";
-        }
-
-    }
 }
