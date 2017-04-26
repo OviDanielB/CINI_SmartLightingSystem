@@ -102,4 +102,14 @@ public class StreetLamp {
     public void setLifetime(LocalDateTime lifetime) {
         this.lifetime = lifetime;
     }
+
+    public boolean equals(StreetLamp streetLamp) {
+        return this.getID() == streetLamp.getID()
+                && this.getAddress().equals(streetLamp.getAddress())
+                && this.getLampModel().equals(streetLamp.getLampModel())
+                && this.getCellID() == streetLamp.getCellID()
+                && this.getConsumption() == streetLamp.getConsumption()
+                && this.getLifetime().equals(streetLamp.getLifetime())
+                && this.getLightIntensity() == streetLamp.getLightIntensity();
+    }
 }

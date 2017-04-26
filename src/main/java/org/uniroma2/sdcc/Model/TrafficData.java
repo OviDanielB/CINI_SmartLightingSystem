@@ -41,5 +41,11 @@ public class TrafficData {
     public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
     }
+
+    public boolean equals(TrafficData trafficData) {
+        return this.getStreet().equals(trafficData.getStreet())
+                && this.getCongestionPercentage().equals(trafficData.getCongestionPercentage())
+                && this.getTimestamp().equals(trafficData.getTimestamp());
+    }
 }
 

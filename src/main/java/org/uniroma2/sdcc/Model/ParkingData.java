@@ -41,5 +41,11 @@ public class ParkingData {
     public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
     }
+
+    public boolean equals(ParkingData parkingData) {
+        return this.getCellID() == parkingData.getCellID()
+                && this.getOccupationPercentage().equals(parkingData.getOccupationPercentage())
+                && this.getTimestamp().equals(parkingData.getTimestamp());
+    }
 }
 

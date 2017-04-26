@@ -25,7 +25,7 @@ public class JSONConverter {
     private static Type listParkingDataType = new TypeToken<List<ParkingData>>(){}.getType();
     private static Type listTrafficDataType = new TypeToken<List<TrafficData>>(){}.getType();
     private static Type listRankLampType = new TypeToken<List<RankLamp>>(){}.getType();
-    private static Type adaptedLampType = new TypeToken<HashMap<Integer,Integer>>(){}.getType();
+    private static Type adaptedLampType = new TypeToken<HashMap<String,Integer>>(){}.getType();
 
     /**
      * Convert object TrafficData in JSON format.
@@ -281,7 +281,7 @@ public class JSONConverter {
      * @param json string
      * @return adapted_lamp class to convert
      */
-    public static HashMap<Integer,Integer> fromAdaptedLamp(String json) {
+    public static HashMap<String,Integer> toAdaptedLamp(String json) {
 
         if (json != null)
             return gson.fromJson(json, adaptedLampType);

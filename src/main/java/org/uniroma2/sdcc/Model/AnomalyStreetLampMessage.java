@@ -40,4 +40,12 @@ public class AnomalyStreetLampMessage extends StreetLampMessage {
     public void setNoResponseCount(Long noResponseCount) {
         this.noResponseCount = noResponseCount;
     }
+
+    public boolean equals(AnomalyStreetLampMessage anomalyStreetLampMessage) {
+        return super.getStreetLamp().equals(anomalyStreetLampMessage.getStreetLamp())
+                && super.getNaturalLightLevel().equals(anomalyStreetLampMessage.getNaturalLightLevel())
+                && super.getTimestamp().equals(anomalyStreetLampMessage.getTimestamp())
+                && this.getAnomalies().equals(anomalyStreetLampMessage.getAnomalies())
+                && this.getNoResponseCount().equals(anomalyStreetLampMessage.getNoResponseCount());
+    }
 }
