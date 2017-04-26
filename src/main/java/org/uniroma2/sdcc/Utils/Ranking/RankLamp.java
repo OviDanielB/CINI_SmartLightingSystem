@@ -37,4 +37,11 @@ public class RankLamp {
         this.lifetime = lifetime;
         this.timestamp = timestamp;
     }
+
+    public boolean equals(RankLamp rankLamp) {
+        return this.getId() == rankLamp.getId()
+                && this.getAddress().equals(rankLamp.getAddress())
+                && this.getLifetime().equals(rankLamp.getLifetime())
+                && this.getTimestamp().equals(rankLamp.getTimestamp());
+    }
 }

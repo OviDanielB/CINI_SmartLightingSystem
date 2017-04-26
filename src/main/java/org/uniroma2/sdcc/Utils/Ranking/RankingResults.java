@@ -32,4 +32,14 @@ public class RankingResults {
     public void setCount(int count) {
         this.count = count;
     }
+
+    public boolean equals(RankingResults rankingResults) {
+        List<RankLamp> ranking = this.getRanking();
+
+        return ranking.stream().filter(t -> {
+                    Integer index = ranking.indexOf(t);
+                    return t.equals(rankingResults.getRanking().get(index));
+                }).count() == ranking.size()
+                && this.getCount() == rankingResults.getCount();
+    }
 }

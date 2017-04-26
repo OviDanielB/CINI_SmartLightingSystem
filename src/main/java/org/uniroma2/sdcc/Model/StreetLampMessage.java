@@ -44,4 +44,10 @@ public class StreetLampMessage {
     public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
     }
+
+    public boolean equals(StreetLampMessage streetLampMessage) {
+        return this.getStreetLamp().equals(streetLampMessage.getStreetLamp())
+                && this.getNaturalLightLevel().equals(streetLampMessage.getNaturalLightLevel())
+                && this.getTimestamp().equals(streetLampMessage.getTimestamp());
+    }
 }

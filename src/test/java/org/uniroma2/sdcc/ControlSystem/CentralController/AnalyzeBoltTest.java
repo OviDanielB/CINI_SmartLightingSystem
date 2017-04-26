@@ -197,21 +197,7 @@ public class AnalyzeBoltTest {
     @Test
     public void changeNotRequired() {
 
-        TrafficData trafficData = mock(TrafficData.class, withSettings().serializable());
-        when(trafficData.getStreet()).thenReturn("VIA CAMBRIDGE");
-        when(trafficData.getCongestionPercentage()).thenReturn(0f);
-        when(trafficData.getTimestamp()).thenReturn(System.currentTimeMillis());
-        String traffic ="{\"street\":\""+trafficData.getStreet()+"\"," +
-                "\"congestionPercentage\":"+ trafficData.getCongestionPercentage()+"," +
-                "\"timestamp\":1492785909974}";
-
-        ParkingData parkingData = mock(ParkingData.class, withSettings().serializable());
-        when(parkingData.getCellID()).thenReturn(2222);
-        when(parkingData.getOccupationPercentage()).thenReturn(0f);
-        when(parkingData.getTimestamp()).thenReturn(System.currentTimeMillis());
-        String parking ="{\"cellID\":"+parkingData.getCellID()+"," +
-                "\"occupationPercentage\":"+ parkingData.getOccupationPercentage()+"," +
-                "\"timestamp\":1492785909974}";
+        /* value of traffic congestion and parking occupation are read from memory if available */
 
         Tuple tuple = mock(Tuple.class);
         when(tuple.getIntegerByField(Constants.ID)).thenReturn(1111);

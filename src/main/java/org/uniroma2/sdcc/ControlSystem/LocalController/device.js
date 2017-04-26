@@ -38,6 +38,9 @@ if (n <= 300)
 else
     number_type = "KM";
 
+var models = ["CFL","LED", "UNKNOWN"];
+var model = models[Math.round(Math.random()*10)%3];
+
 var clientTokenUpdate;
 
 
@@ -196,7 +199,7 @@ function device_work(args) {
             "streetLamp" : {
                 "ID": thingID,
                 "on": state,
-                "lampModel": "LED",
+                "lampModel": model,
                 "address": {
                     "name": street,
                     "number": street_number,

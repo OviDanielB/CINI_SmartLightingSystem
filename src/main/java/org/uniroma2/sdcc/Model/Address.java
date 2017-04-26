@@ -57,4 +57,11 @@ public class Address implements Serializable {
                 ", numberType=" + numberType +
                 '}';
     }
+
+    public boolean equals(Address address) {
+        return this.getName().equals(address.getName())
+                && this.getNumberType().equals(address.getNumberType())
+                && this.getNumber() == address.getNumber();
+    }
+
 }
