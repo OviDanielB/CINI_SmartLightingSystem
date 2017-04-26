@@ -6,11 +6,13 @@ public class Configuration {
     private String project_name;
     private String version;
     private List<String> group_members;
-    private ServiceConfig statisticsTopologyParams;
+    private StatisticsBoltConfig statisticsTopologyParams;
     private RabbitConfig queue_out;
     private RabbitConfig queue_in;
     private RankingConfig rankingTopologyParams;
     private ControlConfig controlThresholds;
+    private ServiceConfig memcached;
+    private ServiceConfig parkingServer;
 
     public Configuration() {
     }
@@ -22,11 +24,11 @@ public class Configuration {
                 '}';
     }
 
-    public ServiceConfig getStatisticsTopologyParams() {
+    public StatisticsBoltConfig getStatisticsTopologyParams() {
         return statisticsTopologyParams;
     }
 
-    public void setStatisticsTopologyParams(ServiceConfig statisticsTopologyParams) {
+    public void setStatisticsTopologyParams(StatisticsBoltConfig statisticsTopologyParams) {
         this.statisticsTopologyParams = statisticsTopologyParams;
     }
 
@@ -84,6 +86,22 @@ public class Configuration {
 
     public void setQueue_in(RabbitConfig queue_in) {
         this.queue_in = queue_in;
+    }
+
+    public ServiceConfig getMemcached() {
+        return memcached;
+    }
+
+    public void setMemcached(ServiceConfig memcached) {
+        this.memcached = memcached;
+    }
+
+    public ServiceConfig getParkingServer() {
+        return parkingServer;
+    }
+
+    public void setParkingServer(ServiceConfig parkingServer) {
+        this.parkingServer = parkingServer;
     }
 }
 

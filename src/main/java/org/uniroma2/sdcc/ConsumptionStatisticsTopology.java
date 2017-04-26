@@ -7,7 +7,7 @@ import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt.*;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
-import org.uniroma2.sdcc.Utils.Config.ServiceConfig;
+import org.uniroma2.sdcc.Utils.Config.StatisticsBoltConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
@@ -50,13 +50,13 @@ public class ConsumptionStatisticsTopology {
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
         try {
-            ServiceConfig serviceConfig = yamlConfigRunner.getConfiguration()
+            StatisticsBoltConfig statisticsBoltConfig = yamlConfigRunner.getConfiguration()
                     .getStatisticsTopologyParams();
 
-            tickfrequency = serviceConfig.getTickTupleFrequency();
-            hourly_window = serviceConfig.getHourlyStatistics().get("windowLength");
-            daily_window = serviceConfig.getDailyStatistics().get("windowLength");
-            daily_emit_frequency = serviceConfig.getDailyStatistics().get("emitFrequency");
+            tickfrequency = statisticsBoltConfig.getTickTupleFrequency();
+            hourly_window = statisticsBoltConfig.getHourlyStatistics().get("windowLength");
+            daily_window = statisticsBoltConfig.getDailyStatistics().get("windowLength");
+            daily_emit_frequency = statisticsBoltConfig.getDailyStatistics().get("emitFrequency");
 
         } catch (IOException e) {
             tickfrequency = TICKTIME_DEFAULT;

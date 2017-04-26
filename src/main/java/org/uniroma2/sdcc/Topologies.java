@@ -1,7 +1,6 @@
 package org.uniroma2.sdcc;
 
 import org.apache.storm.Config;
-import org.apache.storm.LocalCluster;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
@@ -12,7 +11,7 @@ import org.uniroma2.sdcc.ControlSystem.CentralController.ExecuteBolt;
 import org.uniroma2.sdcc.ControlSystem.CentralController.PlanBolt;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
 import org.uniroma2.sdcc.Utils.Config.RankingConfig;
-import org.uniroma2.sdcc.Utils.Config.ServiceConfig;
+import org.uniroma2.sdcc.Utils.Config.StatisticsBoltConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
@@ -62,12 +61,12 @@ public class Topologies {
                     .getRankingTopologyParams();
             rank_size = rankingConfig.getRank_size();
 
-            ServiceConfig serviceConfig = yamlConfigRunner.getConfiguration()
+            StatisticsBoltConfig statisticsBoltConfig = yamlConfigRunner.getConfiguration()
                     .getStatisticsTopologyParams();
-            tickfrequency = serviceConfig.getTickTupleFrequency();
-            hourly_window = serviceConfig.getHourlyStatistics().get("windowLength");
-            daily_window = serviceConfig.getDailyStatistics().get("windowLength");
-            daily_emit_frequency = serviceConfig.getDailyStatistics().get("emitFrequency");
+            tickfrequency = statisticsBoltConfig.getTickTupleFrequency();
+            hourly_window = statisticsBoltConfig.getHourlyStatistics().get("windowLength");
+            daily_window = statisticsBoltConfig.getDailyStatistics().get("windowLength");
+            daily_emit_frequency = statisticsBoltConfig.getDailyStatistics().get("emitFrequency");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -101,7 +100,7 @@ public class Topologies {
                 .shuffleGrouping(FILTER_BY_LIFETIME_BOLT);
 
         /* Global ranking f the first K lamps with greater "lifetime" */
-        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size, args[1]))
+        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size))
                 .allGrouping(PARTIAL_RANK_BOLT);
 
         /*

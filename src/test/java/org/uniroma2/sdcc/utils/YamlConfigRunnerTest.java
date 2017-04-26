@@ -2,7 +2,7 @@ package org.uniroma2.sdcc.utils;
 
 import org.junit.Test;
 import org.uniroma2.sdcc.Utils.Config.Configuration;
-import org.uniroma2.sdcc.Utils.Config.ServiceConfig;
+import org.uniroma2.sdcc.Utils.Config.StatisticsBoltConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
@@ -24,10 +24,10 @@ public class YamlConfigRunnerTest {
             e.printStackTrace();
         }
 
-        ServiceConfig serviceConfig = configuration.getStatisticsTopologyParams();
-        assertTrue(serviceConfig != null);
-        assertTrue(serviceConfig.getTickTupleFrequency() != null);
-        assertTrue(serviceConfig.getHourlyStatistics() != null);
+        StatisticsBoltConfig statisticsBoltConfig = configuration.getStatisticsTopologyParams();
+        assertTrue(statisticsBoltConfig != null);
+        assertTrue(statisticsBoltConfig.getTickTupleFrequency() != null);
+        assertTrue(statisticsBoltConfig.getHourlyStatistics() != null);
 
     }
 }

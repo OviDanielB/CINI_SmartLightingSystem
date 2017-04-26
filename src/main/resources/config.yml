@@ -17,6 +17,14 @@ statisticsTopologyParams:
     windowLength: 86400
     emitFrequency: 3600
 
+memcached:
+  hostname: 'localhost'
+  port: 11211
+
+parkingServer:
+  hostname: 'localhost'
+  port: 3000
+
 queue_in:
   queue_name: 'storm'
   hostname: 'localhost'

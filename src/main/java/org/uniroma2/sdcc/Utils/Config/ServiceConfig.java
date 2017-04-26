@@ -1,40 +1,32 @@
 package org.uniroma2.sdcc.Utils.Config;
 
-import java.util.Map;
-
 /**
  * @author emanuele
  */
 public class ServiceConfig {
 
-    private Integer tickTupleFrequency;
-    private Map<String, Integer> hourlyStatistics;
-    private Map<String, Integer> dailyStatistics;
+    private static final long serialVersionUID = 42L;
 
-    public ServiceConfig() {
+    private String hostname;
+    private Integer port;
+
+    public static long getSerialVersionUID() {
+        return serialVersionUID;
     }
 
-    public Integer getTickTupleFrequency() {
-        return tickTupleFrequency;
+    public String getHostname() {
+        return hostname;
     }
 
-    public void setTickTupleFrequency(Integer tickTupleFrequency) {
-        this.tickTupleFrequency = tickTupleFrequency;
+    public void setHostname(String hostname) {
+        this.hostname = hostname;
     }
 
-    public Map<String, Integer> getHourlyStatistics() {
-        return hourlyStatistics;
+    public Integer getPort() {
+        return port;
     }
 
-    public void setHourlyStatistics(Map<String, Integer> hourlyStatistics) {
-        this.hourlyStatistics = hourlyStatistics;
-    }
-
-    public Map<String, Integer> getDailyStatistics() {
-        return dailyStatistics;
-    }
-
-    public void setDailyStatistics(Map<String, Integer> dailyStatistics) {
-        this.dailyStatistics = dailyStatistics;
+    public void setPort(Integer port) {
+        this.port = port;
     }
 }
