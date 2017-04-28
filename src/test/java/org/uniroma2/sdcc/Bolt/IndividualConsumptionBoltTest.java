@@ -55,7 +55,7 @@ public class IndividualConsumptionBoltTest {
         bolt.execute(tickTuple);
 
         // then
-        verifyZeroInteractions(collector);
+        verify(collector, never()).emit(any());
     }
 
     @SuppressWarnings("rawtypes")
