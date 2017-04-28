@@ -1,0 +1,10 @@
+{
+  "name": "server_parking",
+  "version": "1.0.0",
+  "description": "Node.js Parking REST server on Docker",
+  "author": "O. D. Barba, L. Trivelloni, E. Vannacci",
+  "main": "server_parking.js",
+  "scripts": {
+    "start": "node server_parking.js"
+  }
+}
