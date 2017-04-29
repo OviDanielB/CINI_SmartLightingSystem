@@ -29,6 +29,9 @@ import java.util.Timer;
  *      time conditions
  * - a lamp sent a tuple too much time ago
  * It generates an alarm when a lamp is considered malfunctioning.
+ * Control System features are elaborating lamp intensity value,
+ * its monitored anomalies (if any), traffic congestion level and parking cell occupation
+ * percentage (if available).
  * As extension of Monitoring Topology, the Control System follows a MAPE architecture:
  * - Monitor is performed by the anomalies monitoring topology
  * - Analyze assembles results data from Monitor, TrafficSource (in-memory data) and

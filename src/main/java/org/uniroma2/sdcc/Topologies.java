@@ -41,6 +41,8 @@ public class Topologies {
     private final static int WEEKLY_WINDOWLEN = DAILY_WINDOWLEN * 7;
     private final static int WEEKLY_EMIT_FREQUENCY = 3600 * 24;
 
+    private static int LIFETIME_THRESHOLD_DEFAULT = 7;
+
     public static void main(String[] args) throws Exception {
 
         int rank_size = RANK_SIZE_DEFAULT;
@@ -48,6 +50,8 @@ public class Topologies {
         int hourly_window = HOURLY_WINDOWSLEN;
         int daily_window = DAILY_WINDOWLEN;
         int daily_emit_frequency = DAILY_EMIT_FREQUENCY;
+        int lifetime_threshold = LIFETIME_THRESHOLD_DEFAULT;
+
 
         Config config = new Config();
         config.setNumWorkers(3);
@@ -60,6 +64,7 @@ public class Topologies {
             RankingConfig rankingConfig = yamlConfigRunner.getConfiguration()
                     .getRankingTopologyParams();
             rank_size = rankingConfig.getRank_size();
+            lifetime_threshold = rankingConfig.getLifetime_minimum();
 
             StatisticsBoltConfig statisticsBoltConfig = yamlConfigRunner.getConfiguration()
                     .getStatisticsTopologyParams();
@@ -92,12 +97,12 @@ public class Topologies {
          */
 
         /* Filtering from lamps which have been replace within LIFETIME_THRESHOLD days from now */
-        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt())
+        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt(lifetime_threshold))
                 .allGrouping(FILTER_BOLT);
 
         /* Data grouped by "lifetime" field and partially sorted by it   */
         builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(rank_size))
-                .shuffleGrouping(FILTER_BY_LIFETIME_BOLT);
+                .fieldsGrouping(FILTER_BY_LIFETIME_BOLT, new Fields(Constants.ID));
 
         /* Global ranking f the first K lamps with greater "lifetime" */
         builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size))

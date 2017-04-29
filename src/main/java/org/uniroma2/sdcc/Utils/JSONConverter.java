@@ -167,6 +167,10 @@ public class JSONConverter {
      * @return List<RankLamp> object
      */
     public static List<RankLamp> toRankLampListData(String json) {
+
+        if (json == null) {
+            return new ArrayList<>();
+        }
         try {
             return gson.fromJson(json, listRankLampType);
         } catch (JsonParseException e) {

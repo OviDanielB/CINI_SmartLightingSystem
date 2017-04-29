@@ -32,13 +32,13 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
 
     private OutputCollector collector;
     /*  days threshold to be considered for ranking */
-    private int LIFETIME_THRESHOLD_DEFAULT = 7;
     private int lifetime_threshold;
     /*  number of old lamps  */
     private HashMap<Integer, Integer> oldIds;
     private MemcachedClient memcachedClient;
 
-    public FilteringByLifetimeBolt() {
+    public FilteringByLifetimeBolt(int lifetime_threshold) {
+        this.lifetime_threshold = lifetime_threshold;
     }
 
     /**
@@ -57,29 +57,6 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
             this.memcachedClient.set("old_counter", 0, this.oldIds);
         } catch (IOException e) {
             e.printStackTrace();
-        }
-        config();
-    }
-
-    /**
-     * Configuration.
-     */
-    private void config() {
-
-        Config config = new Config();
-        config.setDebug(true);
-        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
-
-        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
-
-        try {
-            RankingConfig rankingConfig = yamlConfigRunner.getConfiguration()
-                    .getRankingTopologyParams();
-
-            this.lifetime_threshold = rankingConfig.getLifetime_minimum();
-
-        } catch (IOException e) {
-            this.lifetime_threshold = LIFETIME_THRESHOLD_DEFAULT;
         }
     }
 

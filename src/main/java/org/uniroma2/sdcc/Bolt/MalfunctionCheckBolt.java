@@ -7,7 +7,6 @@ import com.github.fedy2.weather.data.Channel;
 import com.github.fedy2.weather.data.Condition;
 import com.github.fedy2.weather.data.unit.DegreeUnit;
 import com.github.fedy2.weather.data.unit.Time;
-import com.google.gson.Gson;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;

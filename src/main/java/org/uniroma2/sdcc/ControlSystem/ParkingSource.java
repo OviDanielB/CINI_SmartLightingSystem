@@ -1,15 +1,15 @@
 package org.uniroma2.sdcc.ControlSystem;
 
-import net.spy.memcached.MemcachedClient;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.uniroma2.sdcc.Utils.Cache.CacheManager;
 import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
+import org.uniroma2.sdcc.Utils.Config.ServiceConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.TimerTask;
 
 import static java.lang.Thread.sleep;
@@ -20,19 +20,53 @@ import static java.lang.Thread.sleep;
  */
 public class ParkingSource extends TimerTask {
 
-    private static String REST_SERVER = "localhost";
-    private static int REST_PORT = 3000;
-    private static String REST_URL =
-            "http://" + REST_SERVER + ":" + REST_PORT + "/parking";
+    private static String PARKING_SERVER_DEFAULT = "localhost";
+    private static int PARKING_PORT_DEFAULT = 3000;
+
     org.apache.http.client.HttpClient httpClient;
 
-    private static String MEMCACHED_HOST = "localhost";
-    private static int MEMCACHED_PORT = 11211;
+    private static String MEMCACHED_HOST_DEFAULT = "localhost";
+    private static int MEMCACHED_PORT_DEFAULT = 11211;
     private CacheManager cache;
 
+    private String memcached_host = MEMCACHED_HOST_DEFAULT;
+    private int memcached_port = MEMCACHED_PORT_DEFAULT;
+    private String parking_host = PARKING_SERVER_DEFAULT;
+    private int parking_port = PARKING_PORT_DEFAULT;
+
+    private String REST_URL;
+
     public ParkingSource() {
-        cache = new MemcachedManager(MEMCACHED_HOST,MEMCACHED_PORT);
+        config();
+        cache = new MemcachedManager(memcached_host, memcached_port);
         httpClient = HttpClientBuilder.create().build();
+    }
+
+    /**
+     * Configuration.
+     */
+    private void config() {
+
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
+
+        try {
+            ServiceConfig memcachedConfig = yamlConfigRunner.getConfiguration().
+                    getMemcached();
+
+            ServiceConfig parkingConfig = yamlConfigRunner.getConfiguration().
+                    getParkingServer();
+
+            memcached_host = memcachedConfig.getHostname();
+            memcached_port = memcachedConfig.getPort();
+
+            parking_host = parkingConfig.getHostname();
+            parking_port = parkingConfig.getPort();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        REST_URL = "http://" + parking_host + ":" + parking_port + "/";
     }
 
     @Override

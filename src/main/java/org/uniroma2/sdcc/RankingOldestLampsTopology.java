@@ -3,6 +3,7 @@ package org.uniroma2.sdcc;
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
 import org.uniroma2.sdcc.Bolt.FilteringByLifetimeBolt;
 import org.uniroma2.sdcc.Bolt.GlobalRankBolt;
@@ -12,6 +13,7 @@ import org.uniroma2.sdcc.Utils.Config.RankingConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
+import java.time.LocalDate;
 
 /**
  * This Topology processes data generating real-time information about
@@ -30,10 +32,12 @@ public class RankingOldestLampsTopology {
     private static String PARTIAL_RANK_BOLT = "partRankBolt";
     private static String GLOBAL_RANK_BOLT = "globalRankBolt";
     private static int RANK_SIZE_DEFAULT = 10;
+    private static int LIFETIME_THRESHOLD_DEFAULT = 7;
 
     public static void main(String[] args) throws Exception {
 
         int rank_size;
+        int lifetime_threshold;
 
         Config config = new Config();
         config.setDebug(true);
@@ -46,9 +50,11 @@ public class RankingOldestLampsTopology {
                     .getRankingTopologyParams();
 
             rank_size = rankingConfig.getRank_size();
+            lifetime_threshold = rankingConfig.getLifetime_minimum();
 
         } catch (IOException e) {
             rank_size = RANK_SIZE_DEFAULT;
+            lifetime_threshold = LIFETIME_THRESHOLD_DEFAULT;
         }
 
         TopologyBuilder builder = new TopologyBuilder();
@@ -61,12 +67,12 @@ public class RankingOldestLampsTopology {
                 .shuffleGrouping(RABBIT_SPOUT);
 
         /* Filtering from lamps which have been replace within LIFETIME_THRESHOLD days from now */
-        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt())
+        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt(lifetime_threshold))
                 .shuffleGrouping(FILTER_BOLT);
 
-        /* Data grouped by "lifetime" field and partially sorted by it   */
+        /* Data grouped by ID field and computed intermediate ranking by lifetime value */
         builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(rank_size))
-                .shuffleGrouping(FILTER_BY_LIFETIME_BOLT);
+                .fieldsGrouping(FILTER_BY_LIFETIME_BOLT, new Fields(Constants.ID));
 
         /* Global ranking f the first K lamps with greater "lifetime" */
         builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size))

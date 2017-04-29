@@ -141,12 +141,14 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         List<RankLamp> current_ranking = JSONConverter.toRankLampListData(json_ranking);
 
         /* if two lists are different, update cache */
-        if(current_ranking.stream().filter(e -> {
-            Integer index =  current_ranking.indexOf(e);
-            return  e.getId() != sent_ranking.get(index).getId();
-        }).count() > 0) {
+        if( sent_ranking.size() == 0
+                || current_ranking.stream().filter(e -> {
+                    Integer index =  current_ranking.indexOf(e);
+                    return  e.getId() != sent_ranking.get(index).getId();
+                    }).count() > 0) {
 
             cache.put(MemcachedManager.SENT_GLOBAL_RANKING, json_ranking);
+
             return true;
         }
 

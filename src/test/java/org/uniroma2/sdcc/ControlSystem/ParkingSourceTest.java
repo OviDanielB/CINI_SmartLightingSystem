@@ -20,6 +20,7 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 /**
+ * (SERVER_PARKINGTEST MUST BE RUNNING)
  * Test request through REST API to ParkingServer to GET parking cells occupation data.
  * Test save data requested in memory.
  */
