@@ -42,10 +42,24 @@ public class ParkingData {
         this.timestamp = timestamp;
     }
 
-    public boolean equals(ParkingData parkingData) {
-        return this.getCellID() == parkingData.getCellID()
-                && this.getOccupationPercentage().equals(parkingData.getOccupationPercentage())
-                && this.getTimestamp().equals(parkingData.getTimestamp());
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ParkingData that = (ParkingData) o;
+
+        if (cellID != that.cellID) return false;
+        if (!occupationPercentage.equals(that.occupationPercentage)) return false;
+        return timestamp.equals(that.timestamp);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = cellID;
+        result = 31 * result + occupationPercentage.hashCode();
+        result = 31 * result + timestamp.hashCode();
+        return result;
     }
 }
 

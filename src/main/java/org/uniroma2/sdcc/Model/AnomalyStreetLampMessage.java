@@ -41,11 +41,21 @@ public class AnomalyStreetLampMessage extends StreetLampMessage {
         this.noResponseCount = noResponseCount;
     }
 
-    public boolean equals(AnomalyStreetLampMessage anomalyStreetLampMessage) {
-        return super.getStreetLamp().equals(anomalyStreetLampMessage.getStreetLamp())
-                && super.getNaturalLightLevel().equals(anomalyStreetLampMessage.getNaturalLightLevel())
-                && super.getTimestamp().equals(anomalyStreetLampMessage.getTimestamp())
-                && this.getAnomalies().equals(anomalyStreetLampMessage.getAnomalies())
-                && this.getNoResponseCount().equals(anomalyStreetLampMessage.getNoResponseCount());
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AnomalyStreetLampMessage that = (AnomalyStreetLampMessage) o;
+
+        if (!anomalies.equals(that.anomalies)) return false;
+        return noResponseCount != null ? noResponseCount.equals(that.noResponseCount) : that.noResponseCount == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = anomalies.hashCode();
+        result = 31 * result + (noResponseCount != null ? noResponseCount.hashCode() : 0);
+        return result;
     }
 }

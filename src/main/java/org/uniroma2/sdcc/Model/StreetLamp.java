@@ -103,13 +103,33 @@ public class StreetLamp {
         this.lifetime = lifetime;
     }
 
-    public boolean equals(StreetLamp streetLamp) {
-        return this.getID() == streetLamp.getID()
-                && this.getAddress().equals(streetLamp.getAddress())
-                && this.getLampModel().equals(streetLamp.getLampModel())
-                && this.getCellID() == streetLamp.getCellID()
-                && this.getConsumption() == streetLamp.getConsumption()
-                && this.getLifetime().equals(streetLamp.getLifetime())
-                && this.getLightIntensity() == streetLamp.getLightIntensity();
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        StreetLamp that = (StreetLamp) o;
+
+        if (ID != that.ID) return false;
+        if (on != that.on) return false;
+        if (cellID != that.cellID) return false;
+        if (Float.compare(that.lightIntensity, lightIntensity) != 0) return false;
+        if (Float.compare(that.consumption, consumption) != 0) return false;
+        if (lampModel != that.lampModel) return false;
+        if (!address.equals(that.address)) return false;
+        return lifetime.equals(that.lifetime);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = ID;
+        result = 31 * result + (on ? 1 : 0);
+        result = 31 * result + lampModel.hashCode();
+        result = 31 * result + address.hashCode();
+        result = 31 * result + cellID;
+        result = 31 * result + (lightIntensity != +0.0f ? Float.floatToIntBits(lightIntensity) : 0);
+        result = 31 * result + (consumption != +0.0f ? Float.floatToIntBits(consumption) : 0);
+        result = 31 * result + lifetime.hashCode();
+        return result;
     }
 }

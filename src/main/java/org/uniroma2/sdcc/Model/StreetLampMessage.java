@@ -45,9 +45,24 @@ public class StreetLampMessage {
         this.timestamp = timestamp;
     }
 
-    public boolean equals(StreetLampMessage streetLampMessage) {
-        return this.getStreetLamp().equals(streetLampMessage.getStreetLamp())
-                && this.getNaturalLightLevel().equals(streetLampMessage.getNaturalLightLevel())
-                && this.getTimestamp().equals(streetLampMessage.getTimestamp());
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        StreetLampMessage that = (StreetLampMessage) o;
+
+        if (Float.compare(that.naturalLightLevel, naturalLightLevel) != 0) return false;
+        if (!streetLamp.equals(that.streetLamp)) return false;
+        return timestamp.equals(that.timestamp);
     }
+
+    @Override
+    public int hashCode() {
+        int result = streetLamp.hashCode();
+        result = 31 * result + timestamp.hashCode();
+        result = 31 * result + (naturalLightLevel != +0.0f ? Float.floatToIntBits(naturalLightLevel) : 0);
+        return result;
+    }
+
 }

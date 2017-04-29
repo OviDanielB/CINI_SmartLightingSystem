@@ -58,10 +58,23 @@ public class Address implements Serializable {
                 '}';
     }
 
-    public boolean equals(Address address) {
-        return this.getName().equals(address.getName())
-                && this.getNumberType().equals(address.getNumberType())
-                && this.getNumber() == address.getNumber();
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Address address = (Address) o;
+
+        if (number != address.number) return false;
+        if (!name.equals(address.name)) return false;
+        return numberType == address.numberType;
     }
 
+    @Override
+    public int hashCode() {
+        int result = name.hashCode();
+        result = 31 * result + number;
+        result = 31 * result + numberType.hashCode();
+        return result;
+    }
 }
