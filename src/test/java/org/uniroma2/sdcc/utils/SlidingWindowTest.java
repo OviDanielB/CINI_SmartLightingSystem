@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import org.junit.Test;
 import org.uniroma2.sdcc.Utils.SlidingWindowAvg;
 
-import java.sql.Timestamp;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;

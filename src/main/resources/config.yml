@@ -18,21 +18,21 @@ statisticsTopologyParams:
     emitFrequency: 3600
 
 memcached:
-  hostname: 'localhost'
+  hostname: 'localhost' # 'memc'
   port: 11211
 
 parkingServer:
-  hostname: 'localhost'
+  hostname: 'localhost' # 'parking'
   port: 3000
 
 queue_in:
   queue_name: 'storm'
-  hostname: 'localhost'
+  hostname: 'localhost' # 'rabbit'
   port: 5672
 
 queue_out:
   queue_name: 'dashboard_exchange'
-  hostname: 'localhost'
+  hostname: 'localhost' # 'rabbit_dashboard'
   port: 5673
 
 rankingTopologyParams:

@@ -1,10 +1,7 @@
-package org.uniroma2.sdcc.utils.MOM;
+package org.uniroma2.sdcc.Utils.MOM;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.uniroma2.sdcc.Utils.MOM.PubSubManager;
-import org.uniroma2.sdcc.Utils.MOM.QueueClientType;
-import org.uniroma2.sdcc.Utils.MOM.RabbitPubSubManager;
 
 import static org.junit.Assert.*;
 

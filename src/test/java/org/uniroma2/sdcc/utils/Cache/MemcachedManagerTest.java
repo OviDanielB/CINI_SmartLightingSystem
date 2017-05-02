@@ -1,9 +1,7 @@
-package org.uniroma2.sdcc.utils.Cache;
+package org.uniroma2.sdcc.Utils.Cache;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.uniroma2.sdcc.Utils.Cache.CacheManager;
-import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
 
 import static org.junit.Assert.*;
 

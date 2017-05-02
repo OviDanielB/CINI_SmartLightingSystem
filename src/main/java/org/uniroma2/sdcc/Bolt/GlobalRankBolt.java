@@ -43,7 +43,8 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private final String ROUTING_KEY = "dashboard.rank";
 
     protected CacheManager cache;
-
+    /* frequency to send new ranking (if updated compared to the previous one) */
+    private int UPDATE_FREQUENCY = 60;
 
 
     public GlobalRankBolt(int K) {
@@ -178,14 +179,14 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
     /**
      * Configure a frequency of Tick Tuple every 60 sec
-     * to determine how often emit a new ranking of lamps.
+     * to determine how often emit a new ranking of lamps (if .
      *
      * @return conf
      */
     @Override
     public Map<String, Object> getComponentConfiguration() {
         // configure how often a tick tuple will be sent to our bolt
-        return TupleHelpers.getTickTupleFrequencyConfig(60);
+        return TupleHelpers.getTickTupleFrequencyConfig(UPDATE_FREQUENCY);
     }
 
     /**
