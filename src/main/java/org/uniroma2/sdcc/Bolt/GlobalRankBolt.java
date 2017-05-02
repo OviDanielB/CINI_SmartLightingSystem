@@ -16,6 +16,7 @@ import org.uniroma2.sdcc.Utils.MOM.RabbitPubSubManager;
 import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
 import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
 import org.uniroma2.sdcc.Utils.Ranking.RankingResults;
+import org.uniroma2.sdcc.Utils.TupleHelpers;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -59,8 +60,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
 
-        config();
-
         this.collector = outputCollector;
         this.ranking = new OldestKRanking(K);
 
@@ -68,13 +67,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
         /* connect to rabbit with attributes taken from config file */
         pubSubManager = new RabbitPubSubManager();
-
-    }
-
-    /**
-     * Configuration.
-     */
-    private void config() {
 
     }
 
@@ -88,7 +80,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     @Override
     public void execute(Tuple tuple) {
 
-        if (isTickTuple(tuple))
+        if (TupleHelpers.isTickTuple(tuple))
             sendWindowRank(); // send global ranking every tick tuple
         else
             getRanking(tuple); // update global ranking
@@ -163,7 +155,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     private void getRanking(Tuple tuple) {
 
-        String serializedRanking = tuple.getStringByField(PartialRankBolt.RANKING);
+        String serializedRanking = tuple.getStringByField(org.uniroma2.sdcc.Constants.RANKING);
 
         List<RankLamp> partialRanking = JSONConverter.toRankLampListData(serializedRanking);
 
@@ -193,9 +185,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     @Override
     public Map<String, Object> getComponentConfiguration() {
         // configure how often a tick tuple will be sent to our bolt
-        Config conf = new Config();
-        conf.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, 60);
-        return conf;
+        return TupleHelpers.getTickTupleFrequencyConfig(60);
     }
 
     /**
@@ -206,14 +196,5 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         // nothing to declare
-    }
-
-    /** Check if the received tuple is a Tick Tuple
-     *
-     * @param tuple tuple to check
-     **/
-    protected static boolean isTickTuple(Tuple tuple) {
-        return tuple.getSourceComponent().equals(Constants.SYSTEM_COMPONENT_ID)
-                && tuple.getSourceStreamId().equals(Constants.SYSTEM_TICK_STREAM_ID);
     }
 }

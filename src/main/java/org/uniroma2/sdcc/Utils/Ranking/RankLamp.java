@@ -15,6 +15,12 @@ public class RankLamp {
     private LocalDateTime lifetime;
     private Long timestamp;
 
+    public RankLamp (int id, Address address, LocalDateTime lifetime, Long timestamp) {
+        this.id = id;
+        this.address = address;
+        this.lifetime = lifetime;
+        this.timestamp = timestamp;
+    }
 
     public int getId() {
         return id;
@@ -30,13 +36,6 @@ public class RankLamp {
 
     public LocalDateTime getLifetime() {
         return lifetime;
-    }
-
-    public RankLamp (int id, Address address, LocalDateTime lifetime, Long timestamp) {
-        this.id = id;
-        this.address = address;
-        this.lifetime = lifetime;
-        this.timestamp = timestamp;
     }
 
     public boolean equals(RankLamp rankLamp) {

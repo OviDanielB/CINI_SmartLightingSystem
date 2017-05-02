@@ -26,7 +26,7 @@ import java.util.Map;
 public class PartialRankBolt extends BaseRichBolt {
 
     private OutputCollector collector;
-    private OldestKRanking ranking;
+    protected OldestKRanking ranking;
     private int k;
 
     public PartialRankBolt(int k) {
@@ -56,6 +56,19 @@ public class PartialRankBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
+        if (updateRanking(tuple))
+            sendPartialRanking(); // Emit if the local oldest K is changed
+
+        collector.ack(tuple);
+    }
+
+    /**
+     * Update current partial ranking with new tuple arrived.
+     *
+     * @param tuple received
+     * @return true if current ranking is updated
+     */
+    protected boolean updateRanking(Tuple tuple) {
         int id = (int) tuple.getValueByField(Constants.ID);
         Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
         LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constants.LIFETIME);
@@ -63,23 +76,23 @@ public class PartialRankBolt extends BaseRichBolt {
 
         /* Update local rank */
         RankLamp rankLamp = new RankLamp(id, address, lifetime, timestamp);
-        boolean updated = ranking.update(rankLamp);
-
-		/* Emit if the local oldest K is changed */
-        if (updated) {
-            List<RankLamp> oldestK = ranking.getOldestK();
-
-            String serializedRanking = JSONConverter.fromRankLampList(oldestK);
-
-            Values values = new Values();
-            values.add(serializedRanking);
-
-            collector.emit(values);
-        }
-
-        collector.ack(tuple);
+        return ranking.update(rankLamp);
     }
 
+    /**
+     * Send to GlobalRankBolt the new computed partial ranking.
+     */
+    private void sendPartialRanking() {
+
+        List<RankLamp> oldestK = ranking.getOldestK();
+
+        String serializedRanking = JSONConverter.fromRankLampList(oldestK);
+
+        Values values = new Values();
+        values.add(serializedRanking);
+
+        collector.emit(values);
+    }
 
     /**
      * Define which fields are sent to GlobalRankBolt:
