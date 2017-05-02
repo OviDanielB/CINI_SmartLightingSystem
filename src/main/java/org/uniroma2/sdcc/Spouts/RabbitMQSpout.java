@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.Spouts;
 
-import com.rabbitmq.client.*;
 import org.apache.storm.shade.com.codahale.metrics.ConsoleReporter;
 import org.apache.storm.shade.com.codahale.metrics.Meter;
 import org.apache.storm.shade.com.codahale.metrics.MetricRegistry;
@@ -19,11 +18,8 @@ import org.uniroma2.sdcc.Utils.MOM.RabbitQueueManager;
 
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * This Spout is the input to the System.
@@ -34,19 +30,23 @@ public class RabbitMQSpout extends BaseRichSpout {
 
     private SpoutOutputCollector outputCollector;
 
-    /* measure requests/second */
-    private MetricRegistry metrics;
-    private Meter requests;
-    
+    private final static String QUEUE_NAME = "storm";
+    private final static String HOSTNAME = "rabbit";
+    private final static Integer PORT = 5672;
+
+    private static String rabbitHost = HOSTNAME;
+    private static Integer rabbitPort = PORT;
+    private static String rabbitQueueName = QUEUE_NAME;
+
     private QueueManger queue;
 
+    public RabbitMQSpout() {
+    }
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         outputCollector = collector;
-
         prepareRabbitConnection();
-
     }
 
     @Override
@@ -73,8 +73,8 @@ public class RabbitMQSpout extends BaseRichSpout {
     }
 
     private void prepareMetrics() {
-        metrics = new MetricRegistry();
-        requests = metrics.meter("messages");
+        MetricRegistry metrics = new MetricRegistry();
+        Meter requests = metrics.meter("messages");
 
         /* starts reporting every second requests/sec */
         ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)
@@ -89,8 +89,28 @@ public class RabbitMQSpout extends BaseRichSpout {
      */
     private void prepareRabbitConnection() {
 
+        configureRabbit();
+
         /* connect to rabbit */
-        queue = new RabbitQueueManager();
+        queue = new RabbitQueueManager(rabbitHost, rabbitPort, rabbitQueueName, QueueClientType.CONSUMER);
     }
 
+
+    /**
+     * configure rabbit connection parameters from config file
+     */
+    protected void configureRabbit() {
+
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
+
+        try {
+            RabbitConfig rabbitConfig = yamlConfigRunner.getConfiguration().getQueue_in();
+            rabbitHost = rabbitConfig.getHostname();
+            rabbitPort = rabbitConfig.getPort();
+            rabbitQueueName = rabbitConfig.getQueue_name();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
 }
