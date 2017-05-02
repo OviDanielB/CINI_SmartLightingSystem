@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import com.google.gson.Gson;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -10,7 +9,6 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.Address;
-import org.uniroma2.sdcc.Utils.HeliosLog;
 import org.uniroma2.sdcc.Utils.JSONConverter;
 import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
 import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
@@ -27,17 +25,14 @@ import java.util.Map;
 
 public class PartialRankBolt extends BaseRichBolt {
 
-    public static String RANKING = "ranking";
-
     private OutputCollector collector;
     private OldestKRanking ranking;
     private int k;
 
-
-
     public PartialRankBolt(int k) {
         this.k = k;
     }
+
 
     /**
      * Bolt initialization
@@ -94,7 +89,7 @@ public class PartialRankBolt extends BaseRichBolt {
      */
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields(PartialRankBolt.RANKING));
+        outputFieldsDeclarer.declare(new Fields(Constants.RANKING));
     }
 
 }
