@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt;
 
-import org.apache.log4j.BasicConfigurator;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.base.BaseRichBolt;

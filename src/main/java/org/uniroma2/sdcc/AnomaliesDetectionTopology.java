@@ -2,7 +2,6 @@ package org.uniroma2.sdcc;
 
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
-import org.apache.storm.StormSubmitter;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
@@ -13,9 +12,7 @@ import org.uniroma2.sdcc.ControlSystem.CentralController.ExecuteBolt;
 import org.uniroma2.sdcc.ControlSystem.CentralController.PlanBolt;
 import org.uniroma2.sdcc.ControlSystem.ParkingSource;
 import org.uniroma2.sdcc.ControlSystem.TrafficSource;
-import org.uniroma2.sdcc.Model.StreetLampMessage;
 import org.uniroma2.sdcc.Spouts.RabbitMQSpout;
-import org.uniroma2.sdcc.Traffic.Traffic;
 
 import java.util.Timer;
 
@@ -87,7 +84,7 @@ public class AnomaliesDetectionTopology {
                 .setNumTasks(5)
                 .fieldsGrouping(PLAN_CONTROL_BOLT,new Fields(Constants.ID));
 
-        startTrafficSource();
+        startExternalDataSources();
 
 
         /* LOCAL MODE */
@@ -109,10 +106,10 @@ public class AnomaliesDetectionTopology {
     }
 
     /**
-     * start a periodic traffic and parking data
-     * update from external source
+     * Start TrafficSource and ParkingSource to periodically update
+     * in memory traffic and parking data from external sources.
      */
-    private static void startTrafficSource() {
+    private static void startExternalDataSources() {
         Timer timerTraffic = new Timer();
         TrafficSource source = new TrafficSource();
         timerTraffic.schedule(source,0,UPDATE_PERIOD);

@@ -15,6 +15,8 @@ public class Constants {
     public final static String TIMESTAMP = "timestamp";
     public final static String MALFUNCTIONS_TYPE = "malfunctionsType";
     public final static String CELL = "cell";
+    public final static String RANKING = "ranking";
+    public static final String WINDOW_LENGTH = "window_length";
 
     public static String GAP_TO_INCREASE = "gat_to_encrease";
     public static String GAP_TO_DECREASE = "gap_to_decrease";
