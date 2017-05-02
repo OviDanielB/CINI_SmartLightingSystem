@@ -1,118 +1,171 @@
 package org.uniroma2.sdcc.Bolt;
 
+import org.apache.storm.Config;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.tuple.Tuple;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
-import org.uniroma2.sdcc.Model.Address;
-import org.uniroma2.sdcc.Model.AddressNumberType;
-import org.uniroma2.sdcc.Utils.Ranking.OldestKRanking;
-import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
-
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import org.junit.runners.MethodSorters;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
+import org.uniroma2.sdcc.Utils.JSONConverter;
+import java.util.HashMap;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Test Ranking Bolt
  */
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class GlobalRankBoltTest {
+
+    private GlobalRankBolt bolt;
+
+    @Mock
+    private TopologyContext topologyContext;
+
+    @Mock
+    private OutputCollector outputCollector;
 
     @Before
     public void setUp() throws Exception {
         System.out.println("[CINI] [TEST] Beginning RankingBolt Test");
+
+        MockitoAnnotations.initMocks(this);
+
+        bolt = new GlobalRankBolt(4);
+        bolt.prepare(new Config(), topologyContext, outputCollector);
+    }
+
+
+    /**
+     * Test the main execute method with data tuple to compute current ranking;
+     * functionalities tested elsewhere
+     * @throws Exception
+     */
+    @Test
+    public void T1_executeRankingCompute() throws Exception {
+
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.getStringByField(PartialRankBolt.RANKING)).thenReturn(
+                "[{\"id\":1," +
+                        "\"address\":" +
+                        "{\"name\":\"VIA CAMBRIDGE\",\"number\":12,\"numberType\":\"CIVIC\"}," +
+                        "\"lifetime\":{\"date\":" +
+                        "{\"year\":2017,\"month\":12,\"day\":22}," +
+                        "\"time\":" +
+                        "{\"hour\":16,\"minute\":50,\"second\":50,\"nano\":489000000}" +
+                        "}," +
+                        "\"timestamp\":149203981028}," +
+                        "{\"id\":2," +
+                        "\"address\":" +
+                        "{\"name\":\"VIA CAMBRIDGE\",\"number\":12,\"numberType\":\"CIVIC\"}," +
+                        "\"lifetime\":{\"date\":" +
+                        "{\"year\":2017,\"month\":12,\"day\":29}," +
+                        "\"time\":" +
+                        "{\"hour\":16,\"minute\":50,\"second\":50,\"nano\":489000000}" +
+                        "}," +
+                        "\"timestamp\":149203980928}]"
+        );
+        /* make false isTickTuple method */
+        when(tuple.getSourceComponent()).thenReturn("_sy");
+        when(tuple.getSourceStreamId()).thenReturn("_tick");
+
+        bolt.execute(tuple);
+
+        String expected_ranking_saved = tuple.getStringByField(PartialRankBolt.RANKING);
+
+        /* MemcachedManager tested elsewhere */
+        assertEquals(expected_ranking_saved, bolt.cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK));
+    }
+
+
+  /**
+     * Test the main execute method with tick tuple to send last ranking;
+     * functionalities tested elsewhere
+     * @throws Exception
+     */
+    @Test
+    public void T2_executeSending() throws Exception {
+
+        /* MemcachedManager tested elsewhere */
+        HashMap<Integer,Integer> counter = new HashMap<>();
+        counter.put(1111,1);
+        counter.put(2222, 1);
+        bolt.cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(counter));
+
+        Tuple tuple = mock(Tuple.class);
+        /* make true isTickTuple method */
+        when(tuple.getSourceComponent()).thenReturn("__system");
+        when(tuple.getSourceStreamId()).thenReturn("__tick");
+
+        bolt.execute(tuple);
+
+        /* expected that the ranking saved at the test before is sent because is
+        * the first to be sent */
+        String expected_ranking_sent = bolt.cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK);
+
+        assertEquals(expected_ranking_sent, bolt.cache.getString(MemcachedManager.SENT_GLOBAL_RANKING));
     }
 
     /**
-     * Test if ranking correctly updated if new tuple arrives and are included in
-     * the ranking of the first 3 oldest lamps.
+     * If no current ranking and no sent ranking have been previously saved,
+     * ranking is updated.
      */
     @Test
-    public void Test1_rankingUpdated() {
+    public void T3_rankingUpdated() {
 
-        OldestKRanking current_list = new OldestKRanking(3);
-
-        List<RankLamp> first_list = new ArrayList<>(3);
-        ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
-        LocalDateTime localDateTime = currentDate.toLocalDateTime();
-        first_list.add(new RankLamp(1004, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(5), System.currentTimeMillis()));
-        first_list.add(new RankLamp(1005, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(6), System.currentTimeMillis()));
-        first_list.add(new RankLamp(1006, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(7), System.currentTimeMillis()));
-
-		/* Update global rank */
-        for (RankLamp lamp : first_list) {
-            current_list.update(lamp);
-        }
-
-        List<RankLamp> new_list = new ArrayList<>(3);
-        new_list.add(new RankLamp(1001, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(8), System.currentTimeMillis()));
-        new_list.add(new RankLamp(1002, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(9), System.currentTimeMillis()));
-        new_list.add(new RankLamp(1003, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(10), System.currentTimeMillis()));
-
-		/* Update global rank */
-        for (RankLamp lamp : new_list) {
-            current_list.update(lamp);
-        }
-
-        List<RankLamp> globalOldestK = current_list.getOldestK();
-
-        List<RankLamp> expected_ranking = new ArrayList<>();
-        expected_ranking.add(0, new RankLamp(1003, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(10), System.currentTimeMillis()));
-        expected_ranking.add(1, new RankLamp(1002, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(9), System.currentTimeMillis()));
-        expected_ranking.add(2, new RankLamp(1001, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(8), System.currentTimeMillis()));
-
-        for (int i = 0; i < expected_ranking.size(); i++) {
-            assertEquals(expected_ranking.get(i).getId(), globalOldestK.get(i).getId());
-        }
+        assertTrue(bolt.rankingUpdated("[ {\"id\": 11111, " +
+                "\"address\": " +
+                "{\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": \"CIVIC\"}," +
+                "\"lifetime\": {\"date\": " +
+                "                    { \"year\":2017, \"month\":12, \"day\":22 }, " +
+                "                    \"time\": " +
+                "                        { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
+                "                }," +
+                "    \"timestamp\" : 149203981028 }," +
+                "{\"id\": 22222, " +
+                "      \"address\": " +
+                "       {\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": \"CIVIC\"}, " +
+                "       \"lifetime\": {\"date\": " +
+                "                        { \"year\":2017, \"month\":12, \"day\":29 }, " +
+                "                          \"time\": " +
+                "                          { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
+                "                     }, " +
+                "       \"timestamp\" : 149203980928 } ]"));
     }
 
     /**
-     * Test if ranking correctly not updated if new tuple arrives and aren't included in
-     * the ranking of the first 3 oldest lamps.
+     * If new ranking is equals to the  previously saved sent ranking,
+     * ranking is not updated.
      */
     @Test
-    public void Test2_rankingNotUpdated() {
+    public void T4_rankingNotUpdated() {
 
-        OldestKRanking current_list = new OldestKRanking(3);
-
-        ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
-        LocalDateTime localDateTime = currentDate.toLocalDateTime();
-
-        List<RankLamp> first_list = new ArrayList<>(3);
-        first_list.add(new RankLamp(1004, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(8), System.currentTimeMillis()));
-        first_list.add(new RankLamp(1005, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(9), System.currentTimeMillis()));
-        first_list.add(new RankLamp(1006, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(10), System.currentTimeMillis()));
-
-		/* Update global rank */
-        for (RankLamp lamp : first_list) {
-            current_list.update(lamp);
-        }
-
-        List<RankLamp> new_list = new ArrayList<>(3);
-        new_list.add(new RankLamp(1001, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(5), System.currentTimeMillis()));
-        new_list.add(new RankLamp(1002, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(6), System.currentTimeMillis()));
-        new_list.add(new RankLamp(1003, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(7), System.currentTimeMillis()));
-
-		/* Update global rank */
-        boolean updated = false;
-        for (RankLamp lamp : new_list) {
-            updated |= current_list.update(lamp);
-        }
-
-        List<RankLamp> globalOldestK = current_list.getOldestK();
-
-
-        List<RankLamp> expected_ranking = new ArrayList<>();
-        expected_ranking.add(new RankLamp(1006, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(10), System.currentTimeMillis()));
-        expected_ranking.add(new RankLamp(1005, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(9), System.currentTimeMillis()));
-        expected_ranking.add(new RankLamp(1004, new Address("Via Cambridge", 12, AddressNumberType.CIVIC), localDateTime.minusDays(8), System.currentTimeMillis()));
-
-        for (int i = 0; i < expected_ranking.size(); i++) {
-            assertEquals(expected_ranking.get(i).getId(), globalOldestK.get(i).getId());
-        }
+        assertFalse(bolt.rankingUpdated("[ {\"id\": 11111, " +
+                "\"address\": " +
+                "{\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": CIVIC}," +
+                "\"lifetime\": {\"date\": " +
+                "                    { \"year\":2017, \"month\":12, \"day\":22 }, " +
+                "                    \"time\": " +
+                "                        { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
+                "                }," +
+                "    \"timestamp\" : 149203981028 }," +
+                "{\"id\": 22222, " +
+                "      \"address\": " +
+                "       {\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": CIVIC}, " +
+                "       \"lifetime\": {\"date\": " +
+                "                        { \"year\":2017, \"month\":12, \"day\":29 }, " +
+                "                          \"time\": " +
+                "                          { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
+                "                     }, " +
+                "       \"timestamp\" : 149203980928 } ]"));
     }
 
     @After

@@ -12,7 +12,6 @@ import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 import java.io.IOException;
 import java.util.TimerTask;
 
-import static java.lang.Thread.sleep;
 
 /**
  * This component request every 10 seconds through Parking REST API
@@ -25,12 +24,8 @@ public class ParkingSource extends TimerTask {
 
     org.apache.http.client.HttpClient httpClient;
 
-    private static String MEMCACHED_HOST_DEFAULT = "localhost";
-    private static int MEMCACHED_PORT_DEFAULT = 11211;
     private CacheManager cache;
 
-    private String memcached_host = MEMCACHED_HOST_DEFAULT;
-    private int memcached_port = MEMCACHED_PORT_DEFAULT;
     private String parking_host = PARKING_SERVER_DEFAULT;
     private int parking_port = PARKING_PORT_DEFAULT;
 
@@ -38,7 +33,7 @@ public class ParkingSource extends TimerTask {
 
     public ParkingSource() {
         config();
-        cache = new MemcachedManager(memcached_host, memcached_port);
+        cache = new MemcachedManager();
         httpClient = HttpClientBuilder.create().build();
     }
 
@@ -50,14 +45,10 @@ public class ParkingSource extends TimerTask {
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
         try {
-            ServiceConfig memcachedConfig = yamlConfigRunner.getConfiguration().
-                    getMemcached();
 
             ServiceConfig parkingConfig = yamlConfigRunner.getConfiguration().
                     getParkingServer();
 
-            memcached_host = memcachedConfig.getHostname();
-            memcached_port = memcachedConfig.getPort();
 
             parking_host = parkingConfig.getHostname();
             parking_port = parkingConfig.getPort();

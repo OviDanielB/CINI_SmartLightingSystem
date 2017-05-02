@@ -70,7 +70,7 @@ public class AnalyzeBoltTest {
                 "               \"timestamp\":1492785909974}]";
 
         /* methods tested elsewhere  */
-        CacheManager cache = new MemcachedManager("localhost",11211);
+        CacheManager cache = new MemcachedManager();
 
         cache.put(MemcachedManager.TRAFFIC_LIST_KEY, trafficList);
         cache.put(MemcachedManager.PARKING_LIST_KEY, parkingList);

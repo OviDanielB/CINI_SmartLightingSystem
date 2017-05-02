@@ -1,7 +1,10 @@
 package org.uniroma2.sdcc.Utils.Cache;
 
 import net.spy.memcached.MemcachedClient;
+import org.uniroma2.sdcc.Utils.Config.ServiceConfig;
+import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 import org.uniroma2.sdcc.Utils.HeliosLog;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -19,18 +22,36 @@ public class MemcachedManager implements CacheManager {
     public static final String OLD_COUNTER = "old_counter";
     public static final String SENT_GLOBAL_RANKING = "sent_global_ranking";
 
-
-    private String host;
-    private Integer port;
+    private static final String HOST_DEFAULT = "localhost";
+    private static final Integer PORT_DEFAULT = 11211;
+    private String host = HOST_DEFAULT;
+    private Integer port = PORT_DEFAULT;
     private MemcachedClient client;
 
     private boolean available;
 
-    public MemcachedManager(String host, Integer port) {
-        this.host = host;
-        this.port = port;
-
+    public MemcachedManager() {
+        config();
         connect();
+    }
+
+    /**
+     * Parameters configuration from file.
+     */
+    private void config() {
+        YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
+        try {
+            ServiceConfig memcachedConfig = yamlConfigRunner.getConfiguration().
+                    getMemcached();
+
+            /* set from config file */
+            this.host = memcachedConfig.getHostname();
+            this.port = memcachedConfig.getPort();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            HeliosLog.logFail(LOG_TAG, "File config error. Using default values");
+        }
     }
 
     /**
@@ -101,7 +122,7 @@ public class MemcachedManager implements CacheManager {
     public HashMap<Integer, Integer> getIntIntMap(String key) {
         HashMap<Integer, Integer> map;
         if(isAvailable()){
-            map = (HashMap<Integer, Integer>) client.get(key);
+            map = JSONConverter.toHashMapIntInt(client.get(key).toString());
             return map;
         }
         return null;

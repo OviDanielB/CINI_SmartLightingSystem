@@ -26,6 +26,7 @@ public class JSONConverter {
     private static Type listTrafficDataType = new TypeToken<List<TrafficData>>(){}.getType();
     private static Type listRankLampType = new TypeToken<List<RankLamp>>(){}.getType();
     private static Type adaptedLampType = new TypeToken<HashMap<String,Integer>>(){}.getType();
+    private static Type hashIntIntType = new TypeToken<HashMap<Integer,Integer>>(){}.getType();
 
     /**
      * Convert object TrafficData in JSON format.
@@ -286,10 +287,12 @@ public class JSONConverter {
      * @return adapted_lamp class to convert
      */
     public static HashMap<String,Integer> toAdaptedLamp(String json) {
-
-        if (json != null)
+        try {
             return gson.fromJson(json, adaptedLampType);
-        return null;
+        } catch (JsonParseException e) {
+            e.printStackTrace();
+            return new HashMap<>();
+        }
     }
 
     /**
@@ -304,5 +307,34 @@ public class JSONConverter {
             return gson.toJson(tuple);
         }
         return null;
+    }
+
+    /**
+     * Convert object HashMap<Integer,Integer> in JSON format.
+     *
+     * @param hashMap class to convert
+     * @return json string
+     */
+    public static String fromHashMapIntInt(HashMap<Integer, Integer> hashMap) {
+
+        if (hashMap != null) {
+            return gson.toJson(hashMap);
+        }
+        return null;
+    }
+
+    /**
+     * Convert JSON format to object HashMap<Integer,Integer>.
+     *
+     * @param json string
+     * @return hashMap class to convert
+     */
+    public static HashMap<Integer,Integer> toHashMapIntInt(String json) {
+        try {
+            return gson.fromJson(json, hashIntIntType);
+        } catch (JsonParseException e) {
+            e.printStackTrace();
+            return new HashMap<>();
+        }
     }
 }

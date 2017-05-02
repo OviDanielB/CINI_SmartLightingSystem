@@ -36,8 +36,6 @@ public class AnalyzeBolt extends BaseRichBolt {
 
     private OutputCollector collector;
     private CacheManager cache;
-    private final static String MEMCACHED_HOST = "localhost";
-    private final static int MEMCACHED_PORT = 11211;
     private Float toIncreaseGap = 0f;           // positive max value to resolve the defecting anomalies
     private Float toDecreaseGap = 0f;           // negative min value to resolve the excess anomalies
 
@@ -66,7 +64,7 @@ public class AnalyzeBolt extends BaseRichBolt {
         this.parkingDataList = new ArrayList<>();
 
         /* create Memcached connection to cache traffic and parking data */
-        cache = new MemcachedManager(MEMCACHED_HOST,MEMCACHED_PORT);
+        cache = new MemcachedManager();
 
         config();
         startTrafficAndParkingPeriodicUpdate();

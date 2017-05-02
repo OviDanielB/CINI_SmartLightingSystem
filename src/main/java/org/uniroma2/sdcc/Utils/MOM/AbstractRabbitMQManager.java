@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.Utils.MOM;
 
-import clojure.lang.IFn;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;

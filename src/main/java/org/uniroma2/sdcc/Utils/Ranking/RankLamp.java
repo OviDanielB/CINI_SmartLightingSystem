@@ -10,6 +10,12 @@ import java.time.LocalDateTime;
  */
 public class RankLamp {
 
+    private int id;
+    private Address address;
+    private LocalDateTime lifetime;
+    private Long timestamp;
+
+
     public int getId() {
         return id;
     }
@@ -17,11 +23,6 @@ public class RankLamp {
     public Address getAddress() {
         return address;
     }
-
-    private int id;
-    private Address address;
-    private LocalDateTime lifetime;
-    private Long timestamp;
 
     public Long getTimestamp() {
         return timestamp;

@@ -17,9 +17,6 @@ import static org.junit.Assert.*;
  */
 public class MemcachedManagerTest {
 
-    private static final String MEMCACHED_HOST = "localhost";
-    private static final int MEMCACHED_PORT = 11211;
-
     private static final String TEST_KEY = "testKey";
     private static final String TEST_VALUE = "testValue";
 
@@ -28,7 +25,7 @@ public class MemcachedManagerTest {
     @Before
     public void setUp(){
 
-        cache = new MemcachedManager(MEMCACHED_HOST,MEMCACHED_PORT);
+        cache = new MemcachedManager();
     }
 
     @Test

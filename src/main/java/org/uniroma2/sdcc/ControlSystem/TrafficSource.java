@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.ControlSystem;
 
-import net.spy.memcached.MemcachedClient;
 import org.uniroma2.sdcc.Model.TrafficData;
 import org.uniroma2.sdcc.Traffic.StreetTrafficREST;
 import org.uniroma2.sdcc.Utils.Cache.CacheManager;
@@ -8,12 +7,9 @@ import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
 import org.uniroma2.sdcc.Utils.HeliosLog;
 import org.uniroma2.sdcc.Utils.JSONConverter;
 
-import java.io.*;
-import java.net.*;
 import java.util.List;
 import java.util.TimerTask;
 
-import static java.lang.Thread.sleep;
 
 /**
  * This component request every 10 seconds through Traffic REST API
@@ -23,14 +19,12 @@ public class TrafficSource extends TimerTask {
 
     private static final String LOG_TAG = "[TrafficSource]";
 
-    private static final String MEMCACHED_HOST = "localhost";
-    private static final int MEMCACHED_PORT = 11211;
     private CacheManager cache;
 
     private static StreetTrafficREST streetTrafficREST;
 
     public TrafficSource() {
-        cache = new MemcachedManager(MEMCACHED_HOST,MEMCACHED_PORT);
+        cache = new MemcachedManager();
         streetTrafficREST = new StreetTrafficREST();
     }
 

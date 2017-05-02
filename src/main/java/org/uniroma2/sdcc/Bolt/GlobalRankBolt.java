@@ -18,7 +18,6 @@ import org.uniroma2.sdcc.Utils.Ranking.RankLamp;
 import org.uniroma2.sdcc.Utils.Ranking.RankingResults;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,10 +41,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private PubSubManager pubSubManager;
     private final String ROUTING_KEY = "dashboard.rank";
 
-    /* cache connection attributes */
-    private final static String MEMCAC_HOST = "localhost";
-    private final static Integer MEMCAC_PORT = 11211;
-    private CacheManager cache;
+    protected CacheManager cache;
 
 
 
@@ -62,13 +58,23 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
+
+        config();
+
         this.collector = outputCollector;
         this.ranking = new OldestKRanking(K);
 
-        this.cache = new MemcachedManager(MEMCAC_HOST,MEMCAC_PORT);
+        this.cache = new MemcachedManager();
 
         /* connect to rabbit with attributes taken from config file */
         pubSubManager = new RabbitPubSubManager();
+
+    }
+
+    /**
+     * Configuration.
+     */
+    private void config() {
 
     }
 
@@ -82,13 +88,11 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     @Override
     public void execute(Tuple tuple) {
 
-        if (isTickTuple(tuple)) {
-            /*  send global ranking every tick tuple    */
-            sendWindowRank();
-        } else {
-            /*  update global ranking    */
-            getRanking(tuple);
-        }
+        if (isTickTuple(tuple))
+            sendWindowRank(); // send global ranking every tick tuple
+        else
+            getRanking(tuple); // update global ranking
+
         collector.ack(tuple);
     }
 
@@ -108,20 +112,15 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
             String json_results;
 
             /* send to queue with routing key */
-            if (json_ranking != null) {
-
-                RankingResults results = new RankingResults(
+            RankingResults results = new RankingResults(
                         JSONConverter.toRankLampListData(json_ranking), oldIds.size());
 
-                json_results = JSONConverter.fromRankingResults(results);
+            json_results = JSONConverter.fromRankingResults(results);
 
-                /* publish on queue */
-                pubSubManager.publish(ROUTING_KEY, json_results);
+            /* publish on queue */
+            pubSubManager.publish(ROUTING_KEY, json_results);
 
-                HeliosLog.logOK(LOG_TAG, "Sent : " + json_results);
-
-            }
-
+            HeliosLog.logOK(LOG_TAG, "Sent : " + json_results);
         }
     }
 
@@ -132,7 +131,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      * @param json_ranking current ranking saved
      * @return true if sent_ranking has been updated as current_ranking values
      */
-    private boolean rankingUpdated(String json_ranking) {
+    protected boolean rankingUpdated(String json_ranking) {
 
         String json_sent_ranking = cache.getString(MemcachedManager.SENT_GLOBAL_RANKING);
 
@@ -141,17 +140,18 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         List<RankLamp> current_ranking = JSONConverter.toRankLampListData(json_ranking);
 
         /* if two lists are different, update cache */
-        if( sent_ranking.size() == 0
-                || current_ranking.stream().filter(e -> {
-                    Integer index =  current_ranking.indexOf(e);
-                    return  e.getId() != sent_ranking.get(index).getId();
-                    }).count() > 0) {
+        if (current_ranking.size() != 0) {
+            if (sent_ranking.size() == 0
+                    || current_ranking.stream().filter(e -> {
+                Integer index = current_ranking.indexOf(e);
+                return e.getId() != sent_ranking.get(index).getId();
+            }).count() > 0) {
 
-            cache.put(MemcachedManager.SENT_GLOBAL_RANKING, json_ranking);
+                cache.put(MemcachedManager.SENT_GLOBAL_RANKING, json_ranking);
 
-            return true;
+                return true;
+            }
         }
-
         return false;
     }
 
@@ -212,7 +212,7 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      *
      * @param tuple tuple to check
      **/
-    private static boolean isTickTuple(Tuple tuple) {
+    protected static boolean isTickTuple(Tuple tuple) {
         return tuple.getSourceComponent().equals(Constants.SYSTEM_COMPONENT_ID)
                 && tuple.getSourceStreamId().equals(Constants.SYSTEM_TICK_STREAM_ID);
     }

@@ -1,7 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import net.spy.memcached.MemcachedClient;
-import org.apache.storm.Config;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -11,11 +9,10 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
-import org.uniroma2.sdcc.Utils.Config.RankingConfig;
-import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
+import org.uniroma2.sdcc.Utils.Cache.CacheManager;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
+import org.uniroma2.sdcc.Utils.JSONConverter;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -35,7 +32,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     private int lifetime_threshold;
     /*  number of old lamps  */
     private HashMap<Integer, Integer> oldIds;
-    private MemcachedClient memcachedClient;
+    private CacheManager cache;
 
     public FilteringByLifetimeBolt(int lifetime_threshold) {
         this.lifetime_threshold = lifetime_threshold;
@@ -52,12 +49,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.oldIds = new HashMap<>();
-        try {
-            this.memcachedClient = new MemcachedClient(new InetSocketAddress("localhost", 11211));
-            this.memcachedClient.set("old_counter", 0, this.oldIds);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.cache = new MemcachedManager();
     }
 
     /**
@@ -71,8 +63,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     public void execute(Tuple tuple) {
 
         try {
-            oldIds = (HashMap<Integer, Integer>)
-                    memcachedClient.get("old_counter");
+            oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
         } catch (Exception e) {
             this.oldIds = new HashMap<>();
         }
@@ -102,14 +93,14 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
 
         if (isOlderThan(lifetime)) {
             oldIds.put(id, 1);
-            memcachedClient.set("old_counter", 0, oldIds);
+            cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
 
             collector.emit(tuple, new Values(id, address, lifetime, timestamp));
         } else {
             if (oldIds.containsKey(id)) {
                 oldIds.remove(id);
             }
-            memcachedClient.set("old_counter", 0, oldIds);
+            cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
         }
     }
 
