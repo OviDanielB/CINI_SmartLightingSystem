@@ -1,5 +1,6 @@
 package org.uniroma2.sdcc.Bolt;
 
+import clojure.lang.Cons;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -50,6 +51,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         this.collector = outputCollector;
         this.oldIds = new HashMap<>();
         this.cache = new MemcachedManager();
+        this.cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
     }
 
     /**
@@ -68,12 +70,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
             this.oldIds = new HashMap<>();
         }
 
-        int id = (int) tuple.getValueByField(Constants.ID);
-        Address address = (Address) tuple.getValueByField(Constants.ADDRESS);
-        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constants.LIFETIME);
-        Long timestamp = (Long) tuple.getValueByField(Constants.TIMESTAMP);
-
-        emitClassifiableLampTuple(tuple, id, address, lifetime, timestamp);
+        emitClassifiableLampTuple(tuple);
 
         collector.ack(tuple);
     }
@@ -82,26 +79,50 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      * Check and emit only tuple with value of lifetime > LIFETIME_THRESHOLD
      * and save id in memory if true.
      *
-     * @param tuple     received from FilteringBolt
-     * @param id        parsed from tuple
-     * @param address   parsed from tuple
-     * @param lifetime  parsed from tuple
-     * @param timestamp parsed from tuple
+     * @param tuple received from FilteringBolt
      */
-    private void emitClassifiableLampTuple(
-            Tuple tuple, int id, Address address, LocalDateTime lifetime, Long timestamp) {
+    private void emitClassifiableLampTuple(Tuple tuple) {
 
-        if (isOlderThan(lifetime)) {
-            oldIds.put(id, 1);
-            cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
+        if (isOlderThan(tuple))
+            updateOldIdsAndEmit(tuple); // add to old ids list and emit values
+        else
+            updateOldIdsAndReject(tuple); // remove from old ids list and reject tuple
 
-            collector.emit(tuple, new Values(id, address, lifetime, timestamp));
-        } else {
-            if (oldIds.containsKey(id)) {
-                oldIds.remove(id);
-            }
-            cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
+        cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
+    }
+
+    /**
+     * If lamp ID is just present in old ids list, it is removed and the
+     * incoming tuple is rejected.
+     *
+     * @param tuple received
+     */
+    private void updateOldIdsAndReject(Tuple tuple) {
+        Integer id = tuple.getIntegerByField(Constants.ID);
+
+        if (oldIds.containsKey(id)) {
+            oldIds.remove(id);
         }
+    }
+
+    /**
+     * If lamp ID is not just present in the old ids list, this method
+     * adds it to the list and emit values to next Bolt.
+     *
+     * @param tuple received
+     */
+    private void updateOldIdsAndEmit(Tuple tuple) {
+
+        Integer id = tuple.getIntegerByField(Constants.ID);
+        oldIds.put(id, 1);
+
+        Values values = new Values();
+        values.add(id);
+        values.add(tuple.getValueByField(Constants.ADDRESS));
+        values.add(tuple.getValueByField(Constants.LIFETIME));
+        values.add(tuple.getValueByField(Constants.TIMESTAMP));
+
+        collector.emit(values);
     }
 
     /**
@@ -109,10 +130,12 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
      * indicating in the field "lifetime" are more than
      * LIFETIME_THRESHOLD to be considered quite old.
      *
-     * @param lifetime value of lamp to be considered
+     * @param tuple received
      * @return true if quite old, false otherwise
      */
-    private boolean isOlderThan(LocalDateTime lifetime) {
+    private boolean isOlderThan(Tuple tuple) {
+
+        LocalDateTime lifetime = (LocalDateTime) tuple.getValueByField(Constants.LIFETIME);
 
         ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
         LocalDateTime d2 = currentDate.toLocalDateTime();

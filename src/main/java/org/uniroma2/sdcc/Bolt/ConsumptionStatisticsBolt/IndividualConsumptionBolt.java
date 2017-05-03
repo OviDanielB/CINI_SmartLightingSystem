@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt;
 
-import org.apache.storm.Config;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
@@ -116,16 +115,20 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
 
     protected WrappedKey getStatisticsKey(Tuple tuple) {
         WrappedKey key = new WrappedKey();
-        key.setId(tuple.getIntegerByField("id"));
-        key.setStreet(tuple.getStringByField("street"));
+        key.setId(tuple.getIntegerByField(Constants.ID));
+        key.setStreet(tuple.getStringByField(Constants.ADDRESS));
 
         return key;
     }
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields("id", "street", "consumption",
-                "timestamp", "window_length"));
+        outputFieldsDeclarer.declare(new Fields(
+                Constants.ID,
+                Constants.ADDRESS,
+                Constants.CONSUMPTION,
+                Constants.TIMESTAMP,
+                Constants.WINDOW_LENGTH));
     }
 
     protected boolean isValid(LocalDateTime timestamp) {
@@ -143,8 +146,6 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
     @Override
     public Map<String, Object> getComponentConfiguration() {
         // configure how often a tick tuple will be sent to our bolt
-        Config conf = new Config();
-        conf.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, tickFrequencyInSeconds);
-        return conf;
+        return TupleHelpers.getTickTupleFrequencyConfig(tickFrequencyInSeconds);
     }
 }

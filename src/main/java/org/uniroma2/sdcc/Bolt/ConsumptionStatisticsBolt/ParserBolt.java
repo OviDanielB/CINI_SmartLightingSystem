@@ -58,7 +58,10 @@ public class ParserBolt extends BaseRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields("id", "street", "consumption", "timestamp"));
+        outputFieldsDeclarer.declare(new Fields(
+                Constants.ID,
+                Constants.ADDRESS,
+                Constants.CONSUMPTION,
+                Constants.TIMESTAMP));
     }
-
 }

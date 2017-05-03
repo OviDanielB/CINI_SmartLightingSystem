@@ -13,7 +13,6 @@ import org.uniroma2.sdcc.Utils.Config.RankingConfig;
 import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
 
 import java.io.IOException;
-import java.time.LocalDate;
 
 /**
  * This Topology processes data generating real-time information about

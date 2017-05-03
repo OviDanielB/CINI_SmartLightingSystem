@@ -11,6 +11,7 @@ import org.junit.Test;
 import org.junit.runners.MethodSorters;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
 import org.uniroma2.sdcc.Utils.JSONConverter;
 import java.util.HashMap;
@@ -53,7 +54,7 @@ public class GlobalRankBoltTest {
     public void T1_executeRankingCompute() throws Exception {
 
         Tuple tuple = mock(Tuple.class);
-        when(tuple.getStringByField(PartialRankBolt.RANKING)).thenReturn(
+        when(tuple.getStringByField(Constants.RANKING)).thenReturn(
                 "[{\"id\":1," +
                         "\"address\":" +
                         "{\"name\":\"VIA CAMBRIDGE\",\"number\":12,\"numberType\":\"CIVIC\"}," +
@@ -79,7 +80,7 @@ public class GlobalRankBoltTest {
 
         bolt.execute(tuple);
 
-        String expected_ranking_saved = tuple.getStringByField(PartialRankBolt.RANKING);
+        String expected_ranking_saved = tuple.getStringByField(Constants.RANKING);
 
         /* MemcachedManager tested elsewhere */
         assertEquals(expected_ranking_saved, bolt.cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK));
@@ -121,24 +122,24 @@ public class GlobalRankBoltTest {
     @Test
     public void T3_rankingUpdated() {
 
-        assertTrue(bolt.rankingUpdated("[ {\"id\": 11111, " +
-                "\"address\": " +
-                "{\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": \"CIVIC\"}," +
-                "\"lifetime\": {\"date\": " +
-                "                    { \"year\":2017, \"month\":12, \"day\":22 }, " +
-                "                    \"time\": " +
-                "                        { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
-                "                }," +
-                "    \"timestamp\" : 149203981028 }," +
-                "{\"id\": 22222, " +
-                "      \"address\": " +
-                "       {\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": \"CIVIC\"}, " +
-                "       \"lifetime\": {\"date\": " +
-                "                        { \"year\":2017, \"month\":12, \"day\":29 }, " +
-                "                          \"time\": " +
-                "                          { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
-                "                     }, " +
-                "       \"timestamp\" : 149203980928 } ]"));
+        assertTrue(bolt.rankingUpdated("[{\"id\":1111," +
+                "\"address\":" +
+                "{\"name\":\"VIA CAMBRIDGE\",\"number\":12,\"numberType\":\"CIVIC\"}," +
+                "\"lifetime\":{\"date\":" +
+                "{\"year\":2017,\"month\":12,\"day\":22}," +
+                "\"time\":" +
+                "{\"hour\":16,\"minute\":50,\"second\":50,\"nano\":489000000}" +
+                "}," +
+                "\"timestamp\":149203981028}," +
+                "{\"id\":2222," +
+                "\"address\":" +
+                "{\"name\":\"VIA CAMBRIDGE\",\"number\":12,\"numberType\":\"CIVIC\"}," +
+                "\"lifetime\":{\"date\":" +
+                "{\"year\":2017,\"month\":12,\"day\":29}," +
+                "\"time\":" +
+                "{\"hour\":16,\"minute\":50,\"second\":50,\"nano\":489000000}" +
+                "}," +
+                "\"timestamp\":149203980928}]"));
     }
 
     /**
@@ -148,24 +149,24 @@ public class GlobalRankBoltTest {
     @Test
     public void T4_rankingNotUpdated() {
 
-        assertFalse(bolt.rankingUpdated("[ {\"id\": 11111, " +
-                "\"address\": " +
-                "{\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": CIVIC}," +
-                "\"lifetime\": {\"date\": " +
-                "                    { \"year\":2017, \"month\":12, \"day\":22 }, " +
-                "                    \"time\": " +
-                "                        { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
-                "                }," +
-                "    \"timestamp\" : 149203981028 }," +
-                "{\"id\": 22222, " +
-                "      \"address\": " +
-                "       {\"name\": \"VIA CAMBRIDGE\", \"number\": 12, \"numberType\": CIVIC}, " +
-                "       \"lifetime\": {\"date\": " +
-                "                        { \"year\":2017, \"month\":12, \"day\":29 }, " +
-                "                          \"time\": " +
-                "                          { \"hour\":16, \"minute\":50, \"second\":50, \"nano\":489000000} " +
-                "                     }, " +
-                "       \"timestamp\" : 149203980928 } ]"));
+        assertFalse(bolt.rankingUpdated("[{\"id\":1111," +
+                "\"address\":" +
+                "{\"name\":\"VIA CAMBRIDGE\",\"number\":12,\"numberType\":\"CIVIC\"}," +
+                "\"lifetime\":{\"date\":" +
+                "{\"year\":2017,\"month\":12,\"day\":22}," +
+                "\"time\":" +
+                "{\"hour\":16,\"minute\":50,\"second\":50,\"nano\":489000000}" +
+                "}," +
+                "\"timestamp\":149203981028}," +
+                "{\"id\":2222," +
+                "\"address\":" +
+                "{\"name\":\"VIA CAMBRIDGE\",\"number\":12,\"numberType\":\"CIVIC\"}," +
+                "\"lifetime\":{\"date\":" +
+                "{\"year\":2017,\"month\":12,\"day\":29}," +
+                "\"time\":" +
+                "{\"hour\":16,\"minute\":50,\"second\":50,\"nano\":489000000}" +
+                "}," +
+                "\"timestamp\":149203980928}]"));
     }
 
     @After
