@@ -35,7 +35,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>org.uniroma2.sdcc.Topologies</mainClass>
+                            <mainClass>org.uniroma2.sdcc.ConsumptionStatisticsTopology</mainClass>
                             <classpathPrefix>lib/</classpathPrefix>
                         </manifest>
                     </archive>
@@ -51,7 +51,7 @@
                 </descriptorRefs>
                 <archive>
                   <manifest>
-                    <mainClass>org.uniroma2.sdcc.Topologies</mainClass>
+                    <mainClass>org.uniroma2.sdcc.ConsumptionStatisticsTopology</mainClass>
                   </manifest>
                 </archive>
               </configuration>
@@ -108,7 +108,7 @@
             <artifactId>storm-core</artifactId>
             <version>1.0.3</version>
             <!--> compile for LOCAL MODE, provided for real CLUSTER mode </!-->
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>

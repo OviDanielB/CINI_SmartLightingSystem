@@ -78,7 +78,7 @@ public class PlanBolt extends BaseRichBolt {
             values.add(id);
             values.add(adapted_intensity);
 
-            collector.emit(values);
+            collector.emit(tuple,values);
         }
     }
 

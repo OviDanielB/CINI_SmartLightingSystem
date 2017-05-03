@@ -47,10 +47,10 @@ public class ExecuteBolt extends BaseRichBolt{
     private ArrayBlockingQueue<String> queue;
     /* if queue capacity maximum => producer blocks on put operation,
       similarly capacity 0 => consumer blocks on take */
-    private static final Integer QUEUE_CAPACITY = 100;
+    private static final Integer QUEUE_CAPACITY = 5000;
 
     private ExecutorService executorService;
-    private static final Integer THREAD_NUMBER = 4;
+    private static final Integer THREAD_NUMBER = 10;
 
     protected static volatile Integer count = 0;
     

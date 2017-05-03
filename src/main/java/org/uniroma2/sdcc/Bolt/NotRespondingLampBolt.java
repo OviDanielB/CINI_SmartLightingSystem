@@ -106,7 +106,7 @@ public class NotRespondingLampBolt implements IRichBolt {
         values.add(naturalLightLevel);
         values.add(timestamp);
 
-        collector.emit(values);
+        collector.emit(input,values);
 
         collector.ack(input);
 

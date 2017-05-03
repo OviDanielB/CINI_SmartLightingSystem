@@ -44,7 +44,7 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
 
             tickCount++;
             if (tickCount == (emitFrequencyInSeconds / tickFrequencyInSeconds)) {
-                emitCurrentWindowAvgs(window);
+                emitCurrentWindowAvgs(window,tuple);
                 tickCount = 0;
             }
 
@@ -73,7 +73,7 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
      *
      * @see this#emit(Map, LocalDateTime, int)
      */
-    protected void emitCurrentWindowAvgs(SlidingWindowAvg slidingWindow) {
+    protected void emitCurrentWindowAvgs(SlidingWindowAvg slidingWindow,Tuple tuple) {
 
         int actualWindowLengthInSeconds = lastModifiedTracker.secondsSinceOldestModification();
         lastModifiedTracker.markAsModified();
@@ -86,7 +86,7 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
         emit(statistics, slidingWindow.getLastSlide(), actualWindowLengthInSeconds);
 
         Float globalStat = slidingWindow.getTotalAvg();
-        collector.emit(new Values("*", globalStat, slidingWindow.getLastSlide(), actualWindowLengthInSeconds));
+        collector.emit(tuple,new Values("*", globalStat, slidingWindow.getLastSlide(), actualWindowLengthInSeconds));
 
     }
 

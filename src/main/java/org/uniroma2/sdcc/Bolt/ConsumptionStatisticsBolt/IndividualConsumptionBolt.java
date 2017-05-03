@@ -55,7 +55,7 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
 
             tickCount++;
             if (tickCount == (emitFrequencyInSeconds / tickFrequencyInSeconds)) {
-                emitCurrentWindowAvgs(window);
+                emitCurrentWindowAvgs(window,tuple);
                 tickCount = 0;
             }
 
@@ -82,9 +82,9 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
      * Slide window and emit computer statistics.
      * Retrieve actual windows-length that in the starting phase can be different from the specified one.
      *
-     * @see this#emit(Map, LocalDateTime, int)
+     * @see this#emit(Map, LocalDateTime, int, Tuple)
      */
-    protected void emitCurrentWindowAvgs(SlidingWindowAvg slidingWindow) {
+    protected void emitCurrentWindowAvgs(SlidingWindowAvg slidingWindow,Tuple tuple) {
 
         int actualWindowLengthInSeconds = lastModifiedTracker.secondsSinceOldestModification();
         lastModifiedTracker.markAsModified();
@@ -94,7 +94,7 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
         }
 
         Map<WrappedKey, Float> statistics = slidingWindow.getAvgThenAdvanceWindow();
-        emit(statistics, slidingWindow.getLastSlide(), actualWindowLengthInSeconds);
+        emit(statistics, slidingWindow.getLastSlide(), actualWindowLengthInSeconds,tuple);
     }
 
     /**
@@ -104,12 +104,12 @@ public class IndividualConsumptionBolt extends SlidingWindowBolt<WrappedKey> {
      * @param windowEnd                   Instant of time at which statistics computation ends and start new window
      * @param actualWindowLengthInSeconds window Length ( windows end - window start )
      */
-    protected void emit(Map<WrappedKey, Float> stat, LocalDateTime windowEnd, int actualWindowLengthInSeconds) {
+    protected void emit(Map<WrappedKey, Float> stat, LocalDateTime windowEnd, int actualWindowLengthInSeconds,Tuple tuple) {
 
         System.out.println("[CINI] Intermediate hourly statistics at " + windowEnd + "\n\n");
         for (WrappedKey key : stat.keySet()) {
             Float avg = stat.get(key);
-            collector.emit(new Values(key.getId(), key.getStreet(), avg, windowEnd,
+            collector.emit(tuple,new Values(key.getId(), key.getStreet(), avg, windowEnd,
                     actualWindowLengthInSeconds));
         }
     }

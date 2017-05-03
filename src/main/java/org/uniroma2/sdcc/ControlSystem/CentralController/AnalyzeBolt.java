@@ -179,7 +179,7 @@ public class AnalyzeBolt extends BaseRichBolt {
 
         Values values;
         if ( (values = changeRequired(tuple)) != null)
-            collector.emit(values);
+            collector.emit(tuple,values);
 
     }
 

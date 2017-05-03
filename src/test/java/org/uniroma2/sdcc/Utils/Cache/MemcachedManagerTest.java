@@ -7,16 +7,13 @@ import static org.junit.Assert.*;
 
 /**
  * Test for Memcached connection,
- * put and get operation
+ * put and getString operation
  *
  * YOU MUST HAVE AN ACTIVE MEMCACHED SERVER
  * ON localhost:11211 ELSE THE TEST PASSES
  * WITHOUT CHECKING IF METHODS ACT ACCORDINGLY
  */
 public class MemcachedManagerTest {
-
-    private static final String MEMCACHED_HOST = "localhost";
-    private static final int MEMCACHED_PORT = 11211;
 
     private static final String TEST_KEY = "testKey";
     private static final String TEST_VALUE = "testValue";

@@ -40,7 +40,7 @@ public class RankingOldestLampsTopology {
         int lifetime_threshold;
 
         Config config = new Config();
-        config.setDebug(true);
+        //config.setDebug(true);
         //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();

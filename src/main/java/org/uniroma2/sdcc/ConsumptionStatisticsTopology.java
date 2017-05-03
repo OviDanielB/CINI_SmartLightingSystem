@@ -2,6 +2,7 @@ package org.uniroma2.sdcc;
 
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
+import org.apache.storm.StormSubmitter;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.ConsumptionStatisticsBolt.*;
@@ -46,6 +47,8 @@ public class ConsumptionStatisticsTopology {
         int daily_emit_frequency;
 
         Config config = new Config();
+        config.setNumWorkers(4);
+        config.setMessageTimeoutSecs(5);
 
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
@@ -69,33 +72,42 @@ public class ConsumptionStatisticsTopology {
 
         builder.setSpout("rabbitSpout", new RabbitMQSpout(), 2);
 
-        builder.setBolt("filterBolt", new FilteringBolt(), 1).shuffleGrouping("rabbitSpout");
+        builder.setBolt("filterBolt", new FilteringBolt(), 2)
+                .setNumTasks(5)
+                .shuffleGrouping("rabbitSpout");
 
-        builder.setBolt("parser", new ParserBolt(), 1).shuffleGrouping("filterBolt");
+        builder.setBolt("parser", new ParserBolt(), 2)
+                .setNumTasks(5)
+                .shuffleGrouping("filterBolt");
 
         builder.setBolt("HourlyBolt", new IndividualConsumptionBolt(daily_window,
-                tickfrequency), 1).shuffleGrouping("parser");
+                tickfrequency), 2)
+                .setNumTasks(5)
+                .shuffleGrouping("parser");
 
         builder.setBolt("AggregateHourly", new AggregateConsumptionBolt(hourly_window, tickfrequency),
-                3).fieldsGrouping("parser", new Fields("street"));
+                3)
+                .setNumTasks(6)
+                .fieldsGrouping("parser", new Fields("street"));
 
         builder.setBolt("DailyBolt", new ExtendendIndividualConsumptionBolt(daily_window,
-                daily_emit_frequency, tickfrequency), 1)
+                daily_emit_frequency, tickfrequency))
                 .shuffleGrouping("HourlyBolt");
 
         builder.setBolt("AggregateDaily", new ExtendedAggregateConsumptionBolt(daily_window,
-                daily_emit_frequency, tickfrequency), 3)
+                daily_emit_frequency, tickfrequency))
                 .fieldsGrouping("AggregateHourly", new Fields("street"));
 
         builder.setBolt("WeeklyBolt", new ExtendendIndividualConsumptionBolt(WEEKLY_WINDOWLEN,
-                WEEKLY_EMIT_FREQUENCY, tickfrequency), 1)
+                WEEKLY_EMIT_FREQUENCY, tickfrequency))
                 .shuffleGrouping("DailyBolt");
 
         builder.setBolt("AggregateWeekly", new ExtendedAggregateConsumptionBolt(WEEKLY_WINDOWLEN,
-                WEEKLY_EMIT_FREQUENCY, tickfrequency), 3)
+                WEEKLY_EMIT_FREQUENCY, tickfrequency) )
                 .fieldsGrouping("AggregateDaily", new Fields("street"));
 
-        builder.setBolt("printer", new PrinterBolt(), 1)
+        builder.setBolt("printer", new PrinterBolt(), 3)
+                .setNumTasks(6)
                 .shuffleGrouping("HourlyBolt")
                 .shuffleGrouping("AggregateHourly")
                 .shuffleGrouping("AggregateDaily")
@@ -103,15 +115,16 @@ public class ConsumptionStatisticsTopology {
                 .shuffleGrouping("AggregateWeekly")
                 .shuffleGrouping("WeeklyBolt");
 
+        /*
         LocalCluster cluster = new LocalCluster();
         cluster.submitTopology("req2", config, builder.createTopology());
 
         Thread.sleep(3600 * 1000);
 
         cluster.killTopology("req2");
-        cluster.shutdown();
+        cluster.shutdown(); */
 
-//        StormSubmitter.submitTopology("req2", config, builder.createTopology());
+        StormSubmitter.submitTopology("Query2", config, builder.createTopology());
 
     }
 

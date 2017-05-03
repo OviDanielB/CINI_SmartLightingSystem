@@ -34,6 +34,8 @@ public class RabbitPubSubManager extends AbstractRabbitMQManager implements PubS
 
         /* declare exchange point, consumer must bind a queue to it */
         try {
+            if(channel == null){ return;}
+
             channel.exchangeDeclare(queueName,EXCHANGE_TYPE);
 
         } catch (IOException e) {
