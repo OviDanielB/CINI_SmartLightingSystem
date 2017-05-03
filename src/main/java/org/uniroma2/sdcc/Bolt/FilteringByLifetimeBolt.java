@@ -9,6 +9,7 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
+import org.uniroma2.sdcc.ControlSystem.CentralController.ExecuteBolt;
 import org.uniroma2.sdcc.Model.*;
 import org.uniroma2.sdcc.Utils.Cache.CacheManager;
 import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
@@ -19,6 +20,10 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
 
 /**
  * This Bolt processes arriving tuple from FilteringBolt
@@ -32,8 +37,15 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     /*  days threshold to be considered for ranking */
     private int lifetime_threshold;
     /*  number of old lamps  */
-    private HashMap<Integer, Integer> oldIds;
+    private volatile HashMap<Integer, Integer> oldIds;
     private CacheManager cache;
+
+    private ExecutorService executorService;
+
+    private ArrayBlockingQueue<String> queue;
+    /* if queue capacity maximum => producer blocks on put operation,
+      similarly capacity 0 => consumer blocks on take */
+    private static final Integer QUEUE_CAPACITY = 1000;
 
     public FilteringByLifetimeBolt(int lifetime_threshold) {
         this.lifetime_threshold = lifetime_threshold;
@@ -50,9 +62,44 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.oldIds = new HashMap<>();
-        this.cache = new MemcachedManager();
+//        this.cache = new MemcachedManager();
         this.cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
+        this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+
+        startPeriodicUpdate();
+        startThread();
     }
+
+    private void startPeriodicUpdate() {
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
+                } catch (Exception e) {
+                    oldIds = new HashMap<>();
+                }
+            }
+        };
+
+        Timer timer = new Timer();
+        timer.schedule(task, 5000, 3000);
+    }
+
+    private void startThread() {
+        executorService = Executors.newFixedThreadPool(3);
+        IntStream.range(0, 3).forEach(e -> {
+            executorService.submit(() -> {
+                CacheManager manager = new MemcachedManager();
+                try {
+                    manager.put(MemcachedManager.OLD_COUNTER, queue.take());
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+            });
+        });
+    }
+
 
     /**
      * Parse values of: ID, address, lifetime, timestamp from tuple
@@ -64,11 +111,11 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     @Override
     public void execute(Tuple tuple) {
 
-        try {
-            oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
-        } catch (Exception e) {
-            this.oldIds = new HashMap<>();
-        }
+//        try {
+//            oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
+//        } catch (Exception e) {
+//            this.oldIds = new HashMap<>();
+//        }
 
         emitClassifiableLampTuple(tuple);
 
@@ -88,7 +135,8 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         else
             updateOldIdsAndReject(tuple); // remove from old ids list and reject tuple
 
-        cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
+        //cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
+        queue.add(JSONConverter.fromHashMapIntInt(oldIds));
     }
 
     /**
@@ -122,7 +170,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         values.add(tuple.getValueByField(Constants.LIFETIME));
         values.add(tuple.getValueByField(Constants.TIMESTAMP));
 
-        collector.emit(tuple,values);
+        collector.emit(tuple, values);
     }
 
     /**
