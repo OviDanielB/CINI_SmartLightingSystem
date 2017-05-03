@@ -122,7 +122,7 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         values.add(tuple.getValueByField(Constants.LIFETIME));
         values.add(tuple.getValueByField(Constants.TIMESTAMP));
 
-        collector.emit(values);
+        collector.emit(tuple,values);
     }
 
     /**

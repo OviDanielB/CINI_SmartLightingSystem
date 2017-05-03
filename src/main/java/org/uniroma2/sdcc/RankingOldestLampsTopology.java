@@ -2,6 +2,7 @@ package org.uniroma2.sdcc;
 
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
+import org.apache.storm.StormSubmitter;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 import org.uniroma2.sdcc.Bolt.FilteringBolt;
@@ -39,6 +40,8 @@ public class RankingOldestLampsTopology {
         int lifetime_threshold;
 
         Config config = new Config();
+        config.setNumWorkers(4);
+        config.setMessageTimeoutSecs(10);
         //config.setDebug(true);
         //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
@@ -59,36 +62,40 @@ public class RankingOldestLampsTopology {
         TopologyBuilder builder = new TopologyBuilder();
 
         /* Lamps' data source  */
-        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout());
+        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(),2);
 
         /* Check of format correctness of received tuples   */
-        builder.setBolt(FILTER_BOLT, new FilteringBolt())
+        builder.setBolt(FILTER_BOLT, new FilteringBolt(),3)
+                .setNumTasks(6)
                 .shuffleGrouping(RABBIT_SPOUT);
 
         /* Filtering from lamps which have been replace within LIFETIME_THRESHOLD days from now */
-        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt(lifetime_threshold))
+        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt(lifetime_threshold),5)
+                .setNumTasks(10)
                 .shuffleGrouping(FILTER_BOLT);
 
         /* Data grouped by ID field and computed intermediate ranking by lifetime value */
-        builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(rank_size))
+        builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(rank_size), 3)
+                .setNumTasks(6)
                 .fieldsGrouping(FILTER_BY_LIFETIME_BOLT, new Fields(Constants.ID));
 
         /* Global ranking f the first K lamps with greater "lifetime" */
-        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size))
+        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size),3)
+                .setNumTasks(6)
                 .allGrouping(PARTIAL_RANK_BOLT);
 
 
         /* LOCAL MODE */
+        /*
         LocalCluster cluster = new LocalCluster();
         cluster.submitTopology(QUERY_2_TOPOLOGY, config, builder.createTopology());
 
-        //Thread.sleep(600000);
+        Thread.sleep(600000);
 
-        //cluster.killTopology(QUERY_2_TOPOLOGY);
-        //cluster.shutdown();
+        cluster.killTopology(QUERY_2_TOPOLOGY);
+        cluster.shutdown(); */
 
-
-        //StormSubmitter.submitTopology(QUERY_2_TOPOLOGY,config,builder.createTopology());
+        StormSubmitter.submitTopology(QUERY_2_TOPOLOGY,config,builder.createTopology());
 
     }
 }

@@ -57,7 +57,7 @@ public class PartialRankBolt extends BaseRichBolt {
     public void execute(Tuple tuple) {
 
         if (updateRanking(tuple))
-            sendPartialRanking(); // Emit if the local oldest K is changed
+            sendPartialRanking(tuple); // Emit if the local oldest K is changed
 
         collector.ack(tuple);
     }
@@ -82,7 +82,7 @@ public class PartialRankBolt extends BaseRichBolt {
     /**
      * Send to GlobalRankBolt the new computed partial ranking.
      */
-    private void sendPartialRanking() {
+    private void sendPartialRanking(Tuple tuple) {
 
         List<RankLamp> oldestK = ranking.getOldestK();
 
@@ -91,7 +91,7 @@ public class PartialRankBolt extends BaseRichBolt {
         Values values = new Values();
         values.add(serializedRanking);
 
-        collector.emit(values);
+        collector.emit(tuple,values);
     }
 
     /**
