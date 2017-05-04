@@ -1,6 +1,6 @@
 # HELIOS Monitoring And Control System
 
-This repository contains a monitoring and control system implemented as an Apache Storm application. This application is called CINI_SmartLightingSystem, because it implements a project for the **CINI Smart City University Challenge** ([LINK](https://it.eventbu.com/l-aquila/cini-smart-city-university-challenge/2263724)).
+This repository contains a monitoring and control system implemented in Java 8 as an **Apache Storm** application. This application is called CINI_SmartLightingSystem, because it implements a project for the **[CINI Smart City University Challenge](https://it.eventbu.com/l-aquila/cini-smart-city-university-challenge/2263724)**.
 
 ## Getting Started
 
@@ -13,7 +13,11 @@ The following software must be present to install the System and the related lin
 * [Docker Compose](https://docs.docker.com/compose/) - Tool to define and run multi-container Docker applications
 
 (for Cloud Deployment)
-* Amazon Web Services ([AWS]()) registered account
+* Amazon Web Services ([AWS](https://aws.amazon.com/console/)) registered account
+
+(for Sensor Network Simulation)
+* [Nodejs](https://nodejs.org/it/) asynchronous event driven JavaScript runtime
+* [npm](https://www.npmjs.com/) NodeJs Package Manager
 
 ### Configuration 
 The repository contains a default configuration file *resources/config.yml* where are grouped all the following System configurable parameters:
@@ -73,9 +77,6 @@ An example of *pom.xml* configured for Cluster Mode execution:
 To compile code with all dependencies and create the executable Java file *.jar*, first change the current directory to the main directory of the project:  
 ```
 ~$ cd {$HELIOS_HOME} 
-```
-then execute:
-```
 {$HELIOS_HOME}$ mvn clean validate compile test package org.apache.maven.plugins:maven-assembly-plugin:2.2-beta-5:assembly 
 ```
 Now *.jar* file is created in *{$HELIOS_HOME}/target*.
@@ -96,7 +97,7 @@ To submit a Storm topology, change current directory in
 ```
 ~$ cd {$HELIOS_HOME}/Scripts
 ```
-and modify the following line in *{$HELIOS_HOME}/Scripts/start_storm_on_docker* specifying the *<topologyName>*
+and modify the following line in *start_storm_on_docker* specifying the *<topologyName>*
 ```
 [...]
 docker run --link some-nimbus:nimbus -it --rm -v $(pwd)/CINI_SmartLightingSystem-1.0-jar-with-dependencies.jar:/CINI_SmartLightingSystem-1.0-jar-with-dependencies.jar storm:1.0.3 storm jar /CINI_SmartLightingSystem-1.0-jar-with-dependencies.jar org.uniroma2.sdcc.<topologyName>
@@ -137,6 +138,52 @@ In *{$HELIOS_HOME}/src/test/java/org/uniroma2/sdcc/* type
 $ java TopologyTest.java <topologyName> test<number>
 ```
 The topology tested must be running during test execution.
+
+### Sensor Network with AWS IoT
+Instead of using only the CINI_StreetLamp_Client application to simulate sensor data generation, it is used AWS **Internet of Things** (IoT) to create a devices network where each device represents a lamp and its related sensors.
+
+The package *LocalController* in *{$HELIOS_HOME}/src/java/main/org/uniroma2/sdcc/ControlSystem* consists in a node.js application representing a controller on a lamp. To communicate with the AWS IoT service you need to put the root-CA.crt certificate in the ./certs directory. You can download the certificate from you AWS IoT console.
+
+To install dependencies move into LocalController directory:
+```
+$ cd {$HELIOS_HOME}/src/java/main/org/uniroma2/sdcc/ControlSystem/LocalController
+$ npm install
+```
+
+To install *device.js*:
+``` 
+$ node device.js
+```
+
+Options to start device are:
+```
+  -g, --aws-region=REGION          AWS IoT region\n' +
+  -i, --client-id=ID               use ID as client ID\n' +
+  -H, --host-name=HOST             connect to HOST (overrides --aws-region)\n' +
+  -p, --port=PORT                  connect to PORT (overrides defaults)\n' +
+  -P, --protocol=PROTOCOL          connect using PROTOCOL (mqtts|wss)\n' +
+  -r, --reconnect-period-ms=VALUE  use VALUE as the reconnect period (ms)\n' +
+  -K, --keepalive=VALUE            use VALUE as the keepalive time (seconds)\n' +
+```
+If not specified the default value are used. For the region
+The default AWS region is *eu-west-1*.
+The default communication protocol is MQTTS.
+
+You can start many *device.js* processes in the same terminal using the *start.sh* script:
+```
+$ chmod +777 start.sh
+$ ./start.sh
+```
+You must have [pm2](http://pm2.keymetrics.io/) NodeJs Process Manager tool installed on your machine. 
+Install it using *npm*:
+```
+$ npm install pm2 -g
+```
+To stop the NodeJs process(es):
+```
+$ pm2 stop device
+```
+
 ## Deployment
 For Cloud Deployment of HELIOS System are used **Amazon Web Services Cloud Formation** and **Elastic Compute Cloud** (EC2) instances.
 1) Sign in AWS account
