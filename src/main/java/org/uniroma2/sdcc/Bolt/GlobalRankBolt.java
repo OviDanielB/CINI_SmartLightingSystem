@@ -1,7 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import org.apache.storm.Config;
-import org.apache.storm.Constants;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -9,7 +7,8 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 import org.uniroma2.sdcc.Utils.Cache.CacheManager;
 import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
-import org.uniroma2.sdcc.Utils.HeliosLog;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedPeriodicUpdater;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedWriterRunnable;
 import org.uniroma2.sdcc.Utils.JSONConverter;
 import org.uniroma2.sdcc.Utils.MOM.PubSubManager;
 import org.uniroma2.sdcc.Utils.MOM.RabbitPubSubManager;
@@ -19,9 +18,8 @@ import org.uniroma2.sdcc.Utils.Ranking.RankingResults;
 import org.uniroma2.sdcc.Utils.TupleHelpers;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This Bolt merges rankings arriving from PartialRankBolts
@@ -37,6 +35,13 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private OldestKRanking ranking;
     private int K;
 
+    private ConcurrentHashMap<String, String> keyValueMem;
+
+    /* accessed by multiple threads */
+    private volatile String json_ranking;
+    private volatile HashMap<Integer,Integer> oldIds;
+    private volatile String json_sent_ranking;
+
 
     /* topic based pub/sub on rabbitMQ */
     private PubSubManager pubSubManager;
@@ -45,6 +50,8 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     protected CacheManager cache;
     /* frequency to send new ranking (if updated compared to the previous one) */
     private int UPDATE_FREQUENCY = 60;
+
+    private MemcachedWriterRunnable writer;
 
 
     public GlobalRankBolt(int K) {
@@ -60,15 +67,41 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
-
         this.collector = outputCollector;
-        this.ranking = new OldestKRanking(K);
+
+        initializeVars();
+
+        startPeriodicUpdate();
 
         this.cache = new MemcachedManager();
-
         /* connect to rabbit with attributes taken from config file */
         pubSubManager = new RabbitPubSubManager();
 
+    }
+
+    /**
+     * start periodic update of values from cache
+     * using thread to reduce response time for every tuple
+     */
+    private void startPeriodicUpdate() {
+        Timer timer = new Timer();
+        timer.schedule(new PeriodicUpdater(),0,UPDATE_FREQUENCY / 2 * 1000);
+
+        writer = new MemcachedWriterRunnable(keyValueMem);
+        writer.start();
+
+    }
+
+    /**
+     * initialize useful variables
+     */
+    private void initializeVars() {
+
+        this.ranking = new OldestKRanking(K);
+        this.keyValueMem = new ConcurrentHashMap<>();
+        json_ranking = "{}";
+        json_sent_ranking = "{}";
+        oldIds = new HashMap<>();
     }
 
     /**
@@ -96,8 +129,8 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private void sendWindowRank() {
 
         /* get values from cache */
-        String json_ranking = cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK);
-        HashMap<Integer,Integer> oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
+        //String json_ranking = cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK);
+        //HashMap<Integer,Integer> oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
 
         // send to dashboard only if ranking has been updated
         if (rankingUpdated(json_ranking)) {
@@ -113,9 +146,9 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
             /* publish on queue */
             pubSubManager.publish(ROUTING_KEY, json_results);
 
-            HeliosLog.logOK(LOG_TAG, "Sent : " + json_results);
         }
     }
+
 
     /**
      * Compare list of last ranking sent (sent_ranking) saved in memory
@@ -126,26 +159,55 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      */
     protected boolean rankingUpdated(String json_ranking) {
 
-        String json_sent_ranking = cache.getString(MemcachedManager.SENT_GLOBAL_RANKING);
+        //String json_sent_ranking = cache.getString(MemcachedManager.SENT_GLOBAL_RANKING);
 
         /* convert to json */
         List<RankLamp> sent_ranking = JSONConverter.toRankLampListData(json_sent_ranking);
         List<RankLamp> current_ranking = JSONConverter.toRankLampListData(json_ranking);
 
         /* if two lists are different, update cache */
-        if (current_ranking.size() != 0) {
+/*        if (current_ranking.size() != 0) {
             if (sent_ranking.size() == 0
                     || current_ranking.stream().filter(e -> {
                 Integer index = current_ranking.indexOf(e);
                 return e.getId() != sent_ranking.get(index).getId();
             }).count() > 0) {
 
-                cache.put(MemcachedManager.SENT_GLOBAL_RANKING, json_ranking);
-
+                //cache.put(MemcachedManager.SENT_GLOBAL_RANKING, json_ranking);
+                keyValueMem.put(MemcachedManager.SENT_GLOBAL_RANKING,json_ranking);
                 return true;
             }
+        }*/
+
+        if( !sameElements(current_ranking,sent_ranking)){
+            keyValueMem.put(MemcachedManager.SENT_GLOBAL_RANKING,json_ranking);
+            return true;
         }
         return false;
+    }
+
+    /**
+     * checks if list have identical elements
+     * @param current_ranking list
+     * @param sent_ranking list
+     * @return true if are the same, false otherwise
+     */
+    private boolean sameElements(List<RankLamp> current_ranking, List<RankLamp> sent_ranking) {
+        if(current_ranking.size() != sent_ranking.size()){
+            return false;
+        }
+
+        if(current_ranking.size() == 0){
+            return false;
+        }
+
+        for(int i = 0; i < current_ranking.size(); i++){
+            if(current_ranking.get(i) != sent_ranking.get(i)){
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -173,7 +235,8 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
             String json_ranking = JSONConverter.fromRankLampList(globalOldestK);
 
-            cache.put(MemcachedManager.CURRENT_GLOBAL_RANK, json_ranking);
+            //cache.put(MemcachedManager.CURRENT_GLOBAL_RANK, json_ranking);
+            keyValueMem.put(MemcachedManager.CURRENT_GLOBAL_RANK,json_ranking);
         }
     }
 
@@ -197,5 +260,15 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
         // nothing to declare
+    }
+
+    private class PeriodicUpdater extends MemcachedPeriodicUpdater{
+
+        @Override
+        public void run() {
+            json_ranking = this.cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK);
+            oldIds = this.cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
+            json_sent_ranking = this.cache.getString(MemcachedManager.SENT_GLOBAL_RANKING);
+        }
     }
 }

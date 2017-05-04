@@ -41,7 +41,7 @@ import java.util.Timer;
 
 public class AnomaliesDetectionTopology {
 
-    private static String QUERY_1_TOPOLOGY = "Query1-AnomalyTopology->Control";
+    private static String QUERY_1_TOPOLOGY = "QueryAnomalyTopologyControl";
     private static String RABBIT_SPOUT = "rabbitSpout";
     private static String FILTER_BOLT = "filterBolt";
     private static String MALFUNCTION_CHECK_BOLT = "malfCheckBolt";
@@ -54,32 +54,35 @@ public class AnomaliesDetectionTopology {
 
     public static void main(String[] args) throws Exception {
         Config config = new Config();
-        config.setNumWorkers(4);
+        config.setNumWorkers(16);
         config.setMessageTimeoutSecs(10);
+        config.setMaxSpoutPending(250);
+
         //config.setDebug(true);
         //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         TopologyBuilder builder = new TopologyBuilder();
+
         builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(),3);
 
-        builder.setBolt(FILTER_BOLT, new FilteringBolt(),5)
-                .setNumTasks(10)
+        builder.setBolt(FILTER_BOLT, new FilteringBolt(),15)
+                .setNumTasks(20)
                 .shuffleGrouping(RABBIT_SPOUT);
 
-        builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt(),7)
-                .setNumTasks(14)
+        builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt(),12)
+                .setNumTasks(18)
                 .fieldsGrouping(FILTER_BOLT,new Fields(Constants.ADDRESS));
 
         builder.setBolt(NOT_RESPONDING_LAMP_BOLT,new NotRespondingLampBolt(),4)
                 .setNumTasks(8)
                 .fieldsGrouping(MALFUNCTION_CHECK_BOLT,new Fields(Constants.ID));
 
-        builder.setBolt(ANALYZE_CONTROL_BOLT,new AnalyzeBolt(),8)
+        builder.setBolt(ANALYZE_CONTROL_BOLT,new AnalyzeBolt(),10)
                 .setNumTasks(16)
                 .fieldsGrouping(NOT_RESPONDING_LAMP_BOLT,new Fields(Constants.ADDRESS));
 
-        builder.setBolt(PLAN_CONTROL_BOLT,new PlanBolt(),2)
-                .setNumTasks(5)
+        builder.setBolt(PLAN_CONTROL_BOLT,new PlanBolt(),5)
+                .setNumTasks(10)
                 .fieldsGrouping(ANALYZE_CONTROL_BOLT,new Fields(Constants.ID));
 
         builder.setBolt(EXECUTE_CONTROL_BOLT,new ExecuteBolt(),8)

@@ -35,7 +35,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>org.uniroma2.sdcc.RankingOldestLampsTopology</mainClass>
+                            <mainClass>org.uniroma2.sdcc.AnomaliesDetectionTopology</mainClass>
                             <classpathPrefix>lib/</classpathPrefix>
                         </manifest>
                     </archive>
@@ -51,7 +51,7 @@
                 </descriptorRefs>
                 <archive>
                   <manifest>
-                    <mainClass>org.uniroma2.sdcc.RankingOldestLampsTopology</mainClass>
+                    <mainClass>org.uniroma2.sdcc.AnomaliesDetectionTopology</mainClass>
                   </manifest>
                 </archive>
               </configuration>

@@ -1,6 +1,5 @@
 package org.uniroma2.sdcc.Bolt;
 
-import clojure.lang.Cons;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -9,10 +8,9 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
-import org.uniroma2.sdcc.ControlSystem.CentralController.ExecuteBolt;
-import org.uniroma2.sdcc.Model.*;
 import org.uniroma2.sdcc.Utils.Cache.CacheManager;
 import org.uniroma2.sdcc.Utils.Cache.MemcachedManager;
+import org.uniroma2.sdcc.Utils.Cache.MemcachedPeriodicUpdater;
 import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.time.LocalDateTime;
@@ -62,37 +60,36 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.oldIds = new HashMap<>();
-//        this.cache = new MemcachedManager();
-        this.cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
+ //       this.cache = new MemcachedManager();
+   //     this.cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
         this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
 
         startPeriodicUpdate();
         startThread();
     }
 
+    /**
+     * start periodic update of values from cache
+     * using thread to increase response time
+     */
     private void startPeriodicUpdate() {
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
-                } catch (Exception e) {
-                    oldIds = new HashMap<>();
-                }
-            }
-        };
 
         Timer timer = new Timer();
-        timer.schedule(task, 5000, 3000);
+        timer.schedule(new PeriodicUpdater(), 0, 1000);
     }
 
+
     private void startThread() {
-        executorService = Executors.newFixedThreadPool(3);
-        IntStream.range(0, 3).forEach(e -> {
+        executorService = Executors.newFixedThreadPool(2);
+        IntStream.range(0, 2).forEach(e -> {
             executorService.submit(() -> {
                 CacheManager manager = new MemcachedManager();
+                String mess ;
                 try {
-                    manager.put(MemcachedManager.OLD_COUNTER, queue.take());
+                    while ((mess = queue.take()) != null) {
+                        manager.put(MemcachedManager.OLD_COUNTER, mess);
+
+                    }
                 } catch (InterruptedException e1) {
                     e1.printStackTrace();
                 }
@@ -205,5 +202,20 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
                 Constants.ADDRESS,
                 Constants.LIFETIME,
                 Constants.TIMESTAMP));
+    }
+
+    /**
+     * @see MemcachedPeriodicUpdater
+     */
+    private class PeriodicUpdater extends MemcachedPeriodicUpdater {
+
+        @Override
+        public void run() {
+            try {
+                oldIds = this.cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
+            } catch (Exception e) {
+                oldIds = new HashMap<>();
+            }
+        }
     }
 }

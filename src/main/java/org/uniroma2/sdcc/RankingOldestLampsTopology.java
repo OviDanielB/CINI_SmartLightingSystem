@@ -65,23 +65,22 @@ public class RankingOldestLampsTopology {
         builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(),2);
 
         /* Check of format correctness of received tuples   */
-        builder.setBolt(FILTER_BOLT, new FilteringBolt(),3)
-                .setNumTasks(6)
+        builder.setBolt(FILTER_BOLT, new FilteringBolt(),12)
+                .setNumTasks(24)
                 .shuffleGrouping(RABBIT_SPOUT);
 
         /* Filtering from lamps which have been replace within LIFETIME_THRESHOLD days from now */
-        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt(lifetime_threshold),5)
-                .setNumTasks(10)
+        builder.setBolt(FILTER_BY_LIFETIME_BOLT, new FilteringByLifetimeBolt(lifetime_threshold),12)
+                .setNumTasks(24)
                 .shuffleGrouping(FILTER_BOLT);
 
         /* Data grouped by ID field and computed intermediate ranking by lifetime value */
-        builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(rank_size), 3)
-                .setNumTasks(6)
+        builder.setBolt(PARTIAL_RANK_BOLT, new PartialRankBolt(rank_size), 5)
+                .setNumTasks(10)
                 .fieldsGrouping(FILTER_BY_LIFETIME_BOLT, new Fields(Constants.ID));
 
         /* Global ranking f the first K lamps with greater "lifetime" */
-        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size),3)
-                .setNumTasks(6)
+        builder.setBolt(GLOBAL_RANK_BOLT, new GlobalRankBolt(rank_size))
                 .allGrouping(PARTIAL_RANK_BOLT);
 
 
