@@ -1,15 +1,10 @@
 package org.uniroma2.sdcc.ControlSystem.CentralController;
 
-import clojure.lang.IFn;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sns.AmazonSNS;
-import com.amazonaws.services.sns.AmazonSNSAsync;
-import com.amazonaws.services.sns.AmazonSNSAsyncClient;
 import com.amazonaws.services.sns.AmazonSNSClient;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -22,7 +17,6 @@ import org.uniroma2.sdcc.Utils.JSONConverter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
@@ -36,12 +30,7 @@ import java.util.stream.IntStream;
 public class ExecuteBolt extends BaseRichBolt{
 
     private OutputCollector collector;
-    private AmazonSNS sns;
     private static final String LOG_TAG = "[ExecuteBolt]";
-    /* Amazon SNS connection */
-    private final static String SNS_TOPIC_ARN = "arn:aws:sns:eu-west-1:369927171895:control";
-    private final static String TOPIC = "control";
-
 
     /* consumer producer queue */
     private ArrayBlockingQueue<String> queue;
@@ -53,8 +42,6 @@ public class ExecuteBolt extends BaseRichBolt{
     private static final Integer THREAD_NUMBER = 10;
 
     protected static volatile Integer count = 0;
-    
-
 
     /**
      * Bolt initialization
@@ -69,11 +56,10 @@ public class ExecuteBolt extends BaseRichBolt{
         this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
 
         startSNSWritingThreadPool();
-
     }
 
     /**
-     * create fixed thread pool of consumer threads waiting
+     * Create fixed thread pool of consumer threads waiting
      * on the queue for messages to send to SNS
      */
     protected void startSNSWritingThreadPool() {
@@ -83,8 +69,6 @@ public class ExecuteBolt extends BaseRichBolt{
         IntStream.range(0,THREAD_NUMBER).forEach(e -> {
             executorService.submit(new SNSWriter(queue));
         });
-
-
     }
 
     /**
@@ -94,7 +78,6 @@ public class ExecuteBolt extends BaseRichBolt{
      */
     @Override
     public void execute(Tuple tuple) {
-
         /* compose message to send by tuple values */
         String message = composeMessage(tuple);
 
@@ -104,8 +87,9 @@ public class ExecuteBolt extends BaseRichBolt{
     }
 
     /**
-     * insert on queue message to be sent
-     * block if capacity full
+     * Insert on queue message to be sent
+     * block if capacity full.
+     *
      * @param message to be sent
      */
     protected void produceOnQueue(String message) {
@@ -118,7 +102,8 @@ public class ExecuteBolt extends BaseRichBolt{
     }
 
     /**
-     * compose final message to send to each particular device
+     * Compose final message to send to each particular device.
+     *
      * @param tuple collection of values from incoming stream
      * @return message composed; empty string if json parsing failed
      */
@@ -150,7 +135,6 @@ public class ExecuteBolt extends BaseRichBolt{
         // no output fields to declare
     }
 
-
     /**
      * Runnable task which waits on a queue for messages
      * to be inserted and sends them on an sns connection
@@ -171,13 +155,13 @@ public class ExecuteBolt extends BaseRichBolt{
         }
 
         /**
-         * connect to Amazon Web Services SNS service
+         * Connect to Amazon Web Services SNS service
          * in Ireland (EU_WEST_1)
          */
         protected void snsConnect() {
             ExecuteBolt.count++;
             this.sns = AmazonSNSClient.builder().withRegion(Regions.EU_WEST_1).build();
-            if(isConnected()){
+            if (isConnected()) {
                 HeliosLog.logOK(LOG_TAG,"SNS CONNECTED " + count);
             }
         }
@@ -186,7 +170,7 @@ public class ExecuteBolt extends BaseRichBolt{
         public void run() {
             try {
                 String message = queue.take();
-                if(isConnected()){
+                if (isConnected()) {
                     lastResult = sns.publish(new PublishRequest(SNS_TOPIC_ARN,message));
 
                     HeliosLog.logOK(LOG_TAG,"Thread " + Thread.currentThread().getId() + " wrote on SNS " + message);
@@ -200,7 +184,8 @@ public class ExecuteBolt extends BaseRichBolt{
         }
 
         /**
-         * check if sns connection is available
+         * Check if sns connection is available.
+         *
          * @return true if connection present, false otherwise
          */
         public boolean isConnected(){
@@ -208,12 +193,13 @@ public class ExecuteBolt extends BaseRichBolt{
         }
 
         /**
-         * check if last message on queue
-         * was sent correctly
-         * @return
+         * Check if last message on queue
+         * was sent correctly.
+         *
+         * @return outcome
          */
         public boolean lastMessageSent(){
-            if(lastResult != null){
+            if (lastResult != null){
                 return lastResult.getMessageId() != null;
             }
             return false;
