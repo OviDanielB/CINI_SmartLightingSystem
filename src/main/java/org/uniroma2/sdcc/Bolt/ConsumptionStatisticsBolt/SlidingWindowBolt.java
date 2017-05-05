@@ -19,10 +19,6 @@ import java.util.Map;
  */
 public abstract class SlidingWindowBolt<T> extends BaseRichBolt {
 
-    /* Default values */
-    protected static final int NUM_WINDOW_CHUNKS = 60;
-    protected static final int DEFAULT_SLIDING_WINDOW_IN_SECONDS = 3600;
-    protected static final int DEFAULT_SLIDING_DURATION_IN_SECONDS = DEFAULT_SLIDING_WINDOW_IN_SECONDS / NUM_WINDOW_CHUNKS;
     protected static final String WINDOW_LENGTH_WARNING_TEMPLATE = "Actual window length is %d seconds when it should" +
             " be %d seconds (you can safely ignore this warning during the startup phase)";
 

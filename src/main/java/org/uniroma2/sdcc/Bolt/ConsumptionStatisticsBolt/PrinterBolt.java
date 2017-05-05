@@ -14,6 +14,9 @@ import org.uniroma2.sdcc.Utils.TupleHelpers;
 import java.util.Map;
 
 /**
+ * Storm Bolt is used to send incoming tuple into a RabbitMQ queue.
+ * It is the last stage in the topology.
+ *
  * @author emanuele
  */
 public class PrinterBolt extends BaseRichBolt {
@@ -50,10 +53,10 @@ public class PrinterBolt extends BaseRichBolt {
 
             String toEmit = JSONConverter.fromTuple(tuple);
 
-            HeliosLog.logOK(LOG_TAG,"Sent : " + toEmit);
+            HeliosLog.logOK(LOG_TAG, "Sent : " + toEmit);
 
             /* publish on rabbit queue with relative routing key */
-            pubSubManager.publish(composeRoutingKey(toEmit),toEmit);
+            pubSubManager.publish(composeRoutingKey(toEmit), toEmit);
         }
 
         collector.ack(tuple);
@@ -64,15 +67,16 @@ public class PrinterBolt extends BaseRichBolt {
      * compose routing key based on received message
      * to differentiate consumption statistics on final
      * queue
+     *
      * @param toEmit message to send
      * @return relative routing key
      */
     private String composeRoutingKey(String toEmit) {
         String routingKey = ROUTING_KEY;
 
-        if(toEmit.contains("id")){
+        if (toEmit.contains("id")) {
             return routingKey + "lamps";
-        } else if(toEmit.contains("*")){
+        } else if (toEmit.contains("*")) {
             return routingKey + "global";
         } else {
             return routingKey + "streets";

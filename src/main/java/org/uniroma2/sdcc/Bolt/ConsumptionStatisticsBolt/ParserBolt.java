@@ -50,7 +50,7 @@ public class ParserBolt extends BaseRichBolt {
             Long timestamp = tuple.getLongByField(Constants.TIMESTAMP);
             LocalDateTime ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), UTC);
 
-            collector.emit(tuple,new Values(id, address.getName(), consumption, ts));
+            collector.emit(tuple, new Values(id, address.getName(), consumption, ts));
         }
 
         collector.ack(tuple);

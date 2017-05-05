@@ -12,15 +12,15 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * Bolt produces statistics. SlidingWindow is set on one hour. Every emitFrequencyInSeconds the
- * updated window is emitted. Statistics are computed for street.
+ * Bolt produces statistics on consumption field of incoming tuple.
+ * It allows to compute statistics on aggregate af street-lamp.
  *
  * @author emanuele
  * @see SlidingWindowBolt
  */
 public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
 
-    protected Integer tickCount = 0;                 // tick count to emit at multiple of tickFrequncyInSeconds
+    protected Integer tickCount = 0;   // tick count to emit at multiple of tickFrequencyInSeconds
 
     public AggregateConsumptionBolt(int windowLengthInSeconds, int tickFrequencyInSeconds) {
         super(windowLengthInSeconds, tickFrequencyInSeconds, tickFrequencyInSeconds);
@@ -44,7 +44,7 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
 
             tickCount++;
             if (tickCount == (emitFrequencyInSeconds / tickFrequencyInSeconds)) {
-                emitCurrentWindowAvgs(window,tuple);
+                emitCurrentWindowAvgs(window, tuple);
                 tickCount = 0;
             }
 
@@ -73,7 +73,7 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
      *
      * @see this#emit(Map, LocalDateTime, int)
      */
-    protected void emitCurrentWindowAvgs(SlidingWindowAvg slidingWindow,Tuple tuple) {
+    protected void emitCurrentWindowAvgs(SlidingWindowAvg slidingWindow, Tuple tuple) {
 
         int actualWindowLengthInSeconds = lastModifiedTracker.secondsSinceOldestModification();
         lastModifiedTracker.markAsModified();
@@ -86,7 +86,7 @@ public class AggregateConsumptionBolt extends SlidingWindowBolt<String> {
         emit(statistics, slidingWindow.getLastSlide(), actualWindowLengthInSeconds);
 
         Float globalStat = slidingWindow.getTotalAvg();
-        collector.emit(tuple,new Values("*", globalStat, slidingWindow.getLastSlide(), actualWindowLengthInSeconds));
+        collector.emit(tuple, new Values("*", globalStat, slidingWindow.getLastSlide(), actualWindowLengthInSeconds));
 
     }
 
