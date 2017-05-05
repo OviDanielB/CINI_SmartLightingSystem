@@ -31,24 +31,39 @@ import java.util.*;
  * If both no anomalies have been noticed and no significant traffic level or cell
  * parking occupation percentage have been measured, tuple is rejected because no
  * adaptation is needed.
+ *
+ *  Monitor Results Data Format:
+ *
+ *          1   id                          32 bit street-lamp identifier
+ *          2   address                     street-lamp location (es Via/Piazza - km/civico -)
+ *          3   cellID                      32 bit lamp cell park identifier
+ *          4   on ( state on/off )         state
+ *          5   consumption                 32 bit value representing energy consumption in Watt
+ *          6   intensity                   percentage of the maximum intensity
+ *          7   lifetime                    date
+ *          8   naturalLightLevel           level of the measured natural light intensity
+ *          9   list of anomalies           couples composed by kind of anomaly monitored [none, weather, damaged_bulb,
+ *                                          light_intensity_anomaly, not_responding] and amount of anomaly
  */
 public class AnalyzeBolt extends BaseRichBolt {
 
     private OutputCollector collector;
     private CacheManager cache;
-    private Float toIncreaseGap = 0f;           // positive max value to resolve the defecting anomalies
-    private Float toDecreaseGap = 0f;           // negative min value to resolve the excess anomalies
-
+    /* positive max value to resolve the defecting anomalies */
+    private Float toIncreaseGap = 0f;
+    /* negative min value to resolve the excess anomalies */
+    private Float toDecreaseGap = 0f;
+    /* only above tolerance value traffic level affect intensity adaptation */
     private Float TRAFFIC_TOLERANCE_DEFAULT = 20f;
+    /* only above this value parking occupation affect intensity adaptation */
     private Float PARKING_TOLERANCE_DEFAULT = 20f;
-    private Float traffic_tolerance; // only above this value traffic level affect intensity adaptation
-    private Float parking_tolerance; // only above this value parking occupation affect intensity adaptation
+    private Float traffic_tolerance = TRAFFIC_TOLERANCE_DEFAULT;
+    private Float parking_tolerance = PARKING_TOLERANCE_DEFAULT;;
 
     private volatile List<TrafficData> trafficDataList;
     private volatile List<ParkingData> parkingDataList;
 
     private static final Integer UPDATE_PERIOD = 60000; // 60 seconds
-
 
     /**
      * Bolt initialization
@@ -71,8 +86,8 @@ public class AnalyzeBolt extends BaseRichBolt {
     }
 
     /**
-     * periodically update traffic and parking data
-     * from memcached
+     * Periodically update traffic and parking data
+     * from memory.
      */
     private void startTrafficAndParkingPeriodicUpdate() {
         Timer timer = new Timer();
@@ -95,7 +110,6 @@ public class AnalyzeBolt extends BaseRichBolt {
 
         Config config = new Config();
         config.setDebug(true);
-        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
@@ -107,26 +121,9 @@ public class AnalyzeBolt extends BaseRichBolt {
             this.parking_tolerance = controlConfig.getParking_tolerance();
 
         } catch (IOException e) {
-            this.traffic_tolerance = TRAFFIC_TOLERANCE_DEFAULT;
-            this.parking_tolerance = PARKING_TOLERANCE_DEFAULT;
+            e.printStackTrace();
         }
     }
-
-
-    /*
-    *   Monitoring Results Data Format:
-    *
-    *   1   id                          32 bit street-lamp identifier
-    *   2   address                     street-lamp location (es Via/Piazza - km/civico -)
-    *   3   cellID                      32 bit lamp cell park identifier
-    *   4   on ( state on/off )         state
-    *   5   consumption                 32 bit value representing energy consumption in Watt
-    *   6   intensity                   percentage of the maximum intensity
-    *   7   lifetime                    date
-    *   8   naturalLightLevel           level of the measured natural light intensity
-    *   9   list of anomalies           couples composed by kind of anomaly monitored [none, weather, damaged_bulb,
-    *                                   light_intensity_anomaly, not_responding] and amount of anomaly
-    */
 
     /**
      * AnalyzeBolt operation on incoming tuple.
@@ -165,7 +162,6 @@ public class AnalyzeBolt extends BaseRichBolt {
 
     }
 
-
     /**
      * Check and emit only tuple referring to lamps to adapt, grouping
      * information about anomalies of the lamp analyzed and measured street
@@ -173,7 +169,7 @@ public class AnalyzeBolt extends BaseRichBolt {
      * Tuple with a DAMAGED_BULB or NOT_RESPONDING type of anomaly are rejected,
      * because they are broken and they cannot be contacted to adaptation.
      *
-     * @param tuple                    received from spout tuple
+     * @param tuple received from spout tuple
      */
     protected void emitAnalyzedDataTuple(Tuple tuple) {
 

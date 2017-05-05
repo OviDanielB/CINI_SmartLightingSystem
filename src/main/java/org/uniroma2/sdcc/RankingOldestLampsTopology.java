@@ -21,18 +21,16 @@ import java.io.IOException;
  * more than LIFETIME_THRESHOLD days ago, computing a ranking of the first
  * K lamps sorted from the oldest one to the newest one.
  **/
-
-
 public class RankingOldestLampsTopology {
 
-    private static String QUERY_2_TOPOLOGY = "query2";
-    private static String RABBIT_SPOUT = "rabbitSpout";
-    private static String FILTER_BOLT = "filterBolt";
-    private static String FILTER_BY_LIFETIME_BOLT = "filterByLifetimeBolt";
-    private static String PARTIAL_RANK_BOLT = "partRankBolt";
-    private static String GLOBAL_RANK_BOLT = "globalRankBolt";
-    private static int RANK_SIZE_DEFAULT = 10;
-    private static int LIFETIME_THRESHOLD_DEFAULT = 7;
+    private final static String QUERY_2_TOPOLOGY = "query2";
+    private final static String RABBIT_SPOUT = "rabbitSpout";
+    private final static String FILTER_BOLT = "filterBolt";
+    private final static String FILTER_BY_LIFETIME_BOLT = "filterByLifetimeBolt";
+    private final static String PARTIAL_RANK_BOLT = "partRankBolt";
+    private final static String GLOBAL_RANK_BOLT = "globalRankBolt";
+    private final static int RANK_SIZE_DEFAULT = 10;
+    private final static int LIFETIME_THRESHOLD_DEFAULT = 7;
 
     public static void main(String[] args) throws Exception {
 
@@ -42,8 +40,6 @@ public class RankingOldestLampsTopology {
         Config config = new Config();
         config.setNumWorkers(4);
         config.setMessageTimeoutSecs(10);
-        //config.setDebug(true);
-        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         YamlConfigRunner yamlConfigRunner = new YamlConfigRunner();
 
@@ -92,9 +88,10 @@ public class RankingOldestLampsTopology {
         Thread.sleep(600000);
 
         cluster.killTopology(QUERY_2_TOPOLOGY);
-        cluster.shutdown(); */
+        cluster.shutdown();
+        */
 
+        /* CLUSTER MODE */
         StormSubmitter.submitTopology(QUERY_2_TOPOLOGY,config,builder.createTopology());
-
     }
 }

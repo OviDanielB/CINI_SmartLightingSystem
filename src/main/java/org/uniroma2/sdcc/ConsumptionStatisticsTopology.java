@@ -35,6 +35,18 @@ public class ConsumptionStatisticsTopology {
     private final static int WEEKLY_WINDOWLEN = DAILY_WINDOWLEN * 7;
     private final static int WEEKLY_EMIT_FREQUENCY = 3600 * 24;
 
+    private final static String SPOUT_BOLT = "rabbitSpout";
+    private final static String FILTERING_BOLT = "filterBolt";
+    private final static String PARSER_BOLT = "parser";
+    private final static String INDIVIDUAL_HOURLY_BOLT = "HourlyBolt";
+    private final static String AGGREGATE_HOURLY_BOLT = "AggregateHourly";
+    private final static String INDIVIDUAL_DAILY_BOLT = "DailyBolt";
+    private final static String AGGREGATE_DAILY_BOLT = "AggregateDaily";
+    private final static String INDIVIDUAL_WEEKLY_BOLT = "WeeklyBolt";
+    private final static String AGGREGATE_WEEKLY_BOLT = "AggregateWeekly";
+    private final static String PRINTER_BOLT = "printer";
+
+    private final static String GROUP_FIELD = "street";
 
     public ConsumptionStatisticsTopology() {
     }
@@ -70,50 +82,50 @@ public class ConsumptionStatisticsTopology {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("rabbitSpout", new RabbitMQSpout(), 2);
+        builder.setSpout(SPOUT_BOLT, new RabbitMQSpout(), 2);
 
-        builder.setBolt("filterBolt", new FilteringBolt(), 2)
+        builder.setBolt(FILTERING_BOLT, new FilteringBolt(), 2)
                 .setNumTasks(5)
-                .shuffleGrouping("rabbitSpout");
+                .shuffleGrouping(SPOUT_BOLT);
 
-        builder.setBolt("parser", new ParserBolt(), 2)
+        builder.setBolt(PARSER_BOLT, new ParserBolt(), 2)
                 .setNumTasks(5)
-                .shuffleGrouping("filterBolt");
+                .shuffleGrouping(FILTERING_BOLT);
 
-        builder.setBolt("HourlyBolt", new IndividualConsumptionBolt(daily_window,
+        builder.setBolt(INDIVIDUAL_HOURLY_BOLT, new IndividualConsumptionBolt(daily_window,
                 tickfrequency), 2)
                 .setNumTasks(5)
-                .shuffleGrouping("parser");
+                .shuffleGrouping(PARSER_BOLT);
 
-        builder.setBolt("AggregateHourly", new AggregateConsumptionBolt(hourly_window, tickfrequency),
+        builder.setBolt(AGGREGATE_HOURLY_BOLT, new AggregateConsumptionBolt(hourly_window, tickfrequency),
                 3)
                 .setNumTasks(6)
-                .fieldsGrouping("parser", new Fields("street"));
+                .fieldsGrouping(PARSER_BOLT, new Fields(GROUP_FIELD));
 
-        builder.setBolt("DailyBolt", new ExtendendIndividualConsumptionBolt(daily_window,
+        builder.setBolt(INDIVIDUAL_DAILY_BOLT, new ExtendendIndividualConsumptionBolt(daily_window,
                 daily_emit_frequency, tickfrequency))
-                .shuffleGrouping("HourlyBolt");
+                .shuffleGrouping(INDIVIDUAL_HOURLY_BOLT);
 
-        builder.setBolt("AggregateDaily", new ExtendedAggregateConsumptionBolt(daily_window,
+        builder.setBolt(AGGREGATE_DAILY_BOLT, new ExtendedAggregateConsumptionBolt(daily_window,
                 daily_emit_frequency, tickfrequency))
-                .fieldsGrouping("AggregateHourly", new Fields("street"));
+                .fieldsGrouping(AGGREGATE_HOURLY_BOLT, new Fields(GROUP_FIELD));
 
-        builder.setBolt("WeeklyBolt", new ExtendendIndividualConsumptionBolt(WEEKLY_WINDOWLEN,
+        builder.setBolt(INDIVIDUAL_WEEKLY_BOLT, new ExtendendIndividualConsumptionBolt(WEEKLY_WINDOWLEN,
                 WEEKLY_EMIT_FREQUENCY, tickfrequency))
-                .shuffleGrouping("DailyBolt");
+                .shuffleGrouping(INDIVIDUAL_DAILY_BOLT);
 
-        builder.setBolt("AggregateWeekly", new ExtendedAggregateConsumptionBolt(WEEKLY_WINDOWLEN,
-                WEEKLY_EMIT_FREQUENCY, tickfrequency) )
-                .fieldsGrouping("AggregateDaily", new Fields("street"));
+        builder.setBolt(AGGREGATE_WEEKLY_BOLT, new ExtendedAggregateConsumptionBolt(WEEKLY_WINDOWLEN,
+                WEEKLY_EMIT_FREQUENCY, tickfrequency))
+                .fieldsGrouping(AGGREGATE_DAILY_BOLT, new Fields(GROUP_FIELD));
 
-        builder.setBolt("printer", new PrinterBolt(), 3)
+        builder.setBolt(PRINTER_BOLT, new PrinterBolt(), 3)
                 .setNumTasks(6)
-                .shuffleGrouping("HourlyBolt")
-                .shuffleGrouping("AggregateHourly")
-                .shuffleGrouping("AggregateDaily")
-                .shuffleGrouping("DailyBolt")
-                .shuffleGrouping("AggregateWeekly")
-                .shuffleGrouping("WeeklyBolt");
+                .shuffleGrouping(INDIVIDUAL_HOURLY_BOLT)
+                .shuffleGrouping(AGGREGATE_HOURLY_BOLT)
+                .shuffleGrouping(AGGREGATE_DAILY_BOLT)
+                .shuffleGrouping(INDIVIDUAL_DAILY_BOLT)
+                .shuffleGrouping(AGGREGATE_WEEKLY_BOLT)
+                .shuffleGrouping(INDIVIDUAL_WEEKLY_BOLT);
 
         /*
         LocalCluster cluster = new LocalCluster();

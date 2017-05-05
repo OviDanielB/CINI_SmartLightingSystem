@@ -87,7 +87,7 @@ public class IndividualConsumptionBoltTest {
         bolt.execute(tickTuple);
 
         // then
-        verify(collector).emit(any(Values.class));
+        verify(collector).emit(any(Tuple.class), any(Values.class));
     }
 
     @Test
