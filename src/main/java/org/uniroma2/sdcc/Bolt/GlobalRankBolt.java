@@ -30,7 +30,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private static final String LOG_TAG = "[GlobalRankBolt]";
     private OutputCollector collector;
     private OldestKRanking ranking;
     private int K;
@@ -41,7 +40,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     private volatile String json_ranking;
     private volatile HashMap<Integer,Integer> oldIds;
     private volatile String json_sent_ranking;
-
 
     /* topic based pub/sub on rabbitMQ */
     private PubSubManager pubSubManager;
@@ -76,11 +74,10 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         this.cache = new MemcachedManager();
         /* connect to rabbit with attributes taken from config file */
         pubSubManager = new RabbitPubSubManager();
-
     }
 
     /**
-     * start periodic update of values from cache
+     * Start periodic update of values from cache
      * using thread to reduce response time for every tuple
      */
     private void startPeriodicUpdate() {
@@ -89,11 +86,10 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
         writer = new MemcachedWriterRunnable(keyValueMem);
         writer.start();
-
     }
 
     /**
-     * initialize useful variables
+     * Initialize useful variables.
      */
     private void initializeVars() {
 
@@ -124,15 +120,10 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
     /**
      * Save in memory the last value of the resulting global ranking.
-     * [...] and sent it to the dashboard [...]
+     * and publish it to the topic related to the dashboard on output queue.
      */
     private void sendWindowRank() {
-
-        /* get values from cache */
-        //String json_ranking = cache.getString(MemcachedManager.CURRENT_GLOBAL_RANK);
-        //HashMap<Integer,Integer> oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
-
-        // send to dashboard only if ranking has been updated
+        // publish on output queue only if ranking has been updated
         if (rankingUpdated(json_ranking)) {
 
             String json_results;
@@ -145,7 +136,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
             /* publish on queue */
             pubSubManager.publish(ROUTING_KEY, json_results);
-
         }
     }
 
@@ -158,27 +148,11 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
      * @return true if sent_ranking has been updated as current_ranking values
      */
     protected boolean rankingUpdated(String json_ranking) {
-
-        //String json_sent_ranking = cache.getString(MemcachedManager.SENT_GLOBAL_RANKING);
-
         /* convert to json */
         List<RankLamp> sent_ranking = JSONConverter.toRankLampListData(json_sent_ranking);
         List<RankLamp> current_ranking = JSONConverter.toRankLampListData(json_ranking);
 
         /* if two lists are different, update cache */
-/*        if (current_ranking.size() != 0) {
-            if (sent_ranking.size() == 0
-                    || current_ranking.stream().filter(e -> {
-                Integer index = current_ranking.indexOf(e);
-                return e.getId() != sent_ranking.get(index).getId();
-            }).count() > 0) {
-
-                //cache.put(MemcachedManager.SENT_GLOBAL_RANKING, json_ranking);
-                keyValueMem.put(MemcachedManager.SENT_GLOBAL_RANKING,json_ranking);
-                return true;
-            }
-        }*/
-
         if( !sameElements(current_ranking,sent_ranking)){
             keyValueMem.put(MemcachedManager.SENT_GLOBAL_RANKING,json_ranking);
             return true;
@@ -187,26 +161,27 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
     }
 
     /**
-     * checks if list have identical elements
-     * @param current_ranking list
-     * @param sent_ranking list
+     * Checks if list have identical elements
+     *
+     * @param current_ranking list of last computed ranking
+     * @param sent_ranking list of last sent ranking
      * @return true if are the same, false otherwise
      */
     private boolean sameElements(List<RankLamp> current_ranking, List<RankLamp> sent_ranking) {
-        if(current_ranking.size() != sent_ranking.size()){
+
+        if (current_ranking.size() != sent_ranking.size()) {
             return false;
         }
 
-        if(current_ranking.size() == 0){
+        if (current_ranking.size() == 0) {
             return false;
         }
 
-        for(int i = 0; i < current_ranking.size(); i++){
+        for (int i = 0; i < current_ranking.size(); i++) {
             if(current_ranking.get(i) != sent_ranking.get(i)){
                 return false;
             }
         }
-
         return true;
     }
 
@@ -235,7 +210,6 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
 
             String json_ranking = JSONConverter.fromRankLampList(globalOldestK);
 
-            //cache.put(MemcachedManager.CURRENT_GLOBAL_RANK, json_ranking);
             keyValueMem.put(MemcachedManager.CURRENT_GLOBAL_RANK,json_ranking);
         }
     }
@@ -262,6 +236,13 @@ public class GlobalRankBolt extends BaseRichBolt implements Serializable {
         // nothing to declare
     }
 
+    /**
+     * Periodically reads from memory values of:
+     * - current global ranking, lst computed ranking list
+     * - sent global ranking, last sent ranking list
+     * - list of all IDs related to all lamps noticed as older
+     *   than LIFETIME_THRESHOLD
+     */
     private class PeriodicUpdater extends MemcachedPeriodicUpdater{
 
         @Override

@@ -18,11 +18,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This Bolt classifies arriving tuple from FilteringByLifetimeBolt
- * based by the value of increasing lifetime (older lamp, higher rank position)
- * restricted to a partial group of global tuple.
+ * This Bolt classifies incoming tuple from FilteringByLifetimeBolt
+ * following a sorting based on the value of increasing lifetime
+ * (older lamp, higher rank position) restricted to a partial group of
+ * tuples.
  **/
-
 public class PartialRankBolt extends BaseRichBolt {
 
     private OutputCollector collector;

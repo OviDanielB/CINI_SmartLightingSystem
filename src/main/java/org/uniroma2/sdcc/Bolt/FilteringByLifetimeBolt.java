@@ -24,11 +24,11 @@ import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
 /**
- * This Bolt processes arriving tuple from FilteringBolt
+ * This Bolt processes incoming tuples from FilteringBolt
  * to reject which ones describe lamps with a value of lifetime
- * field smaller than a determinate LIFETIME_THRESHOLD
+ * field faraway minus than a determinate LIFETIME_THRESHOLD days
+ * from the date of computation.
  */
-
 public class FilteringByLifetimeBolt extends BaseRichBolt {
 
     private OutputCollector collector;
@@ -36,7 +36,6 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     private int lifetime_threshold;
     /*  number of old lamps  */
     private volatile HashMap<Integer, Integer> oldIds;
-    private CacheManager cache;
 
     private ExecutorService executorService;
 
@@ -60,8 +59,6 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
         this.oldIds = new HashMap<>();
- //       this.cache = new MemcachedManager();
-   //     this.cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
         this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
 
         startPeriodicUpdate();
@@ -99,20 +96,13 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
 
 
     /**
-     * Parse values of: ID, address, lifetime, timestamp from tuple
-     * received from FilteringBolt and sent the not rejected tuple to
-     * the PartialRankBolt
+     * Check if the incoming tuple is referred to a lamp
+     * that has to be involved in ranking computation.
      *
      * @param tuple received
      */
     @Override
     public void execute(Tuple tuple) {
-
-//        try {
-//            oldIds = cache.getIntIntMap(MemcachedManager.OLD_COUNTER);
-//        } catch (Exception e) {
-//            this.oldIds = new HashMap<>();
-//        }
 
         emitClassifiableLampTuple(tuple);
 
@@ -120,8 +110,8 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
     }
 
     /**
-     * Check and emit only tuple with value of lifetime > LIFETIME_THRESHOLD
-     * and save id in memory if true.
+     * Check if tuple contains a value of lifetime > LIFETIME_THRESHOLD.
+     * If true, emit tuple to PartialRankBolt, else reject it.
      *
      * @param tuple received from FilteringBolt
      */
@@ -132,7 +122,6 @@ public class FilteringByLifetimeBolt extends BaseRichBolt {
         else
             updateOldIdsAndReject(tuple); // remove from old ids list and reject tuple
 
-        //cache.put(MemcachedManager.OLD_COUNTER, JSONConverter.fromHashMapIntInt(oldIds));
         queue.add(JSONConverter.fromHashMapIntInt(oldIds));
     }
 

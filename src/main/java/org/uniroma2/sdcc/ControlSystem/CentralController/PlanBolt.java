@@ -14,7 +14,6 @@ import org.uniroma2.sdcc.Utils.JSONConverter;
 
 import java.util.Map;
 
-
 /**
  * This Bolt is the third component of the Control System's MAPE architecture.
  * Retrieve incoming tuple from Analyze, calculating the total amount of lamp
@@ -39,7 +38,6 @@ public class PlanBolt extends BaseRichBolt {
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
         this.collector = outputCollector;
     }
-
 
     /**
      * PlanBolt operation on incoming tuple.
