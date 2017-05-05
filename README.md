@@ -142,7 +142,7 @@ The topology tested must be running during test execution.
 ### Sensor Network with AWS IoT
 Instead of using only the CINI_StreetLamp_Client application to simulate sensor data generation, it is used AWS **Internet of Things** (IoT) to create a devices network where each device represents a lamp and its related sensors.
 
-The package *LocalController* in *{$HELIOS_HOME}/src/java/main/org/uniroma2/sdcc/ControlSystem* consists in a node.js application representing a controller on a lamp. To communicate with the AWS IoT service you need to put the root-CA.crt certificate in the ./certs directory. You can download the certificate from you AWS IoT console.
+The package *LocalController* in *{$HELIOS_HOME}/src/java/main/org/uniroma2/sdcc/ControlSystem* contains a *node.js* application representing the local controller placed on a lamp. To communicate with the AWS IoT service you need to put the root-CA.crt certificate in the ./certs directory. You can download the certificate from you AWS IoT console.
 
 To install dependencies move into LocalController directory:
 ```
