@@ -4,6 +4,8 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 import org.uniroma2.sdcc.Model.TrafficData;
+import org.uniroma2.sdcc.Services.Traffic.StreetTraffic;
+import org.uniroma2.sdcc.Services.Traffic.StreetTrafficREST;
 
 import java.util.List;
 

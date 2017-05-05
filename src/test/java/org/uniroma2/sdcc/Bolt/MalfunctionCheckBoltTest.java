@@ -4,6 +4,7 @@ import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
+import org.uniroma2.sdcc.Utils.StreetStatistics;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,13 +19,13 @@ import static org.junit.Assert.*;
 public class MalfunctionCheckBoltTest {
 
     String add = "Via Cambdridge";
-    HashMap<String, MalfunctionCheckBolt.StreetStatistics> streetStats
+    HashMap<String, StreetStatistics> streetStats
             = new HashMap<>();
     /* light intensity values */
     ArrayList<Float> values = new ArrayList<>();
 
     HashMap<Integer, Integer> anomalyCounter = new HashMap<>();
-    private MalfunctionCheckBolt.StreetStatistics statistics;
+    private StreetStatistics statistics;
 
 
 
@@ -176,7 +177,7 @@ public class MalfunctionCheckBoltTest {
      */
     private void addPercValues() {
 
-        statistics = new MalfunctionCheckBolt.StreetStatistics();
+        statistics = new StreetStatistics();
         statistics.setOnPercentage(0f); // 0% lights ON
 
         // 2 samples, 1 ON and 1 OFF
@@ -190,8 +191,8 @@ public class MalfunctionCheckBoltTest {
 
 
     private void update(String add, Float intensity){
-        MalfunctionCheckBolt.StreetStatistics stat =
-                new MalfunctionCheckBolt.StreetStatistics(0,0f,0f,0f);
+        StreetStatistics stat =
+                new StreetStatistics(0,0f,0f,0f);
         streetStats.putIfAbsent(this.add,stat);
 
         streetStats.entrySet().stream()
@@ -214,7 +215,7 @@ public class MalfunctionCheckBoltTest {
                     /* update average from updated values */
                     Float updatedMean = oldMean + d / sampleNum;
 
-                    e.setValue(new MalfunctionCheckBolt.StreetStatistics(sampleNum, updatedMean, updatedV, onPercentage));
+                    e.setValue(new StreetStatistics(sampleNum, updatedMean, updatedV, onPercentage));
 
                 });
 

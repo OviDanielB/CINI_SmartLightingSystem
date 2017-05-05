@@ -17,6 +17,8 @@ import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.Address;
 import org.uniroma2.sdcc.Model.MalfunctionType;
+import org.uniroma2.sdcc.Utils.StreetStatistics;
+import org.uniroma2.sdcc.Utils.WeatherHelper;
 
 import javax.xml.bind.JAXBException;
 import java.io.IOException;
@@ -26,7 +28,8 @@ import java.time.ZonedDateTime;
 import java.util.*;
 
 /**
- * Created by ovidiudanielbarba on 21/03/2017.
+ * Bolt that checks for lamp malfunctions and adds them to the message to be
+ * sent forward to next bolt
  */
 public class MalfunctionCheckBolt implements IRichBolt {
 
@@ -61,88 +64,6 @@ public class MalfunctionCheckBolt implements IRichBolt {
 
         initialization();
         periodicWeatherUpdate();
-       // periodicGlobalAvg();
-
-    }
-
-    /**
-     * update weather forecast periodically;
-     * => needed to see if lamp is malfunctioning
-     */
-    private void periodicWeatherUpdate() {
-
-        /* update weather period */
-        long period = 1000 * 60 * 60 * WEATHER_UPDATE_IN_HOURS;
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    weatherService = new YahooWeatherService();
-                    weatherChannel = weatherService.getForecast(CITY_WOEID, DegreeUnit.CELSIUS);
-                    weatherAvailable = true;
-                    updateOnThreshold();
-                    System.out.println("[CINI] Weather Service available! ");
-
-                } catch (JAXBException | IOException e) {
-                    e.printStackTrace();
-                    weatherAvailable = false;
-                }
-
-            }
-        }, 0, period);
-
-    }
-
-    /**
-     * depending on the weather condition,
-     * update threshold of percentage of lamps
-     * that should be on
-     */
-    private void updateOnThreshold() {
-
-        if (WeatherHelper.isDay(weatherChannel) && !WeatherHelper.isCloudy(weatherChannel)) {
-            ON_PERCENTAGE_THRESHOLD = 0.3f;
-        } else {
-            ON_PERCENTAGE_THRESHOLD = 0.7f;
-        }
-    }
-
-    /**
-     * Initialize used variables
-     */
-    protected void initialization() {
-        streetStatistics = new HashMap<>();
-        probablyMalfunctioningCount = new HashMap<>();
-    }
-
-    /**
-     * Prints periodic global average of light intensity
-     */
-    protected void periodicGlobalAvg() {
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-
-                int streetsNum = streetStatistics.size();
-
-                Double globalAvg = streetStatistics.entrySet().stream()
-                        .mapToDouble(MalfunctionCheckBolt::getConsValue)
-                        .reduce(0, (c, d) -> c + d)
-                        / streetsNum; /* divide by number of streets to getString average value */
-
-
-                System.out.println(streetStatistics.toString());
-                System.out.println("[CINI] GLOBAL CONSUMPTION AVERAGE = " + globalAvg + "\n");
-
-
-            }
-        }, 30000, 10000);
-    }
-
-    private static double getConsValue(Map.Entry<String, StreetStatistics> stringAverageStatisticsEntry) {
-        return stringAverageStatisticsEntry.getValue().getCurrentMean();
     }
 
     /**
@@ -211,6 +132,57 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
     /**
+     * update weather forecast periodically;
+     * => needed to see if lamp is malfunctioning
+     */
+    private void periodicWeatherUpdate() {
+
+        /* update weather period */
+        long period = 1000 * 60 * 60 * WEATHER_UPDATE_IN_HOURS;
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    weatherService = new YahooWeatherService();
+                    weatherChannel = weatherService.getForecast(CITY_WOEID, DegreeUnit.CELSIUS);
+                    weatherAvailable = true;
+                    updateOnThreshold();
+
+                } catch (JAXBException | IOException e) {
+                    e.printStackTrace();
+                    weatherAvailable = false;
+                }
+
+            }
+        }, 0, period);
+
+    }
+
+    /**
+     * depending on the weather condition,
+     * update threshold of percentage of lamps
+     * that should be on
+     */
+    private void updateOnThreshold() {
+
+        if (WeatherHelper.isDay(weatherChannel) && !WeatherHelper.isCloudy(weatherChannel)) {
+            ON_PERCENTAGE_THRESHOLD = 0.3f;
+        } else {
+            ON_PERCENTAGE_THRESHOLD = 0.7f;
+        }
+    }
+
+    /**
+     * Initialize used variables
+     */
+    protected void initialization() {
+        streetStatistics = new HashMap<>();
+        probablyMalfunctioningCount = new HashMap<>();
+    }
+
+
+    /**
      * DOCS
      * https://developer.yahoo.com/weather/documentation.html
      * detects multiple types of weather anomalies like
@@ -273,11 +245,8 @@ public class MalfunctionCheckBolt implements IRichBolt {
     protected boolean almostSurelyMalfunction(Integer id) {
 
         if (probablyMalfunctioningCount.get(id) > NUM_PROBABLE_MALF_THRESHOLD) {
-            System.out.println("[CINI] [ALERT] Street Lamp with ID " + id +
-                    " exceeded malfunctioning threshold of " + NUM_PROBABLE_MALF_THRESHOLD + "!");
             return true;
         }
-
         return false;
     }
 
@@ -499,245 +468,5 @@ public class MalfunctionCheckBolt implements IRichBolt {
     }
 
 
-    /**
-     * defines methods for checking right light intensity
-     * comparing to given weather conditions
-     */
-    private static class WeatherHelper {
 
-        public static final Float CLOUDY_SKY_INTENSITY_MINIMUM = 70.0f;
-        public static final Float SUNNY_SKY_INTENSITY_MAXIMUM = 10.0f;
-        public static final Float VISIBILITY_INTENSITY_MINIMUM = 80.0f;
-        public static final Float VISIBILITY_INTENSITY_MAXIMUM = 10.0f;
-        public static final Float DARK_SKY_INTENSITY_MINIMUM = 90.0f;
-        public static final Float GLARE_SKY_INTENSITY_MAXIMUM = 50.0f;
-        public static final Integer[] darkSkyCodes = {1, 2, 3, 4, 5, 6, 7, 8, 9,
-                10, 11, 12, 13, 14, 19, 20, 21, 26, 27, 28, 29, 30, 37, 38, 39, 40, 44, 45, 47};
-
-
-        public WeatherHelper() {
-        }
-
-        /**
-         * checks if it's day now
-         *
-         * @param weather channel
-         * @return true if it's day, false otherwise
-         */
-        public static boolean isDay(Channel weather) {
-            ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
-            LocalDateTime now = currentDate.toLocalDateTime();
-            Integer nowHour = now.getHour();
-
-            Astronomy astronomy = weather.getAstronomy();
-            Time sunrise = astronomy.getSunrise();
-            Time sunset = astronomy.getSunset();
-
-            if (nowHour > sunrise.getHours() && nowHour < sunset.getHours()) {
-                return true;
-            }
-
-            return false;
-
-        }
-
-        /**
-         * check if it's cloudy
-         *
-         * @param weather channel
-         * @return true if it's cloudy, else otherwise
-         */
-        public static boolean isCloudy(Channel weather) {
-
-            return darkSkyFromCode(weather.getItem().getCondition().getCode());
-        }
-
-        /**
-         * checks if it's dark sky from yahoo condition code
-         *
-         * @param code yahoo condition code
-         * @return true if it's dark, false otherwise
-         */
-        private static boolean darkSkyFromCode(Integer code) {
-            return Arrays.stream(darkSkyCodes).
-                    filter(e -> e.equals(code)).count() > 0;
-        }
-
-        /**
-         * given certain visibility thresholds,
-         * determines the difference between
-         * the actual intensity and the interval
-         * in which it should be
-         *
-         * @param intensity  value from lamp
-         * @param visibility
-         * @return hashmap with different values
-         */
-        private static HashMap<Float, Float> rightIntensityByVisibility(Float intensity, Float visibility) {
-            HashMap<Float, Float> i = new HashMap<>();
-
-            Float underGap = intensity - VISIBILITY_INTENSITY_MINIMUM;
-            Float overGap = intensity - VISIBILITY_INTENSITY_MAXIMUM;
-            if (!(visibility > .5) && underGap < 0) {
-                i.put(VISIBILITY_INTENSITY_MINIMUM, underGap);
-                i.put(VISIBILITY_INTENSITY_MAXIMUM, 0f);
-                return i;
-            } else if (visibility > .5 && overGap > 0) {
-                i.put(VISIBILITY_INTENSITY_MINIMUM, 0f);
-                i.put(VISIBILITY_INTENSITY_MAXIMUM, overGap);
-                return i;
-            }
-            i.put(VISIBILITY_INTENSITY_MINIMUM, 0f);
-            i.put(VISIBILITY_INTENSITY_MAXIMUM, 0f);
-            return i;
-        }
-
-
-        /**
-         * given certain weather thresholds,
-         * determines the difference between
-         * the actual intensity and the interval
-         * in which it should be
-         *
-         * @param code      yahoo condition code
-         * @param intensity value from lamp
-         * @return hashmap with different values
-         */
-        public static HashMap<Float, Float> rightIntensityOnWeatherByCode(Integer code, Float intensity) {
-
-            HashMap<Float, Float> i = new HashMap<>();
-            Float underGap = intensity - CLOUDY_SKY_INTENSITY_MINIMUM;
-            Float overGap = intensity - SUNNY_SKY_INTENSITY_MAXIMUM;
-            // if cloudy sky
-            if (darkSkyFromCode(code)) {
-                if (underGap < 0) {
-                    i.put(CLOUDY_SKY_INTENSITY_MINIMUM, underGap);
-                    i.put(SUNNY_SKY_INTENSITY_MAXIMUM, 0f);
-                    return i;
-                }
-            } else if (overGap > 0) {
-                i.put(SUNNY_SKY_INTENSITY_MAXIMUM, overGap);
-                i.put(CLOUDY_SKY_INTENSITY_MINIMUM, 0f);
-                return i;
-            }
-            i.put(CLOUDY_SKY_INTENSITY_MINIMUM, 0f);
-            i.put(SUNNY_SKY_INTENSITY_MAXIMUM, 0f);
-            return i;
-
-        }
-
-        /**
-         * given certain astronomy (sunset,sunrise) thresholds,
-         * determines the difference between
-         * the actual intensity and the interval
-         * in which it should be
-         *
-         * @param intensity lamp value
-         * @param astronomy sunset,sunrise,etc
-         * @return hashmap with different values
-         */
-        public static HashMap<Float, Float> rightIntesityByAstronomy(Float intensity, Astronomy astronomy) {
-            ZonedDateTime currentDate = ZonedDateTime.now(ZoneOffset.UTC);
-            LocalDateTime now = currentDate.toLocalDateTime();
-            Integer nowHour = now.getHour();
-            Integer nowMin = now.getMinute();
-
-            Time sunrise = astronomy.getSunrise();
-            Time sunset = astronomy.getSunset();
-
-            HashMap<Float, Float> i = new HashMap<>();
-            Float underGap = intensity - DARK_SKY_INTENSITY_MINIMUM;
-            Float overGap = intensity - GLARE_SKY_INTENSITY_MAXIMUM;
-            /* if it's dark */
-            if (nowHour < sunrise.getHours() || nowHour > sunset.getHours()) {
-                if (underGap < 0) {
-                    i.put(DARK_SKY_INTENSITY_MINIMUM, underGap);
-                    i.put(GLARE_SKY_INTENSITY_MAXIMUM, 0f);
-                    return i;
-                }
-            } else if (overGap > 0) {
-                i.put(DARK_SKY_INTENSITY_MINIMUM, 0f);
-                i.put(GLARE_SKY_INTENSITY_MAXIMUM, overGap);
-                return i;
-            }
-            i.put(DARK_SKY_INTENSITY_MINIMUM, 0f);
-            i.put(GLARE_SKY_INTENSITY_MAXIMUM, 0f);
-            return i;
-        }
-    }
-
-
-    /**
-     * maintains stastics (mean, percentage of on lamps,etc)
-     * for every street
-     */
-    protected static class StreetStatistics {
-        private Integer sampleNumb;
-        private Float currentMean;
-        private Float currentV;
-        private Float onPercentage;
-
-        public StreetStatistics(Integer sampleNumb, Float currentValue, Float currentV, Float onPercentage) {
-            this.sampleNumb = sampleNumb;
-            this.currentMean = currentValue;
-            this.currentV = currentV;
-            this.onPercentage = onPercentage;
-        }
-
-        public StreetStatistics() {
-        }
-
-        public Float stdDev() {
-            return (float) Math.sqrt(this.currentV / this.sampleNumb);
-        }
-
-        public Integer getSampleNumb() {
-            return sampleNumb;
-        }
-
-        public void setSampleNumb(Integer sampleNumb) {
-            this.sampleNumb = sampleNumb;
-        }
-
-        public Float getCurrentMean() {
-            return currentMean;
-        }
-
-        public void setCurrentMean(Float currentMean) {
-            this.currentMean = currentMean;
-        }
-
-        public Float getCurrentV() {
-            return currentV;
-        }
-
-        public void setCurrentV(Float currentStdDev) {
-            this.currentV = currentStdDev;
-        }
-
-        public Float getOnPercentage() {
-            return onPercentage;
-        }
-
-        public void setOnPercentage(Float onPercentage) {
-            this.onPercentage = onPercentage;
-        }
-
-        public void updateOnPercentage(Float on) {
-            if (!sampleNumb.equals(0f)) {
-                this.onPercentage = onPercentage + (on - onPercentage) / (sampleNumb);
-            }
-        }
-
-        @Override
-        public String toString() {
-            return "StreetStatistics{" +
-                    "sampleNumb=" + sampleNumb +
-                    ", currentMean=" + currentMean +
-                    ", currentV=" + currentV +
-                    ", currentStdDev = " + stdDev() +
-                    ", onPercentage = " + onPercentage +
-                    '}';
-        }
-    }
 }

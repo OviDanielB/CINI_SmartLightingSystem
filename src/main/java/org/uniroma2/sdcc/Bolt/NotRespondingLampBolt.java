@@ -9,39 +9,29 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.uniroma2.sdcc.Constants;
 import org.uniroma2.sdcc.Model.*;
-import org.uniroma2.sdcc.Utils.Config.RabbitConfig;
-import org.uniroma2.sdcc.Utils.Config.YamlConfigRunner;
-import org.uniroma2.sdcc.Utils.HeliosLog;
-import org.uniroma2.sdcc.Utils.JSONConverter;
-import org.uniroma2.sdcc.Utils.MOM.PubSubManager;
-import org.uniroma2.sdcc.Utils.MOM.QueueClientType;
-import org.uniroma2.sdcc.Utils.MOM.RabbitPubSubManager;
+import org.uniroma2.sdcc.Utils.MOM.AnomalyQueueConsumerToRabbit;
+import org.uniroma2.sdcc.Utils.MOM.AnomalyQueueProducer;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Created by ovidiudanielbarba on 30/03/2017.
+ * Bolt that saves last message (with relative timestamp)
+ * received by every single lamp and detects if it hasn't
+ * responded in a certain parametrized period
  */
 public class NotRespondingLampBolt implements IRichBolt {
 
     private OutputCollector collector;
+
     /* (K,V) -> (LampID, Timestamp last received message) */
     private ConcurrentHashMap<Integer, AnomalyStreetLampMessage> notRespondingCount;
-
     private ConcurrentLinkedQueue<AnomalyStreetLampMessage> noResponseLampsToRabbit;
 
     /* in seconds */
     private static final Integer RESPONSE_CHECKER_PERIOD = 10;
-
-    /* time after which a lamp not responding is considered malfunctioning  */
-    private static final Long NO_RESPONSE_INTERVAL = 60L; /* seconds */
-
-    private static final String LOG_TAG = "[NotRespondingLampBolt]";
-
 
     /**
      * Bolt initialization
@@ -136,31 +126,25 @@ public class NotRespondingLampBolt implements IRichBolt {
 
         /* start periodic producer on queue */
         Timer timer = new Timer();
-        QueueProducer producer = new QueueProducer(noResponseLampsToRabbit,notRespondingCount);
+        AnomalyQueueProducer producer = new AnomalyQueueProducer(noResponseLampsToRabbit,notRespondingCount);
         timer.schedule(producer,5000, 1000 * RESPONSE_CHECKER_PERIOD);
 
 
         /* start consumer thread on queue */
         Timer consumerTimer = new Timer();
-        QueueConsumerToRabbit consumerToRabbit = new QueueConsumerToRabbit(noResponseLampsToRabbit);
+        AnomalyQueueConsumerToRabbit consumerToRabbit = new AnomalyQueueConsumerToRabbit(noResponseLampsToRabbit);
         consumerTimer.schedule(consumerToRabbit,6000, 1000 * RESPONSE_CHECKER_PERIOD);
-
-
     }
 
     /* update lamp list with recent values */
     private void updateLampList(Integer id, AnomalyStreetLampMessage anomalyMess) {
 
-        // TODO
         notRespondingCount.put(id, anomalyMess);
-
     }
 
     @Override
     public void cleanup() {
-
     }
-
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
@@ -182,121 +166,4 @@ public class NotRespondingLampBolt implements IRichBolt {
     public Map<String, Object> getComponentConfiguration() {
         return null;
     }
-
-
-
-    /**
-     * Thread that executes periodically (given by TimerTask),
-     * iterates the hashmap and produces in a queue the street lamps
-     * that have not responded for a while
-     */
-    private class QueueProducer extends TimerTask{
-        /* queue where it produces */
-        private ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue;
-
-        /* hashmap from where it gets anomaly messages */
-        private ConcurrentHashMap<Integer,AnomalyStreetLampMessage> hashMap;
-
-        /* constructor */
-        public QueueProducer(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue,
-                             ConcurrentHashMap map) {
-            this.queue = queue;
-            this.hashMap = map;
-        }
-
-        /**
-         * iterates hashmap, checks if messages
-         * have not been updated for more than
-         * NO_RESPONSE_INTERVAL time (meaning that the lamp
-         * is not sending messages anymore) and puts the old ones
-         * on a linked queue (where a consumer awaits to send them)
-         */
-        @Override
-        public void run() {
-
-            hashMap.entrySet().stream()
-                    .filter( e -> {
-                        Long now = System.currentTimeMillis();
-                        Long lastMessTime = e.getValue().getTimestamp();
-                            /* if difference from time now and last received message
-                             is greater than NO_RESPONSE_INTERVAL => it's not working anymore */
-                        return ( now - lastMessTime ) > NO_RESPONSE_INTERVAL * 1000; /* in milliseconds */
-                    }).forEach(e -> {
-
-                        /* add another anomaly since it is not responding for a while */
-                        adjustAnomaliesList(e);
-
-                        /* adds on final queue, where consumer is present */
-                        queue.add(e.getValue());
-
-                        /* removes from hashMap (avoid being processed multiple times )*/
-                        hashMap.remove(e.getKey());
-                        System.out.println("[CINI] Not Responding LAMP with ID " + e.getKey() + " has not responded for longer than " +
-                               "" + NO_RESPONSE_INTERVAL + " seconds");
-
-            });
-        }
-
-        /**
-         * adds NOT_RESPONDING anomaly
-         * @param e (K, V) -> (Lamp ID, message received)
-         */
-        private void adjustAnomaliesList(Map.Entry<Integer, AnomalyStreetLampMessage> e) {
-
-            HashMap<MalfunctionType, Float> map = e.getValue().getAnomalies();
-
-            if(map.containsKey(MalfunctionType.NONE)){
-                map.remove(MalfunctionType.NONE);
-            }
-
-            map.put(MalfunctionType.NOT_RESPONDING,0f);
-        }
-    }
-
-    /**
-     * consumes messages from the queue and sends it on a rabbitmq
-     */
-    private class QueueConsumerToRabbit extends TimerTask{
-
-        /* queue where it consumes*/
-        private ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue;
-
-        /* message -> json -> rabbit*/
-        private PubSubManager pubSubManager;
-
-        /* topic based pub/sub */
-        private  final String ROUTING_KEY = "dashboard.anomalies";
-
-        /* constructor */
-        public QueueConsumerToRabbit(ConcurrentLinkedQueue<AnomalyStreetLampMessage> queue) {
-            this.queue = queue;
-
-            /* connect to rabbit with pub/sub mode */
-            pubSubManager = new RabbitPubSubManager();
-
-        }
-
-        /**
-         * continuously polls queue for new messages;
-         * if message present, takes it ,
-         * converts to json and sends on queue
-         */
-        @Override
-        public void run() {
-
-            /* poll queue for new messages */
-            AnomalyStreetLampMessage message;
-            String jsonMsg;
-
-            while( (message = queue.poll()) != null){
-
-                /* convert to json */
-                jsonMsg = JSONConverter.fromAnomalyStreetLampMessage(message);
-
-                /* publish with relative routing key */
-                pubSubManager.publish(ROUTING_KEY,jsonMsg);
-            }
-        }
-    }
-
 }

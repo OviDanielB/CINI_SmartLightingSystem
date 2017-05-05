@@ -54,22 +54,19 @@ public class AnomaliesDetectionTopology {
 
     public static void main(String[] args) throws Exception {
         Config config = new Config();
-        config.setNumWorkers(16);
-        config.setMessageTimeoutSecs(10);
+        config.setNumWorkers(4);
+        config.setMessageTimeoutSecs(50);
         config.setMaxSpoutPending(250);
-
-        //config.setDebug(true);
-        //config.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(),3);
+        builder.setSpout(RABBIT_SPOUT, new RabbitMQSpout(),2);
 
-        builder.setBolt(FILTER_BOLT, new FilteringBolt(),15)
-                .setNumTasks(20)
+        builder.setBolt(FILTER_BOLT, new FilteringBolt(),20)
+                .setNumTasks(25)
                 .shuffleGrouping(RABBIT_SPOUT);
 
-        builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt(),12)
+        builder.setBolt(MALFUNCTION_CHECK_BOLT, new MalfunctionCheckBolt(),10)
                 .setNumTasks(18)
                 .fieldsGrouping(FILTER_BOLT,new Fields(Constants.ADDRESS));
 
@@ -81,7 +78,7 @@ public class AnomaliesDetectionTopology {
                 .setNumTasks(16)
                 .fieldsGrouping(NOT_RESPONDING_LAMP_BOLT,new Fields(Constants.ADDRESS));
 
-        builder.setBolt(PLAN_CONTROL_BOLT,new PlanBolt(),5)
+        builder.setBolt(PLAN_CONTROL_BOLT,new PlanBolt(),8)
                 .setNumTasks(10)
                 .fieldsGrouping(ANALYZE_CONTROL_BOLT,new Fields(Constants.ID));
 
