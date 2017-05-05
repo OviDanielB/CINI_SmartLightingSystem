@@ -204,7 +204,7 @@ An example:
 ~$ curl -O https://raw.githubusercontent.com/OviDanielB/cini-aws-help/master/swarm-compose.yml
 ```
 6) Download raw file *<topologyName>.jar* from the GitHub repository to make it available for Storm Submitter container
-7) Make a new directory *ParkingREST_API* and download via *curl* raw files in folder *ParkingREST_API* from the GitHub repository to make it available for NodeJs server container
+7) Make a new directory *ParkingREST* and download via *curl* raw files in folder *Services/Parking* from the GitHub repository to make it available for NodeJs server container
 8) Deploy Docker stack in Swarm mode
 ```
 ~$ deploy stack deploy -c swarm-compose.yml <stackName> 
