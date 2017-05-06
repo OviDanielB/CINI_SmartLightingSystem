@@ -15,7 +15,7 @@ var delay = 10000;                                          // publish data ever
 var thingName;                                              // device name
 var thingID;                                                // thing id
 var intensity = (Math.round(Math.random() * 1000)) / 10;    // light intensity in percentage
-var street;
+var street = "VIA STRADA"+(Math.round(Math.random()*100));
 var cellID;
 // cellID -1 with probability 0.5
 var n1 = randomInt(1000, 31000);
@@ -323,24 +323,6 @@ function iot_connection() {
 }
 
 /**
- * Read a specific line of a file.
- *
- * @param filename path to file
- * @param line_no number of line to read
- * @param callback
- */
-function get_line(filename, line_no, callback) {
-    var data = fs.readFileSync(filename, 'utf8');
-    var lines = data.split("\n");
-
-    if (+line_no > lines.length) {
-        throw new Error('File end reached without finding line');
-    }
-
-    callback(null, lines[+line_no]);
-}
-
-/**
  *  Generate random int between two edges.
  *
  *  @param low minimum value
@@ -350,9 +332,5 @@ function randomInt(low, high) {
     return Math.floor(Math.random() * (high - low) + low);
 }
 
-// Read streets from file
-get_line('./address_list.txt', randomInt(0, 99), function (err, line) {
-    street = line.toUpperCase();
-});
 // Send data
 generate();
