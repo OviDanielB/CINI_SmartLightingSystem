@@ -116,13 +116,10 @@ To stop topology and destroy the Docker cluster of containers
 ```
 
 ## Running the tests
-The following tests are run using client simultators application from repository https://github.com/OviDanielB/CINI_StreetLamp_Client using arguments:
-* *normal* if random tuples are generated with values of consumption and intensity following a Gaussian Distribution
-* *anomalies* if random tuples are generated and changed to create some anomalies
-
-```
-{$CLIENT_HOME}/target$ java -jar CINI_StreetLamp_Client.jar <args>
-```
+Tests were executed using the [CINI_StreetLamp_Client](https://github.com/OviDanielB/CINI_StreetLamp_Client)
+as a lamp simulator. In the project directory test/deploy all the jars of the different topology on which
+the tests were executed are present along with the *swarm-compose.yml* Docker compose file for the containers deployment
+on a Swarm Cluster.
 
 ### Unit tests
 Unit tests test correct single component operations execution. 
@@ -187,7 +184,7 @@ $ pm2 stop device
 ## Deployment
 For Cloud Deployment of HELIOS System are used **Amazon Web Services Cloud Formation** and **Elastic Compute Cloud** (EC2) instances.
 1) Sign in AWS account
-2) Create a **Docker stack** following the Docker template to deploy the cluster in **Swarm Mode** with AWS Cloud Formation, available at https://stelligent.com/2017/02/21/docker-swarm-mode-on-aws/
+2) Create a **Docker stack** following the Docker template to deploy the cluster in **Swarm Mode** with AWS Cloud Formation, available at https://editions-us-east-1.s3.amazonaws.com/aws/stable/Docker.tmpl
     a) Choose the stack name
     b) Select number of *manager* nodes
     c) Select number of *worker* nodes

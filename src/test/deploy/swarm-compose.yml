@@ -1,0 +1,138 @@
+# rabbit queue
+version: "3"
+services:
+
+  rabbit:
+    image: rabbitmq:alpine
+    hostname: rabbit
+#    command: bash -c "rabbitmq-plugins enable rabbitmq_management"
+    networks:
+      - cini
+    ports:
+      - "5672:5672"
+      - "1883:1883"
+      - "8883:8883"
+      - "15672:15672"  #rabbit UI
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
+
+  rabbit_dashboard:
+    image: rabbitmq:alpine
+    hostname: rabbit_dashboard
+#    command: bash -c "rabbitmq-plugins enable rabbitmq_management"
+    networks:
+      - cini
+    ports:
+      - "5673:5672"
+      - "1884:1883"
+      - "8884:8883"
+      - "15673:15672" #rabbit UI
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
+  memc:
+    image: memcached:alpine
+    hostname: memc
+    networks:
+      - cini
+    ports:
+      - "11211:11211"
+
+  zookeeper:
+    image: zookeeper:3.4
+    hostname: zookeeper
+    networks:
+      - cini
+    deploy:
+#      mode: replicated
+#      replicas: 2
+      placement:
+        constraints: [node.role == manager]
+
+
+  nimbus:
+    image: storm:1.0.3
+    hostname: nimbus
+    command: bash -c "storm nimbus"
+    networks:
+      - cini
+    depends_on:
+      - zookeeper
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
+  supervisor:
+    image: storm:1.0.3
+    command: bash -c "storm supervisor"
+    networks:
+      - cini
+    depends_on:
+      - zookeeper
+      - nimbus
+      - rabbit
+      - rabbit_dashboard
+      - memc
+    deploy:
+      mode: replicated
+      replicas: 4
+
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
+  storm-ui:
+    image: storm:1.0.3
+    command: bash -c "storm ui"
+    networks:
+      - cini
+    ports:
+      - "8000:8080" #storm UI
+    depends_on:
+      - nimbus
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
+  storm-submitter:
+    image: storm:1.0.3
+    command: bash -c "storm jar /stat.jar org.uniroma2.sdcc.ConsumptionStatisticsTopology  "
+    volumes:
+      - "/home/docker/stat.jar:/stat.jar"
+    networks:
+      - cini
+    depends_on:
+      - nimbus
+
+#  redis:
+#    image: redis:alpine
+#    networks:
+#      - cini
+#    ports:
+#      - "6379:6379"
+#    deploy:
+#      placement:
+#        constraints: [node.role == manager]
+
+#  dashboard:
+#    image: node:alpine
+#    command: bash -c "cd /dashboard && npm install && node server.js"
+#    volumes:
+#      - "/home/docker/dashboard:/dashboard"
+#    networks:
+#      - cini
+#    depends_on:
+#      - redis
+
+
+networks:
+    cini:
